@@ -198,6 +198,7 @@
         async function loadImageForThread(threadId, magnetUrl) {
             const isValidMagnet = /^magnet:\?xt=urn:btih:[a-fA-F0-9]{40,}/.test(magnetUrl);
             if (!isValidMagnet) {
+                console.log(`Invalid magnet URL for thread ${threadId}: ${magnetUrl}`);
                 return;
             }
 
