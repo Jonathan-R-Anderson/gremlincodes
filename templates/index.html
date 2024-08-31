@@ -52,7 +52,7 @@
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
 
                     gremlinThreadContract = new web3.eth.Contract(
-                        {{ gremlinThreadABI }},
+                        {{ gremlinThreadABI | safe }},
                         {{ gremlinThreadAddress }}
                     );
                     console.log(gremlinThreadABI);

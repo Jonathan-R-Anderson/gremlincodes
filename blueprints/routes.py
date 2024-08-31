@@ -6,4 +6,6 @@ blueprint = Blueprint('blueprint', __name__)
 
 @blueprint.route('/')
 def index():
-    return render_template('index.html', gremlinThreadABI=json.dumps(gremlinThreadABI[0]), gremlinThreadAddress=gremlinThreadAddress)
+    return render_template('index.html', 
+                           gremlinThreadABI=json.dumps(gremlinThreadABI, ensure_ascii=False),  # Avoid ASCII escaping
+                           gremlinThreadAddress=gremlinThreadAddress)
