@@ -53,7 +53,7 @@
 
                     gremlinThreadContract = new web3.eth.Contract(
                         {{ gremlinThreadABI|tojson }},
-                        '{{ gremlinThreadAddress }}'
+                        {{ gremlinThreadAddress }}
                     );
 
                     await loadMorePosts();
