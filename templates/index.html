@@ -9,6 +9,18 @@
 
     <style>
         /* Styles remain unchanged */
+        .thread-container {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+
+        img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -66,56 +78,48 @@
         }
 
         async function getAllThreads(start, limit) {
-    console.log(`getAllThreads called with start=${start}, limit=${limit}`);
-    try {
-        const threadCount = await gremlinThreadContract.methods.getThreadCount().call();
-        console.log(`Total threads available: ${threadCount}`);
-        const totalThreads = Number(threadCount);
-
-        let threads = [];
-
-        for (let i = start + 1; i <= Math.min(start + limit, totalThreads); i++) {
+            console.log(`getAllThreads called with start=${start}, limit=${limit}`);
             try {
-                console.log(`Fetching thread ${i}...`);
-                const thread = await gremlinThreadContract.methods.getThreadInfo(i).call();
-                console.log(`Thread ${i} fetched:`, thread);
+                const threadCount = await gremlinThreadContract.methods.getThreadCount().call();
+                console.log(`Total threads available: ${threadCount}`);
+                const totalThreads = Number(threadCount);
 
-                // Assign the id manually since there's no timestamp or transaction data
-                thread.id = i;
+                let threads = [];
 
-                // Safely handle timestamp conversion if it exists
-                if (thread.timestamp) {
-                    thread.timestamp = new Date(thread.timestamp * 1000).toLocaleString();
-                } else {
-                    thread.timestamp = "No timestamp available";
+                for (let i = start + 1; i <= Math.min(start + limit, totalThreads); i++) {
+                    try {
+                        console.log(`Fetching thread ${i}...`);
+                        const thread = await gremlinThreadContract.methods.getThreadInfo(i).call();
+                        console.log(`Thread ${i} fetched:`, thread);
+
+                        // Assign the id manually since there's no timestamp or transaction data
+                        thread.id = i;
+
+                        // Safely handle timestamp conversion if it exists
+                        thread.timestamp = thread.timestamp ? new Date(thread.timestamp * 1000).toLocaleString() : "No timestamp available";
+
+                        // Safely handle last reply timestamp conversion if it exists
+                        thread.lastReplyTimestamp = thread.lastReplyTimestamp ? new Date(thread.lastReplyTimestamp * 1000).toLocaleString() : "No last reply timestamp available";
+
+                        threads.push(thread);
+                    } catch (innerError) {
+                        console.log(`Error fetching thread ${i}:`, innerError);
+                    }
                 }
 
-                // Safely handle last reply timestamp conversion if it exists
-                if (thread.lastReplyTimestamp) {
-                    thread.lastReplyTimestamp = new Date(thread.lastReplyTimestamp * 1000).toLocaleString();
-                } else {
-                    thread.lastReplyTimestamp = "No last reply timestamp available";
+                // Sort threads by id or other available properties if needed
+                threads.sort((a, b) => b.id - a.id);
+
+                for (let thread of threads) {
+                    await displayThread(thread);
+                    console.log(`Thread ${thread.id} displayed.`);
+                    loadedThreads++;
                 }
 
-                threads.push(thread);
-            } catch (innerError) {
-                console.log(`Error fetching thread ${i}:`, innerError);
+            } catch (error) {
+                console.log('Error in getAllThreads:', error);
             }
         }
-
-        // If you need to sort threads, you can still do it based on available properties
-        threads.sort((a, b) => b.id - a.id);
-
-        for (let thread of threads) {
-            await displayThread(thread);
-            console.log(`Thread ${thread.id} displayed.`);
-            loadedThreads++;
-        }
-
-    } catch (error) {
-        console.log('Error in getAllThreads:', error);
-    }
-}
 
         async function submitPost() {
             const title = document.getElementById('newPostTitle').value;
@@ -130,10 +134,9 @@
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 const account = accounts[0];
 
-
                 console.log(`Submitting post with title: ${title}, content: ${content}, tags: ${tags}, attachments: ${attachments}`);
                 // Create a new thread on the blockchain using the gremlinThreadContract
-                await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: 6000000});
+                await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: 6000000 });
 
                 closeOverlay();
                 await refreshThreads();
@@ -195,82 +198,77 @@
             threadContainer.appendChild(ethAddressElement);
 
             const dateElement = document.createElement('p');
-            dateElement.innerText = `Posted: ${thread.timestamp.toLocaleString()}`;
+            dateElement.innerText = `Posted: ${thread.timestamp}`;
             threadContainer.appendChild(dateElement);
 
             document.getElementById('infiniteScrollContent').appendChild(threadContainer);
 
             const attachments = thread.attachments || [];
             for (let attachment of attachments) {
-                loadImageForThread(thread.id, attachment);
+                await loadImageForThread(thread.id, attachment);
                 console.log(`Loaded image for thread ${thread.id}: ${attachment}`);
             }
         }
 
-
-
-
         async function loadImageForThread(threadId, magnetUrl) {
-    console.log(`Attempting to load image for thread ${threadId} with magnet URL: ${magnetUrl}`);
+            console.log(`Attempting to load image for thread ${threadId} with magnet URL: ${magnetUrl}`);
 
-    const isValidMagnet = /^magnet:\?xt=urn:btih:[a-fA-F0-9]{40,}/.test(magnetUrl);
-    if (!isValidMagnet) {
-        console.log(`Invalid magnet URL for thread ${threadId}: ${magnetUrl}`);
-        return;
-    }
+            const isValidMagnet = /^magnet:\?xt=urn:btih:[a-fA-F0-9]{40,}/.test(magnetUrl);
+            if (!isValidMagnet) {
+                console.log(`Invalid magnet URL for thread ${threadId}: ${magnetUrl}`);
+                return;
+            }
 
-    try {
-        const client = new WebTorrent();
+            try {
+                const client = new WebTorrent();
 
-        client.add(magnetUrl, (torrent) => {
-            console.log(`Torrent added for thread ${threadId}. Files available:`, torrent.files);
+                client.add(magnetUrl, (torrent) => {
+                    console.log(`Torrent added for thread ${threadId}. Files available:`, torrent.files);
 
-            torrent.on('done', () => {
-                const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
-                if (!file) {
-                    console.log(`No image file found in torrent for thread ${threadId}`);
-                    return;
-                }
-                
-                console.log(`Torrent download completed for thread ${threadId}. File:`, file);
+                    torrent.on('done', () => {
+                        const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
+                        if (!file) {
+                            console.log(`No image file found in torrent for thread ${threadId}`);
+                            return;
+                        }
 
-                file.getBlobURL((err, url) => {
-                    if (err) {
-                        console.log(`Error generating blob URL for thread ${threadId}:`, err);
-                        return;
-                    }
+                        console.log(`Torrent download completed for thread ${threadId}. File:`, file);
 
-                    if (!url) {
-                        console.log(`No URL generated for thread ${threadId}`);
-                        return;
-                    }
+                        file.getBlobURL((err, url) => {
+                            if (err) {
+                                console.log(`Error generating blob URL for thread ${threadId}:`, err);
+                                return;
+                            }
 
-                    console.log(`Loaded image URL for thread ${threadId}: ${url}`);
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.alt = 'Image from magnet URL';
-                    img.style.maxWidth = '100%';
+                            if (!url) {
+                                console.log(`No URL generated for thread ${threadId}`);
+                                return;
+                            }
 
-                    const threadContainer = document.querySelector(`#thread-${threadId}`);
-                    if (threadContainer) {
-                        threadContainer.appendChild(img);
-                        console.log(`Image appended to thread ${threadId}`);
-                    } else {
-                        console.log(`Thread container not found for thread ${threadId}`);
-                    }
+                            console.log(`Loaded image URL for thread ${threadId}: ${url}`);
+                            const img = document.createElement('img');
+                            img.src = url;
+                            img.alt = 'Image from magnet URL';
+                            img.style.maxWidth = '100%';
+
+                            const threadContainer = document.querySelector(`#thread-${threadId}`);
+                            if (threadContainer) {
+                                threadContainer.appendChild(img);
+                                console.log(`Image appended to thread ${threadId}`);
+                            } else {
+                                console.log(`Thread container not found for thread ${threadId}`);
+                            }
+                        });
+                    });
+
+                    torrent.on('error', (torrentErr) => {
+                        console.log(`Torrent error for thread ${threadId}:`, torrentErr);
+                    });
                 });
-            });
-
-            torrent.on('error', (torrentErr) => {
-                console.log(`Torrent error for thread ${threadId}:`, torrentErr);
-            });
-        });
-    } catch (err) {
-        console.log(`Error in loadImageForThread for thread ${threadId}:`, err);
-    }
-}
-
-
+            } catch (err) {
+                console.log(`Error in loadImageForThread for thread ${threadId}:`, err);
+            }
+        }
 
         function showOverlay() {
             document.getElementById('overlay').style.height = "100%";
