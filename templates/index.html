@@ -91,13 +91,9 @@
                         const thread = await gremlinThreadContract.methods.getThreadInfo(i).call();
                         console.log(`Thread ${i} fetched:`, thread);
 
-                        // Assign the id manually since there's no timestamp or transaction data
                         thread.id = i;
 
-                        // Safely handle timestamp conversion if it exists
                         thread.timestamp = thread.timestamp ? new Date(thread.timestamp * 1000).toLocaleString() : "No timestamp available";
-
-                        // Safely handle last reply timestamp conversion if it exists
                         thread.lastReplyTimestamp = thread.lastReplyTimestamp ? new Date(thread.lastReplyTimestamp * 1000).toLocaleString() : "No last reply timestamp available";
 
                         threads.push(thread);
@@ -106,7 +102,6 @@
                     }
                 }
 
-                // Sort threads by id or other available properties if needed
                 threads.sort((a, b) => b.id - a.id);
 
                 for (let thread of threads) {
@@ -127,14 +122,12 @@
             const imageFile = document.getElementById('imageUpload').files[0];
 
             try {
-                // Upload the image file to the server and get the magnet URL in response
                 const magnetUrl = await uploadToServer(imageFile);
                 const attachments = [magnetUrl];
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 const account = accounts[0];
 
                 console.log(`Submitting post with title: ${title}, content: ${content}, tags: ${tags}, attachments: ${attachments}`);
-                // Create a new thread on the blockchain using the gremlinThreadContract
                 await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: 6000000 });
 
                 closeOverlay();
@@ -179,100 +172,37 @@
         }
 
         async function displayThread(thread) {
-    const threadContainer = document.createElement('div');
-    threadContainer.className = 'thread-container';
-    threadContainer.id = `thread-${thread.id}`;
+            const threadContainer = document.createElement('div');
+            threadContainer.className = 'thread-container';
+            threadContainer.id = `thread-${thread.id}`;
 
-    const subject = document.createElement('h3');
-    subject.innerText = `Subject: ${thread.subject}`;
-    threadContainer.appendChild(subject);
+            const subject = document.createElement('h3');
+            subject.innerText = `Subject: ${thread.subject}`;
+            threadContainer.appendChild(subject);
 
-    const tags = Array.isArray(thread.tags) ? thread.tags.join(', ') : thread.tags;
-    const tagsElement = document.createElement('p');
-    tagsElement.innerText = `Tags: ${tags}`;
-    threadContainer.appendChild(tagsElement);
+            const tags = Array.isArray(thread.tags) ? thread.tags.join(', ') : thread.tags;
+            const tagsElement = document.createElement('p');
+            tagsElement.innerText = `Tags: ${tags}`;
+            threadContainer.appendChild(tagsElement);
 
-    const ethAddressElement = document.createElement('p');
-    ethAddressElement.innerText = `Ethereum Address: ${thread.ethAddress}`;
-    threadContainer.appendChild(ethAddressElement);
+            const ethAddressElement = document.createElement('p');
+            ethAddressElement.innerText = `Ethereum Address: ${thread.ethAddress}`;
+            threadContainer.appendChild(ethAddressElement);
 
-    const dateElement = document.createElement('p');
-    dateElement.innerText = `Posted: ${thread.timestamp}`;
-    threadContainer.appendChild(dateElement);
+            const dateElement = document.createElement('p');
+            dateElement.innerText = `Posted: ${thread.timestamp}`;
+            threadContainer.appendChild(dateElement);
 
-    // Append the thread to the container before loading images
-    document.getElementById('infiniteScrollContent').appendChild(threadContainer);
+            document.getElementById('infiniteScrollContent').appendChild(threadContainer);
 
-    // Now load the images
-    const attachments = thread.attachments || [];
-    for (let attachment of attachments) {
-        await loadImageForThread(thread.id, attachment);
-        console.log(`Loaded image for thread ${thread.id}: ${attachment}`);
-    }
-}
+            const attachments = thread.attachments || [];
+            for (let attachment of attachments) {
+                await downloadAndDisplayImage(thread.id, attachment);
+            }
+        }
 
-async function loadImageForThread(threadId, magnetUrl) {
-    console.log(`Attempting to load image for thread ${threadId} with magnet URL: ${magnetUrl}`);
-
-    const isValidMagnet = /^magnet:\?xt=urn:btih:[a-fA-F0-9]{40,}/.test(magnetUrl);
-    if (!isValidMagnet) {
-        console.log(`Invalid magnet URL for thread ${threadId}: ${magnetUrl}`);
-        return;
-    }
-
-    try {
-        const client = new WebTorrent();
-
-        client.add(magnetUrl, (torrent) => {
-            console.log(`Torrent added for thread ${threadId}. Files available:`, torrent.files);
-
-            torrent.on('done', () => {
-                const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
-                if (!file) {
-                    console.log(`No image file found in torrent for thread ${threadId}`);
-                    return;
-                }
-
-                console.log(`Torrent download completed for thread ${threadId}. File:`, file);
-
-                file.getBlobURL((err, url) => {
-                    if (err) {
-                        console.log(`Error generating blob URL for thread ${threadId}:`, err);
-                        return;
-                    }
-
-                    if (!url) {
-                        console.log(`No URL generated for thread ${threadId}`);
-                        return;
-                    }
-
-                    console.log(`Loaded image URL for thread ${threadId}: ${url}`);
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.alt = 'Image from magnet URL';
-                    img.style.maxWidth = '100%';
-
-                    const threadContainer = document.querySelector(`#thread-${threadId}`);
-                    if (threadContainer) {
-                        threadContainer.appendChild(img);
-                        console.log(`Image appended to thread ${threadId}`);
-                    } else {
-                        console.log(`Thread container not found for thread ${threadId}`);
-                    }
-                });
-            });
-
-            torrent.on('error', (torrentErr) => {
-                console.log(`Torrent error for thread ${threadId}:`, torrentErr);
-            });
-        });
-    } catch (err) {
-        console.log(`Error in loadImageForThread for thread ${threadId}:`, err);
-    }
-}
-
-        async function loadImageForThread(threadId, magnetUrl) {
-            console.log(`Attempting to load image for thread ${threadId} with magnet URL: ${magnetUrl}`);
+        async function downloadAndDisplayImage(threadId, magnetUrl) {
+            console.log(`Attempting to download image for thread ${threadId} with magnet URL: ${magnetUrl}`);
 
             const isValidMagnet = /^magnet:\?xt=urn:btih:[a-fA-F0-9]{40,}/.test(magnetUrl);
             if (!isValidMagnet) {
@@ -306,19 +236,8 @@ async function loadImageForThread(threadId, magnetUrl) {
                                 return;
                             }
 
-                            console.log(`Loaded image URL for thread ${threadId}: ${url}`);
-                            const img = document.createElement('img');
-                            img.src = url;
-                            img.alt = 'Image from magnet URL';
-                            img.style.maxWidth = '100%';
-
-                            const threadContainer = document.querySelector(`#thread-${threadId}`);
-                            if (threadContainer) {
-                                threadContainer.appendChild(img);
-                                console.log(`Image appended to thread ${threadId}`);
-                            } else {
-                                console.log(`Thread container not found for thread ${threadId}`);
-                            }
+                            console.log(`Image URL generated for thread ${threadId}: ${url}`);
+                            displayImage(threadId, url);
                         });
                     });
 
@@ -327,7 +246,22 @@ async function loadImageForThread(threadId, magnetUrl) {
                     });
                 });
             } catch (err) {
-                console.log(`Error in loadImageForThread for thread ${threadId}:`, err);
+                console.log(`Error in downloadAndDisplayImage for thread ${threadId}:`, err);
+            }
+        }
+
+        function displayImage(threadId, imageUrl) {
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.alt = 'Image from magnet URL';
+            img.style.maxWidth = '100%';
+
+            const threadContainer = document.querySelector(`#thread-${threadId}`);
+            if (threadContainer) {
+                threadContainer.appendChild(img);
+                console.log(`Image appended to thread ${threadId}`);
+            } else {
+                console.log(`Thread container not found for thread ${threadId}`);
             }
         }
 
