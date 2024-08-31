@@ -55,8 +55,6 @@
                         {{ gremlinThreadABI | safe }},
                         '{{ gremlinThreadAddress }}'
                     );
-                    console.log({{ gremlinThreadABI | safe }});
-                    console.log({{ gremlinThreadAddress }});
                     await loadMorePosts();
                 } catch (error) {
                     alert('Could not access MetaMask. Please ensure MetaMask is installed and you have authorized access.');
@@ -66,6 +64,45 @@
                 alert('MetaMask is not installed. Please install MetaMask to use this application.');
             }
         }
+
+        async function getAllThreads(start, limit) {
+            console.log(`getAllThreads called with start=${start}, limit=${limit}`);
+            try {
+                const threadCount = await gremlinThreadContract.methods.getThreadCount().call();
+                console.log(`Total threads available: ${threadCount}`);
+                const totalThreads = Number(threadCount);
+
+                let threads = [];
+
+                for (let i = start + 1; i <= Math.min(start + limit, totalThreads); i++) {
+                    try {
+                        console.log(`Fetching thread ${i}...`);
+                        const thread = await gremlinThreadContract.methods.getThreadInfo(i).call();
+                        console.log(`Thread ${i} fetched:`, thread);
+                        thread.id = i;
+                        thread.timestamp = new Date(thread.timestamp * 1000); // Convert to Date object
+                        thread.lastReplyTimestamp = new Date(thread.lastReplyTimestamp * 1000); // Assuming lastReplyTimestamp exists
+                        threads.push(thread);
+                    } catch (innerError) {
+                        console.error(`Error fetching thread ${i}:`, innerError);
+                    }
+                }
+
+                // Sort threads by last reply timestamp or original timestamp if no replies
+                threads.sort((a, b) => {
+                    return (b.lastReplyTimestamp || b.timestamp) - (a.lastReplyTimestamp || a.timestamp);
+                });
+
+                for (let thread of threads) {
+                    await displayThread(thread);
+                    loadedThreads++;
+                }
+
+            } catch (error) {
+                console.error('Error in getAllThreads:', error);
+            }
+        }
+
 
         async function submitPost() {
             const title = document.getElementById('newPostTitle').value;
