@@ -195,11 +195,13 @@
             }
         }
 
+
+
+
+
         async function loadImageForThread(threadId, magnetUrl) {
-            // Log the magnet URL to verify it's being passed correctly
             console.log(`Attempting to load image for thread ${threadId} with magnet URL: ${magnetUrl}`);
 
-            // Verify if the magnet URL is in a valid format
             const isValidMagnet = /^magnet:\?xt=urn:btih:[a-fA-F0-9]{40,}/.test(magnetUrl);
             if (!isValidMagnet) {
                 console.log(`Invalid magnet URL for thread ${threadId}: ${magnetUrl}`);
@@ -209,18 +211,21 @@
             try {
                 const client = new WebTorrent();
 
-                // Add the magnet URL to the WebTorrent client and begin downloading
                 client.add(magnetUrl, (torrent) => {
                     console.log(`Torrent added for thread ${threadId}. Files available:`, torrent.files);
 
                     torrent.on('done', () => {
-                        const file = torrent.files[0]; // Assuming there's only one file in the torrent
+                        const file = torrent.files[0];
                         console.log(`Torrent download completed for thread ${threadId}. File:`, file);
 
-                        // Generate a blob URL for the file and append it to the DOM
                         file.getBlobURL((err, url) => {
                             if (err) {
                                 console.log(`Error generating blob URL for thread ${threadId}:`, err);
+                                return;
+                            }
+
+                            if (!url) {
+                                console.log(`No URL generated for thread ${threadId}`);
                                 return;
                             }
 
@@ -230,15 +235,24 @@
                             img.alt = 'Image from magnet URL';
                             img.style.maxWidth = '100%';
 
-                            document.querySelector(`#thread-${threadId}`).appendChild(img);
+                            const threadContainer = document.querySelector(`#thread-${threadId}`);
+                            if (threadContainer) {
+                                threadContainer.appendChild(img);
+                                console.log(`Image appended to thread ${threadId}`);
+                            } else {
+                                console.log(`Thread container not found for thread ${threadId}`);
+                            }
                         });
+                    });
+
+                    torrent.on('error', (torrentErr) => {
+                        console.log(`Torrent error for thread ${threadId}:`, torrentErr);
                     });
                 });
             } catch (err) {
                 console.log(`Error in loadImageForThread for thread ${threadId}:`, err);
             }
         }
-
 
 
         function showOverlay() {
