@@ -196,6 +196,10 @@
         }
 
         async function loadImageForThread(threadId, magnetUrl) {
+            // Log the magnet URL to verify it's being passed correctly
+            console.log(`Attempting to load image for thread ${threadId} with magnet URL: ${magnetUrl}`);
+
+            // Verify if the magnet URL is in a valid format
             const isValidMagnet = /^magnet:\?xt=urn:btih:[a-fA-F0-9]{40,}/.test(magnetUrl);
             if (!isValidMagnet) {
                 console.log(`Invalid magnet URL for thread ${threadId}: ${magnetUrl}`);
@@ -205,15 +209,22 @@
             try {
                 const client = new WebTorrent();
 
+                // Add the magnet URL to the WebTorrent client and begin downloading
                 client.add(magnetUrl, (torrent) => {
+                    console.log(`Torrent added for thread ${threadId}. Files available:`, torrent.files);
+
                     torrent.on('done', () => {
-                        const file = torrent.files[0];
+                        const file = torrent.files[0]; // Assuming there's only one file in the torrent
+                        console.log(`Torrent download completed for thread ${threadId}. File:`, file);
+
+                        // Generate a blob URL for the file and append it to the DOM
                         file.getBlobURL((err, url) => {
                             if (err) {
-                                console.log(`Error loading image for thread ${threadId}:`, err);
+                                console.log(`Error generating blob URL for thread ${threadId}:`, err);
                                 return;
                             }
 
+                            console.log(`Loaded image URL for thread ${threadId}: ${url}`);
                             const img = document.createElement('img');
                             img.src = url;
                             img.alt = 'Image from magnet URL';
@@ -227,6 +238,8 @@
                 console.log(`Error in loadImageForThread for thread ${threadId}:`, err);
             }
         }
+
+
 
         function showOverlay() {
             document.getElementById('overlay').style.height = "100%";
