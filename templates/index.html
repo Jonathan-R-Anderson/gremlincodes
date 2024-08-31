@@ -60,6 +60,7 @@
                     await loadMorePosts();
                 } catch (error) {
                     alert('Could not access MetaMask. Please ensure MetaMask is installed and you have authorized access.');
+                    console.log(error);
                 }
             } else {
                 alert('MetaMask is not installed. Please install MetaMask to use this application.');
