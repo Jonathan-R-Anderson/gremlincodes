@@ -215,30 +215,28 @@
         console.log(`WebTorrent client initialized for thread ${threadId}`);
 
         client.add(magnetUrl, (torrent) => {
-    console.log(`Torrent added with infoHash: ${torrent.infoHash}`);
+    console.log(`Torrent added for thread ${threadId}.`);
 
     torrent.on('infoHash', () => {
-        console.log(`InfoHash received: ${torrent.infoHash}`);
+        console.log(`InfoHash received for thread ${threadId}: ${torrent.infoHash}`);
     });
 
     torrent.on('metadata', () => {
-        console.log('Metadata received:', torrent.files);
+        console.log(`Metadata received for thread ${threadId}. Files available:`, torrent.files);
     });
 
     torrent.on('download', (bytes) => {
-        console.log(`Downloading: ${bytes} bytes`);
+        console.log(`Downloading ${bytes} bytes for thread ${threadId}`);
     });
 
     torrent.on('done', () => {
-        console.log(`Torrent download completed for thread ${threadId}`);
+        console.log(`Torrent download completed for thread ${threadId}.`);
 
         const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
         if (!file) {
             console.log(`No image file found in torrent for thread ${threadId}`);
             return;
         }
-
-        console.log(`Image file found for thread ${threadId}:`, file.name);
 
         file.getBlobURL((err, url) => {
             if (err) {
@@ -247,7 +245,18 @@
             }
 
             console.log(`Image URL generated for thread ${threadId}: ${url}`);
-            displayImage(threadId, url);
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = 'Image from magnet URL';
+            img.style.maxWidth = '100%';
+
+            const threadContainer = document.querySelector(`#thread-${threadId}`);
+            if (threadContainer) {
+                threadContainer.appendChild(img);
+                console.log(`Image appended to thread ${threadId}`);
+            } else {
+                console.log(`Thread container not found for thread ${threadId}`);
+            }
         });
     });
 
