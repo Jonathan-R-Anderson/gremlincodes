@@ -6,17 +6,6 @@
     <title>Gremlin Threads</title>
     <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
-    <script src="https://unpkg.com/simple-peer/simplepeer.min.js"></script>
-    <script src="https://unpkg.com/debug/dist/debug.min.js"></script>
-    <script src="https://unpkg.com/throttleit/index.js"></script>
-    <script src="https://unpkg.com/upload-element/dist/upload-element.min.js"></script>
-    <script src="https://unpkg.com/drag-drop/index.js"></script>
-    <script src="https://unpkg.com/simple-get/index.js"></script>
-    <script src="https://unpkg.com/date-fns/formatDistance/index.js"></script>
-    <script src="https://unpkg.com/create-torrent/index.js"></script>
-    <script src="https://unpkg.com/path-browserify/index.js"></script>
-    <script src="https://unpkg.com/prettier-bytes/index.js"></script>
-    <script src="https://unpkg.com/thunky/index.js"></script>
 
     <style>
         .thread-container {
@@ -103,42 +92,8 @@
         let loadedThreads = 0;
         const postsToLoad = 5;
 
-        // Instant.io setup
-        const getClient = thunky((cb) => {
-            getRtcConfig((err, rtcConfig) => {
-                if (err) return console.error(err);
-                const client = new WebTorrent({
-                    tracker: {
-                        rtcConfig: {
-                            ...SimplePeer.config,
-                            ...rtcConfig
-                        }
-                    }
-                });
-                window.client = client; // For easier debugging
-                client.on('warning', console.warn);
-                client.on('error', console.error);
-                cb(null, client);
-            });
-        });
-
-        function getRtcConfig(cb) {
-            get.concat({
-                url: '/__rtcConfig__',
-                timeout: 5000
-            }, (err, res, data) => {
-                if (err || res.statusCode !== 200) {
-                    cb(new Error('Could not get WebRTC config from server. Using default (without TURN).'));
-                } else {
-                    try {
-                        data = JSON.parse(data);
-                        cb(null, data.rtcConfig);
-                    } catch (err) {
-                        cb(new Error('Got invalid WebRTC config from server: ' + data));
-                    }
-                }
-            });
-        }
+        // Initialize WebTorrent client
+        const client = new WebTorrent();
 
         async function initializeContracts() {
             if (typeof window.ethereum !== 'undefined') {
@@ -224,14 +179,9 @@
 
         async function uploadToServer(file) {
             return new Promise((resolve, reject) => {
-                getClient((err, client) => {
-                    if (err) return reject(err);
-
-                    client.seed(file, (torrent) => {
-                        console.log('Torrent info hash:', torrent.infoHash);
-                        console.log('Magnet URI:', torrent.magnetURI);
-                        resolve(torrent.magnetURI);
-                    });
+                client.seed(file, (torrent) => {
+                    console.log('Seeding started:', torrent.magnetURI);
+                    resolve(torrent.magnetURI);
                 });
             });
         }
@@ -287,44 +237,36 @@
                 return;
             }
 
-            try {
-                getClient((err, client) => {
-                    if (err) return console.error(err);
+            client.add(magnetUrl, (torrent) => {
+                console.log(`Torrent added for thread ${threadId}.`);
 
-                    client.add(magnetUrl, (torrent) => {
-                        console.log(`Torrent added for thread ${threadId}.`);
+                const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
+                if (!file) {
+                    console.log(`No image file found in torrent for thread ${threadId}`);
+                    return;
+                }
 
-                        const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
-                        if (!file) {
-                            console.log(`No image file found in torrent for thread ${threadId}`);
-                            return;
-                        }
+                file.getBlobURL((err, url) => {
+                    if (err) {
+                        console.log(`Error generating blob URL for thread ${threadId}:`, err);
+                        return;
+                    }
 
-                        file.getBlobURL((err, url) => {
-                            if (err) {
-                                console.log(`Error generating blob URL for thread ${threadId}:`, err);
-                                return;
-                            }
+                    console.log(`Image URL generated for thread ${threadId}: ${url}`);
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = 'Image from magnet URL';
+                    img.style.maxWidth = '100%';
 
-                            console.log(`Image URL generated for thread ${threadId}: ${url}`);
-                            const img = document.createElement('img');
-                            img.src = url;
-                            img.alt = 'Image from magnet URL';
-                            img.style.maxWidth = '100%';
-
-                            const threadContainer = document.querySelector(`#thread-${threadId}`);
-                            if (threadContainer) {
-                                threadContainer.appendChild(img);
-                                console.log(`Image appended to thread ${threadId}`);
-                            } else {
-                                console.log(`Thread container not found for thread ${threadId}`);
-                            }
-                        });
-                    });
+                    const threadContainer = document.querySelector(`#thread-${threadId}`);
+                    if (threadContainer) {
+                        threadContainer.appendChild(img);
+                        console.log(`Image appended to thread ${threadId}`);
+                    } else {
+                        console.log(`Thread container not found for thread ${threadId}`);
+                    }
                 });
-            } catch (err) {
-                console.log(`Error in downloadAndDisplayImage for thread ${threadId}:`, err);
-            }
+            });
         }
 
         function showOverlay() {
@@ -347,6 +289,7 @@
             initializeContracts();
             console.log("after");
         };
+
     </script>
 </body>
 </html>
