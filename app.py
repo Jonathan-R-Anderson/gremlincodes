@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_file, render_template
 import os
 import hashlib
 import threading
-from shared import app
+from shared import app, gremlinThreadABI, gremlinThreadAddress
 import time
 from werkzeug.utils import secure_filename
 
@@ -148,7 +148,8 @@ def serve_file(filename):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', gremlinThreadABI=gremlinThreadABI if gremlinThreadABI else [],
+        gremlinThreadAddress=gremlinThreadAddress)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
