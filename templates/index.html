@@ -55,7 +55,8 @@
                         {{ gremlinThreadABI|tojson }},
                         {{ gremlinThreadAddress }}
                     );
-
+                    console.log(gremlinThreadABI|tojson);
+                    console.log(gremlinThreadAddress);
                     await loadMorePosts();
                 } catch (error) {
                     alert('Could not access MetaMask. Please ensure MetaMask is installed and you have authorized access.');
