@@ -6,6 +6,17 @@
     <title>Gremlin Threads</title>
     <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
+    <script src="https://unpkg.com/simple-peer/simplepeer.min.js"></script>
+    <script src="https://unpkg.com/debug/dist/debug.min.js"></script>
+    <script src="https://unpkg.com/throttleit/index.js"></script>
+    <script src="https://unpkg.com/upload-element/dist/upload-element.min.js"></script>
+    <script src="https://unpkg.com/drag-drop/index.js"></script>
+    <script src="https://unpkg.com/simple-get/index.js"></script>
+    <script src="https://unpkg.com/date-fns/formatDistance/index.js"></script>
+    <script src="https://unpkg.com/create-torrent/index.js"></script>
+    <script src="https://unpkg.com/path-browserify/index.js"></script>
+    <script src="https://unpkg.com/prettier-bytes/index.js"></script>
+    <script src="https://unpkg.com/thunky/index.js"></script>
 
     <style>
         .thread-container {
@@ -19,6 +30,43 @@
             display: block;
             max-width: 100%;
             height: auto;
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 0;
+            background-color: rgba(0, 0, 0, 0.9);
+            overflow-y: hidden;
+            transition: 0.5s;
+            z-index: 9999;
+        }
+
+        #overlayContent {
+            position: relative;
+            top: 25%;
+            width: 80%;
+            margin: auto;
+            color: white;
+        }
+
+        .navbar {
+            padding: 10px;
+            background-color: #333;
+            color: white;
+        }
+
+        .search-box {
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        #showOverlayBtn, #closeOverlayBtn {
+            display: block;
+            margin: 10px auto;
+            padding: 10px 20px;
         }
     </style>
 </head>
@@ -54,6 +102,43 @@
         let currentScrollPage = 1;
         let loadedThreads = 0;
         const postsToLoad = 5;
+
+        // Instant.io setup
+        const getClient = thunky((cb) => {
+            getRtcConfig((err, rtcConfig) => {
+                if (err) return console.error(err);
+                const client = new WebTorrent({
+                    tracker: {
+                        rtcConfig: {
+                            ...SimplePeer.config,
+                            ...rtcConfig
+                        }
+                    }
+                });
+                window.client = client; // For easier debugging
+                client.on('warning', console.warn);
+                client.on('error', console.error);
+                cb(null, client);
+            });
+        });
+
+        function getRtcConfig(cb) {
+            get.concat({
+                url: '/__rtcConfig__',
+                timeout: 5000
+            }, (err, res, data) => {
+                if (err || res.statusCode !== 200) {
+                    cb(new Error('Could not get WebRTC config from server. Using default (without TURN).'));
+                } else {
+                    try {
+                        data = JSON.parse(data);
+                        cb(null, data.rtcConfig);
+                    } catch (err) {
+                        cb(new Error('Got invalid WebRTC config from server: ' + data));
+                    }
+                }
+            });
+        }
 
         async function initializeContracts() {
             if (typeof window.ethereum !== 'undefined') {
@@ -138,24 +223,16 @@
         }
 
         async function uploadToServer(file) {
-            const formData = new FormData();
-            formData.append('file', file);
+            return new Promise((resolve, reject) => {
+                getClient((err, client) => {
+                    if (err) return reject(err);
 
-            return fetch('/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.magnetUrl) {
-                    return data.magnetUrl;
-                } else {
-                    throw new Error('Failed to receive magnet URL from server.');
-                }
-            })
-            .catch(error => {
-                console.log('Error uploading file to server:', error);
-                throw error;
+                    client.seed(file, (torrent) => {
+                        console.log('Torrent info hash:', torrent.infoHash);
+                        console.log('Magnet URI:', torrent.magnetURI);
+                        resolve(torrent.magnetURI);
+                    });
+                });
             });
         }
 
@@ -202,87 +279,51 @@
         }
 
         async function downloadAndDisplayImage(threadId, magnetUrl) {
-    console.log(`Attempting to download image for thread ${threadId} with magnet URL: ${magnetUrl}`);
+            console.log(`Attempting to download image for thread ${threadId} with magnet URL: ${magnetUrl}`);
 
-    const isValidMagnet = /^magnet:\?xt=urn:btih:[a-fA-F0-9]{40,}/.test(magnetUrl);
-    if (!isValidMagnet) {
-        console.log(`Invalid magnet URL for thread ${threadId}: ${magnetUrl}`);
-        return;
-    }
-
-    try {
-        const client = new WebTorrent();
-        console.log(`WebTorrent client initialized for thread ${threadId}`);
-
-        client.add(magnetUrl, (torrent) => {
-    console.log(`Torrent added for thread ${threadId}.`);
-
-    torrent.on('infoHash', () => {
-        console.log(`InfoHash received for thread ${threadId}: ${torrent.infoHash}`);
-    });
-
-    torrent.on('metadata', () => {
-        console.log(`Metadata received for thread ${threadId}. Files available:`, torrent.files);
-    });
-
-    torrent.on('download', (bytes) => {
-        console.log(`Downloading ${bytes} bytes for thread ${threadId}`);
-    });
-
-    torrent.on('done', () => {
-        console.log(`Torrent download completed for thread ${threadId}.`);
-
-        const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
-        if (!file) {
-            console.log(`No image file found in torrent for thread ${threadId}`);
-            return;
-        }
-
-        file.getBlobURL((err, url) => {
-            if (err) {
-                console.log(`Error generating blob URL for thread ${threadId}:`, err);
+            const isValidMagnet = /^magnet:\?xt=urn:btih:[a-fA-F0-9]{40,}/.test(magnetUrl);
+            if (!isValidMagnet) {
+                console.log(`Invalid magnet URL for thread ${threadId}: ${magnetUrl}`);
                 return;
             }
 
-            console.log(`Image URL generated for thread ${threadId}: ${url}`);
-            const img = document.createElement('img');
-            img.src = url;
-            img.alt = 'Image from magnet URL';
-            img.style.maxWidth = '100%';
+            try {
+                getClient((err, client) => {
+                    if (err) return console.error(err);
 
-            const threadContainer = document.querySelector(`#thread-${threadId}`);
-            if (threadContainer) {
-                threadContainer.appendChild(img);
-                console.log(`Image appended to thread ${threadId}`);
-            } else {
-                console.log(`Thread container not found for thread ${threadId}`);
-            }
-        });
-    });
+                    client.add(magnetUrl, (torrent) => {
+                        console.log(`Torrent added for thread ${threadId}.`);
 
-    torrent.on('error', (torrentErr) => {
-        console.log(`Torrent error for thread ${threadId}:`, torrentErr);
-    });
-});
+                        const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
+                        if (!file) {
+                            console.log(`No image file found in torrent for thread ${threadId}`);
+                            return;
+                        }
 
-    
-    } catch (err) {
-        console.log(`Error in downloadAndDisplayImage for thread ${threadId}:`, err);
-    }
-}
+                        file.getBlobURL((err, url) => {
+                            if (err) {
+                                console.log(`Error generating blob URL for thread ${threadId}:`, err);
+                                return;
+                            }
 
-        function displayImage(threadId, imageUrl) {
-            const img = document.createElement('img');
-            img.src = imageUrl;
-            img.alt = 'Image from magnet URL';
-            img.style.maxWidth = '100%';
+                            console.log(`Image URL generated for thread ${threadId}: ${url}`);
+                            const img = document.createElement('img');
+                            img.src = url;
+                            img.alt = 'Image from magnet URL';
+                            img.style.maxWidth = '100%';
 
-            const threadContainer = document.querySelector(`#thread-${threadId}`);
-            if (threadContainer) {
-                threadContainer.appendChild(img);
-                console.log(`Image appended to thread ${threadId}`);
-            } else {
-                console.log(`Thread container not found for thread ${threadId}`);
+                            const threadContainer = document.querySelector(`#thread-${threadId}`);
+                            if (threadContainer) {
+                                threadContainer.appendChild(img);
+                                console.log(`Image appended to thread ${threadId}`);
+                            } else {
+                                console.log(`Thread container not found for thread ${threadId}`);
+                            }
+                        });
+                    });
+                });
+            } catch (err) {
+                console.log(`Error in downloadAndDisplayImage for thread ${threadId}:`, err);
             }
         }
 
@@ -306,7 +347,6 @@
             initializeContracts();
             console.log("after");
         };
-
     </script>
 </body>
 </html>
