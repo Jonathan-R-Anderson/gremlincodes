@@ -120,7 +120,7 @@
 
                 console.log(`Submitting post with title: ${title}, content: ${content}, tags: ${tags}, attachments: ${attachments}`);
                 // Create a new thread on the blockchain using the gremlinThreadContract
-                await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: 2000000});
+                await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: 6000000});
 
                 closeOverlay();
                 await refreshThreads();
