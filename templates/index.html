@@ -202,53 +202,56 @@
         }
 
         async function downloadAndDisplayImage(threadId, magnetUrl) {
-            console.log(`Attempting to download image for thread ${threadId} with magnet URL: ${magnetUrl}`);
+    console.log(`Attempting to download image for thread ${threadId} with magnet URL: ${magnetUrl}`);
 
-            const isValidMagnet = /^magnet:\?xt=urn:btih:[a-fA-F0-9]{40,}/.test(magnetUrl);
-            if (!isValidMagnet) {
-                console.log(`Invalid magnet URL for thread ${threadId}: ${magnetUrl}`);
-                return;
-            }
+    const isValidMagnet = /^magnet:\?xt=urn:btih:[a-fA-F0-9]{40,}/.test(magnetUrl);
+    if (!isValidMagnet) {
+        console.log(`Invalid magnet URL for thread ${threadId}: ${magnetUrl}`);
+        return;
+    }
 
-            try {
-                const client = new WebTorrent();
+    try {
+        const client = new WebTorrent();
+        console.log(`WebTorrent client initialized for thread ${threadId}`);
 
-                client.add(magnetUrl, (torrent) => {
-                    console.log(`Torrent added for thread ${threadId}. Files available:`, torrent.files);
+        client.add(magnetUrl, (torrent) => {
+            console.log(`Torrent added for thread ${threadId}. Files available:`, torrent.files);
 
-                    torrent.on('done', () => {
-                        const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
-                        if (!file) {
-                            console.log(`No image file found in torrent for thread ${threadId}`);
-                            return;
-                        }
+            torrent.on('done', () => {
+                console.log(`Torrent download completed for thread ${threadId}`);
 
-                        console.log(`Torrent download completed for thread ${threadId}. File:`, file);
+                const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
+                if (!file) {
+                    console.log(`No image file found in torrent for thread ${threadId}`);
+                    return;
+                }
 
-                        file.getBlobURL((err, url) => {
-                            if (err) {
-                                console.log(`Error generating blob URL for thread ${threadId}:`, err);
-                                return;
-                            }
+                console.log(`Image file found for thread ${threadId}:`, file.name);
 
-                            if (!url) {
-                                console.log(`No URL generated for thread ${threadId}`);
-                                return;
-                            }
+                file.getBlobURL((err, url) => {
+                    if (err) {
+                        console.log(`Error generating blob URL for thread ${threadId}:`, err);
+                        return;
+                    }
 
-                            console.log(`Image URL generated for thread ${threadId}: ${url}`);
-                            displayImage(threadId, url);
-                        });
-                    });
+                    if (!url) {
+                        console.log(`No URL generated for thread ${threadId}`);
+                        return;
+                    }
 
-                    torrent.on('error', (torrentErr) => {
-                        console.log(`Torrent error for thread ${threadId}:`, torrentErr);
-                    });
+                    console.log(`Image URL generated for thread ${threadId}: ${url}`);
+                    displayImage(threadId, url);
                 });
-            } catch (err) {
-                console.log(`Error in downloadAndDisplayImage for thread ${threadId}:`, err);
-            }
-        }
+            });
+
+            torrent.on('error', (torrentErr) => {
+                console.log(`Torrent error for thread ${threadId}:`, torrentErr);
+            });
+        });
+    } catch (err) {
+        console.log(`Error in downloadAndDisplayImage for thread ${threadId}:`, err);
+    }
+}
 
         function displayImage(threadId, imageUrl) {
             const img = document.createElement('img');
