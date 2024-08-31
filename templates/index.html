@@ -66,46 +66,41 @@
         }
 
         async function getAllThreads(start, limit) {
-            console.log(`getAllThreads called with start=${start}, limit=${limit}`);
+    console.log(`getAllThreads called with start=${start}, limit=${limit}`);
+    try {
+        const threadCount = await gremlinThreadContract.methods.getThreadCount().call();
+        console.log(`Total threads available: ${threadCount}`);
+        const totalThreads = Number(threadCount);
+
+        let threads = [];
+
+        for (let i = start + 1; i <= Math.min(start + limit, totalThreads); i++) {
             try {
-                const threadCount = await gremlinThreadContract.methods.getThreadCount().call();
-                console.log(`Total threads available: ${threadCount}`);
-                const totalThreads = Number(threadCount);
+                console.log(`Fetching thread ${i}...`);
+                const thread = await gremlinThreadContract.methods.getThreadInfo(i).call();
+                console.log(`Thread ${i} fetched:`, thread);
 
-                let threads = [];
-
-                for (let i = start + 1; i <= Math.min(start + limit, totalThreads); i++) {
-                    try {
-                        console.log(`Fetching thread ${i}...`);
-                        const thread = await gremlinThreadContract.methods.getThreadInfo(i).call();
-                        console.log(`Thread ${i} fetched:`, thread);
-                        thread.id = i;
-                        const transaction = await web3.eth.getTransaction(thread.transactionHash);
-                        const block = await web3.eth.getBlock(transaction.blockNumber);
-
-                        thread.timestamp = new Date(block.timestamp * 1000); // Convert to Date object
-                        threads.push(thread);
-                    } catch (innerError) {
-                        console.log(`Error fetching thread ${i}:`, innerError);
-                    }
-                }
-
-                // Sort threads by last reply timestamp or original timestamp if no replies
-                threads.sort((a, b) => {
-                    return (b.lastReplyTimestamp || b.timestamp) - (a.lastReplyTimestamp || a.timestamp);
-                });
-
-                for (let thread of threads) {
-                    await displayThread(thread);
-                    console.log(`Thread ${thread.id} displayed.`);
-                    loadedThreads++;
-                }
-
-            } catch (error) {
-                console.log('Error in getAllThreads:', error);
+                // Assign the id manually since there's no timestamp or transaction data
+                thread.id = i;
+                threads.push(thread);
+            } catch (innerError) {
+                console.log(`Error fetching thread ${i}:`, innerError);
             }
         }
 
+        // If you need to sort threads, you can still do it based on available properties
+        threads.sort((a, b) => b.id - a.id);
+
+        for (let thread of threads) {
+            await displayThread(thread);
+            console.log(`Thread ${thread.id} displayed.`);
+            loadedThreads++;
+        }
+
+    } catch (error) {
+        console.log('Error in getAllThreads:', error);
+    }
+}
 
         async function submitPost() {
             const title = document.getElementById('newPostTitle').value;
