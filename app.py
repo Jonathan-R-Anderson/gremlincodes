@@ -6,7 +6,7 @@ from shared import app
 import time
 from werkzeug.utils import secure_filename
 import json
-from ..blueprints.routes import blueprint
+from blueprints.routes import blueprint
 
 app.register(blueprint)
 
