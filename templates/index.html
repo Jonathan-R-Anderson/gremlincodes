@@ -51,13 +51,15 @@
                 try {
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
 
+                    // Ensure the ABI and contract address are properly loaded
                     gremlinThreadContract = new web3.eth.Contract(
-                        {{ gremlinThreadABI|tojson }},
+                        JSON.parse('{{ gremlinThreadABI|tojson|safe }}'),
                         '{{ gremlinThreadAddress }}'
                     );
 
                     await loadMorePosts();
                 } catch (error) {
+                    console.error('Error initializing contracts:', error);
                     alert('Could not access MetaMask. Please ensure MetaMask is installed and you have authorized access.');
                 }
             } else {
