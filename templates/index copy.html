@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gremlin Threads</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
+
+    <style>
+        .navbar {
+            padding: 15px;
+            background-color: #333;
+            color: white;
+            text-align: center;
+            font-size: 24px;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .search-box {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #searchBar {
+            width: 50%;
+            padding: 10px;
+            font-size: 16px;
+            text-align: center;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        #overlay {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+            transition: height 0.3s ease;
+            z-index: 1000;
+        }
+
+        #overlayContent {
+            padding: 20px;
+            color: white;
+        }
+
+        #showOverlayBtn, #closeOverlayBtn {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background-color: #333;
+            color: white;
+            border: none;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        #closeOverlayBtn {
+            display: none;
+            bottom: 50px;
+        }
+
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+            padding: 5px;
+            margin-top: 10px;
+        }
+
+        .thread-container {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        ManiwaniBoard
+    </div>
+
+    <div class="search-box">
+        <input type="text" id="searchBar" placeholder="Enter tags..." onkeyup="filterThreads()" />
+    </div>
+
+    <div class="container" id="infiniteScrollContent">
+        <!-- Threads will be dynamically loaded here -->
+    </div>
+
+    <button id="showOverlayBtn" onclick="showOverlay()">Create Post</button>
+    <button id="closeOverlayBtn" onclick="closeOverlay()">Cancel</button>
+
+    <div id="overlay">
+        <div id="overlayContent">
+            <h2>Create a New Post</h2>
+            <input type="text" id="newPostTitle" placeholder="Title" style="width: 100%; padding: 10px;" />
+            <textarea id="newPostContent" placeholder="Content" style="width: 100%; padding: 10px; height: 100px;"></textarea>
+            <input type="text" id="newPostTags" placeholder="Tags (comma-separated)" style="width: 100%; padding: 10px;" />
+            <input type="file" id="imageUpload" accept="image/*" style="width: 100%; padding: 10px;" />
+            <button onclick="submitPost()">Submit Post</button>
+        </div>
+    </div>
+
+    <script>
+        console.log(WebTorrent);  // Should log the WebTorrent function or object
+        let gremlinThreadContract;
+        let currentScrollPage = 1;
+        let loadedThreads = 0;
+
+        async function initializeContracts() {
+            if (typeof window.ethereum !== 'undefined') {
+                const web3 = new Web3(window.ethereum);
+
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+                    gremlinThreadContract = new web3.eth.Contract(
+                        {{ gremlinThreadABI|tojson }},
+                        '{{ gremlinThreadAddress }}'
+                    );
+
+                    loadMorePosts();
+                } catch (error) {
+                    console.error('User denied account access or other issue:', error);
+                    alert('Could not access MetaMask. Please ensure MetaMask is installed and you have authorized access.');
+                }
+            } else {
+                alert('MetaMask is not installed. Please install MetaMask to use this application.');
+            }
+        }
+
+        async function submitPost() {
+            const title = document.getElementById('newPostTitle').value;
+            const content = document.getElementById('newPostContent').value;
+            const tags = document.getElementById('newPostTags').value.split(',').map(tag => tag.trim());
+            const imageFile = document.getElementById('imageUpload').files[0];
+
+            try {
+                // Upload the image to a BitTorrent tracker and get the magnet URL
+                const magnetUrl = await uploadToBitTorrent(imageFile);
+
+                // Prepare the attachments array with the magnet URL
+                const attachments = [magnetUrl];
+
+                // Submit the post with subject (title), tags, and attachments to the ledger
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const account = accounts[0];
+
+                await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account });
+
+                console.log("Post submitted:", { title, tags, attachments });
+                closeOverlay();
+            } catch (error) {
+                console.error('Error submitting post:', error);
+            }
+        }
+
+
+
+        async function getAllThreads(start, limit) {
+            try {
+                const threadCount = await gremlinThreadContract.methods.getThreadCount().call();
+                console.log(`Total threads: ${threadCount}`);
+
+                // Convert BigInt to number for safe usage
+                const totalThreads = Number(threadCount);
+
+                // Skip the first post
+                for (let i = start + 1; i <= Math.min(start + limit, totalThreads); i++) {
+                    try {
+                        const thread = await gremlinThreadContract.methods.getThreadInfo(i).call();
+                        console.log(`Thread ${i}:`, thread);
+                        displayThread(thread);
+                        loadedThreads++;
+                    } catch (innerError) {
+                        console.error(`Error fetching thread ${i}:`, innerError);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching all threads:', error);
+            }
+        }
+
+        function filterThreads() {
+            const searchInput = document.getElementById('searchBar').value.toLowerCase();
+            const threads = JSON.parse(document.getElementById('infiniteScrollContent').innerText || '[]');
+            const filteredThreads = threads.filter(thread => 
+                thread.tags.some(tag => tag.toLowerCase().includes(searchInput))
+            );
+            document.getElementById('infiniteScrollContent').innerText = JSON.stringify(filteredThreads, null, 2);
+        }
+
+        async function loadMorePosts() {
+            const postsToLoad = 5;
+            await getAllThreads(loadedThreads, postsToLoad);
+            currentScrollPage++;
+        }
+
+        async function uploadToBitTorrent(file) {
+            return new Promise((resolve, reject) => {
+                try {
+                    const client = new WebTorrent();
+
+                    client.seed(file, { announce: [
+                        "https://tracker.tamersunion.org:443/announce",
+                        "https://www.peckservers.com:9443/announce",
+                        "https://trackers.run:443/announce",
+                        "https://tracker.yemekyedim.com:443/announce",
+                        "https://tracker.renfei.net:443/announce",
+                        "https://tracker.pmman.tech:443/announce",
+                        "https://tracker.gcrenwp.top:443/announce",
+                        "https://tracker.cloudit.top:443/announce",
+                        "https://tracker-zhuqiy.dgj055.icu:443/announce",
+                        "https://tracker.lilithraws.org:443/announce",
+                        "https://tracker.ipfsscan.io:443/announce"
+                    ]}, (torrent) => {
+                        console.log('Torrent info hash:', torrent.infoHash);
+                        const magnetURI = torrent.magnetURI;
+                        resolve(magnetURI);
+                    });
+
+                    client.on('error', (err) => {
+                        console.error('Error seeding file:', err);
+                        reject(err);
+                    });
+                } catch (err) {
+                    console.error('WebTorrent error:', err);
+                    reject(err);
+                }
+            });
+        }
+
+
+
+        async function retrieveImageFromMagnet(magnetUrl) {
+            return new Promise((resolve, reject) => {
+                try {
+                    const client = new WebTorrent();
+
+                    client.add(magnetUrl, (torrent) => {
+                        torrent.files.forEach((file) => {
+                            file.getBlobURL((err, url) => {
+                                if (err) {
+                                    console.error('Error retrieving image:', err);
+                                    reject(err);
+                                } else {
+                                    resolve(url);
+                                }
+                            });
+                        });
+                    });
+
+                    client.on('error', (err) => {
+                        console.error('Error retrieving file:', err);
+                        reject(err);
+                    });
+                } catch (err) {
+                    console.error('WebTorrent error:', err);
+                    reject(err);
+                }
+            });
+        }
+
+        async function displayThread(thread) {
+            try {
+                const threadContainer = document.createElement('div');
+                threadContainer.className = 'thread-container';
+                
+                const subject = document.createElement('h3');
+                subject.innerText = `Subject: ${thread.subject}`;
+                threadContainer.appendChild(subject);
+
+                const tags = Array.isArray(thread.tags) ? thread.tags.join(', ') : thread.tags;
+                const tagsElement = document.createElement('p');
+                tagsElement.innerText = `Tags: ${tags}`;
+                threadContainer.appendChild(tagsElement);
+
+                const attachments = thread.attachments || [];
+                for (let attachment of attachments) {
+                    try {
+                        console.log("Loading: ", attachment);
+                        const imageUrl = await retrieveImageFromMagnet(attachment);
+                        const img = document.createElement('img');
+                        img.src = imageUrl;
+                        img.alt = 'Image from magnet URL';
+                        img.style.maxWidth = '100%';
+                        threadContainer.appendChild(img);
+                    } catch (err) {
+                        console.error('Error loading image from magnet URL:', err);
+                        const dummyImg = document.createElement('img');
+                        dummyImg.src = 'https://via.placeholder.com/150'; // Use a placeholder image
+                        dummyImg.alt = 'Dummy Image';
+                        dummyImg.style.maxWidth = '100%';
+                        threadContainer.appendChild(dummyImg);
+                    }
+                }
+
+                const ethAddressElement = document.createElement('p');
+                ethAddressElement.innerText = `Ethereum Address: ${thread.ethAddress}`;
+                threadContainer.appendChild(ethAddressElement);
+
+                const domainElement = document.createElement('p');
+                domainElement.innerText = `Domain: gremlin.codes`; // Auto-assign the domain
+                threadContainer.appendChild(domainElement);
+
+                document.getElementById('infiniteScrollContent').appendChild(threadContainer);
+            } catch (error) {
+                console.error('Error displaying thread:', error);
+            }
+        }
+
+        function showOverlay() {
+            document.getElementById('overlay').style.height = "100%";
+            document.getElementById('closeOverlayBtn').style.display = 'block';
+        }
+
+        function closeOverlay() {
+            document.getElementById('overlay').style.height = "0%";
+            document.getElementById('closeOverlayBtn').style.display = 'none';
+        }
+
+        window.onscroll = function() {
+            if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
+                loadMorePosts();
+            }
+        };
+
+        window.onload = initializeContracts;
+    </script>
+</body>
+</html>
