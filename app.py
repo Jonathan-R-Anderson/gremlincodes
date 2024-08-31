@@ -1,12 +1,12 @@
 from flask import Flask, request, jsonify, send_file, render_template
 import os
-from shared import app
 import hashlib
 import threading
+from shared import app
 import time
 from werkzeug.utils import secure_filename
 
-
+# Setup directories and Flask app
 FILE_DIR = 'static'
 TORRENT_DIR = 'torrents'
 TRACKER_PORT = 6969
@@ -17,7 +17,7 @@ os.makedirs(TORRENT_DIR, exist_ok=True)
 active_peers = {}
 seeding = {}
 
-# Bencode Encoding Function
+# Bencode encoding function
 def bencode(value):
     if isinstance(value, int):
         return f"i{value}e".encode()
@@ -33,7 +33,7 @@ def bencode(value):
         raise TypeError("Unsupported type")
 
 # Generate SHA1 Hashes for File Pieces
-def generate_pieces(file_path, piece_length):
+def generate_pieces(file_path, piece_length=524288):
     pieces = b""
     with open(file_path, "rb") as f:
         while True:
@@ -47,7 +47,7 @@ def generate_pieces(file_path, piece_length):
 def create_torrent_file(file_path, filename):
     torrent_file_path = os.path.join(TORRENT_DIR, f"{filename}.torrent")
     file_length = os.path.getsize(file_path)
-    pieces = generate_pieces(file_path, 524288)
+    pieces = generate_pieces(file_path)
     
     info = {
         "name": filename,
