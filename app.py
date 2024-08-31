@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 import json
 from blueprints.routes import blueprint
 
-app.register(blueprint)
+app.register_blueprint(blueprint)
 
 # Setup directories and Flask app
 FILE_DIR = 'static'
