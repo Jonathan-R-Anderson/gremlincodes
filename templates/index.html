@@ -221,64 +221,50 @@
 
     try {
         const client = new WebTorrent();
-        console.log(`WebTorrent client initialized for thread ${threadId}.`);
 
         client.add(magnetUrl, (torrent) => {
-            console.log(`Torrent added for thread ${threadId}. Torrent info:`, torrent);
-
-            torrent.on('download', (bytes) => {
-                console.log(`Downloading torrent for thread ${threadId}. Bytes downloaded: ${bytes}`);
-            });
+            console.log(`Torrent added for thread ${threadId}. Files available:`, torrent.files);
 
             torrent.on('done', () => {
-                const file = torrent.files[0];
-                if (file) {
-                    console.log(`Torrent download completed for thread ${threadId}. File details:`, file);
-
-                    file.getBlobURL((err, url) => {
-                        if (err) {
-                            console.log(`Error generating blob URL for thread ${threadId}:`, err);
-                            return;
-                        }
-
-                        if (!url) {
-                            console.log(`No URL generated for thread ${threadId}`);
-                            return;
-                        }
-
-                        console.log(`Loaded image URL for thread ${threadId}: ${url}`);
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.alt = 'Image from magnet URL';
-                        img.style.maxWidth = '100%';
-
-                        const threadContainer = document.querySelector(`#thread-${threadId}`);
-                        if (threadContainer) {
-                            threadContainer.appendChild(img);
-                            console.log(`Image appended to thread ${threadId}`);
-                        } else {
-                            console.log(`Thread container not found for thread ${threadId}`);
-                        }
-                    });
-                } else {
-                    console.log(`No files found in torrent for thread ${threadId}`);
+                const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
+                if (!file) {
+                    console.log(`No image file found in torrent for thread ${threadId}`);
+                    return;
                 }
+                
+                console.log(`Torrent download completed for thread ${threadId}. File:`, file);
+
+                file.getBlobURL((err, url) => {
+                    if (err) {
+                        console.log(`Error generating blob URL for thread ${threadId}:`, err);
+                        return;
+                    }
+
+                    if (!url) {
+                        console.log(`No URL generated for thread ${threadId}`);
+                        return;
+                    }
+
+                    console.log(`Loaded image URL for thread ${threadId}: ${url}`);
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = 'Image from magnet URL';
+                    img.style.maxWidth = '100%';
+
+                    const threadContainer = document.querySelector(`#thread-${threadId}`);
+                    if (threadContainer) {
+                        threadContainer.appendChild(img);
+                        console.log(`Image appended to thread ${threadId}`);
+                    } else {
+                        console.log(`Thread container not found for thread ${threadId}`);
+                    }
+                });
             });
 
             torrent.on('error', (torrentErr) => {
                 console.log(`Torrent error for thread ${threadId}:`, torrentErr);
             });
-
-            torrent.on('wire', (wire, addr) => {
-                console.log(`Connected to peer ${addr} for thread ${threadId}.`);
-            });
-
         });
-
-        client.on('error', (clientErr) => {
-            console.log(`WebTorrent client error for thread ${threadId}:`, clientErr);
-        });
-
     } catch (err) {
         console.log(`Error in loadImageForThread for thread ${threadId}:`, err);
     }
