@@ -118,10 +118,11 @@ def create_torrent_file(file_path, filename):
 def start_seeding(torrent_file_path):
     # Add the .torrent file to the qBittorrent client for seeding
     with open(torrent_file_path, 'rb') as f:
-        client.download_from_file(f)
+        torrent_content = f.read()
+        client.add_torrent(torrent_content)  # Using add_torrent
 
     # Get the magnet link for the torrent
-    torrents = client.torrents()  # Adjusted method name
+    torrents = client.torrents()  # Get the list of torrents
     magnet_url = None
     for t in torrents:
         if t['name'] == os.path.basename(torrent_file_path).replace('.torrent', ''):
@@ -136,7 +137,6 @@ def start_seeding(torrent_file_path):
 
     threading.Thread(target=drop_file).start()
     return magnet_url if magnet_url else "Magnet link not found"
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
