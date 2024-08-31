@@ -215,39 +215,48 @@
         console.log(`WebTorrent client initialized for thread ${threadId}`);
 
         client.add(magnetUrl, (torrent) => {
-            console.log(`Torrent added for thread ${threadId}. Files available:`, torrent.files);
+    console.log(`Torrent added with infoHash: ${torrent.infoHash}`);
 
-            torrent.on('done', () => {
-                console.log(`Torrent download completed for thread ${threadId}`);
+    torrent.on('infoHash', () => {
+        console.log(`InfoHash received: ${torrent.infoHash}`);
+    });
 
-                const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
-                if (!file) {
-                    console.log(`No image file found in torrent for thread ${threadId}`);
-                    return;
-                }
+    torrent.on('metadata', () => {
+        console.log('Metadata received:', torrent.files);
+    });
 
-                console.log(`Image file found for thread ${threadId}:`, file.name);
+    torrent.on('download', (bytes) => {
+        console.log(`Downloading: ${bytes} bytes`);
+    });
 
-                file.getBlobURL((err, url) => {
-                    if (err) {
-                        console.log(`Error generating blob URL for thread ${threadId}:`, err);
-                        return;
-                    }
+    torrent.on('done', () => {
+        console.log(`Torrent download completed for thread ${threadId}`);
 
-                    if (!url) {
-                        console.log(`No URL generated for thread ${threadId}`);
-                        return;
-                    }
+        const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
+        if (!file) {
+            console.log(`No image file found in torrent for thread ${threadId}`);
+            return;
+        }
 
-                    console.log(`Image URL generated for thread ${threadId}: ${url}`);
-                    displayImage(threadId, url);
-                });
-            });
+        console.log(`Image file found for thread ${threadId}:`, file.name);
 
-            torrent.on('error', (torrentErr) => {
-                console.log(`Torrent error for thread ${threadId}:`, torrentErr);
-            });
+        file.getBlobURL((err, url) => {
+            if (err) {
+                console.log(`Error generating blob URL for thread ${threadId}:`, err);
+                return;
+            }
+
+            console.log(`Image URL generated for thread ${threadId}: ${url}`);
+            displayImage(threadId, url);
         });
+    });
+
+    torrent.on('error', (torrentErr) => {
+        console.log(`Torrent error for thread ${threadId}:`, torrentErr);
+    });
+});
+
+    
     } catch (err) {
         console.log(`Error in downloadAndDisplayImage for thread ${threadId}:`, err);
     }
