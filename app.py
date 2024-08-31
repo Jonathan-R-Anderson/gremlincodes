@@ -1,78 +1,123 @@
-from shared import app
-from routes.main_routes import main_bp
-from routes.admin_routes import admin_bp
-from qbittorrent import Client
-from flask import Flask, send_file, request, jsonify, render_template
+from flask import Flask, request, jsonify, send_file, render_template
 import os
+from shared import app
+import hashlib
 import threading
 import time
-import subprocess
 from werkzeug.utils import secure_filename
 
-# Register blueprints
-app.register_blueprint(main_bp)
-app.register_blueprint(admin_bp, url_prefix='/admin')
 
-# Base directory for static files
 FILE_DIR = 'static'
-TORRENT_DIR = 'torrents'  # Directory for storing .torrent files
+TORRENT_DIR = 'torrents'
+TRACKER_PORT = 6969
 
-# Ensure the directory for .torrent files exists
+os.makedirs(FILE_DIR, exist_ok=True)
 os.makedirs(TORRENT_DIR, exist_ok=True)
 
-# Initialize qBittorrent client
-client = Client('http://127.0.0.1:8080/')
-client.login('admin', 'admin')
-
-# Dictionary to track the number of active peers per file
 active_peers = {}
 seeding = {}
 
-@app.route('/<filename>')
-def serve_file(filename):
-    file_path = os.path.join(FILE_DIR, filename)
-    torrent_path = os.path.join(TORRENT_DIR, filename.replace('.zip', '.torrent'))
-
-    if os.path.exists(file_path):
-        return send_file(file_path)
-    elif os.path.exists(torrent_path):
-        return send_file(torrent_path)
+# Bencode Encoding Function
+def bencode(value):
+    if isinstance(value, int):
+        return f"i{value}e".encode()
+    elif isinstance(value, bytes):
+        return f"{len(value)}:".encode() + value
+    elif isinstance(value, str):
+        return bencode(value.encode())
+    elif isinstance(value, list):
+        return b"l" + b"".join(bencode(i) for i in value) + b"e"
+    elif isinstance(value, dict):
+        return b"d" + b"".join(bencode(k) + bencode(v) for k, v in sorted(value.items())) + b"e"
     else:
-        return "File not found", 404
+        raise TypeError("Unsupported type")
 
+# Generate SHA1 Hashes for File Pieces
+def generate_pieces(file_path, piece_length):
+    pieces = b""
+    with open(file_path, "rb") as f:
+        while True:
+            piece = f.read(piece_length)
+            if not piece:
+                break
+            pieces += hashlib.sha1(piece).digest()
+    return pieces
+
+# Create Torrent File
+def create_torrent_file(file_path, filename):
+    torrent_file_path = os.path.join(TORRENT_DIR, f"{filename}.torrent")
+    file_length = os.path.getsize(file_path)
+    pieces = generate_pieces(file_path, 524288)
+    
+    info = {
+        "name": filename,
+        "piece length": 524288,
+        "pieces": pieces,
+        "length": file_length
+    }
+    
+    torrent = {
+        "announce": f"http://{request.host}/announce",
+        "info": info,
+        "url-list": [f"http://{request.host}/static/{filename}"]  # Web seeding URL
+    }
+    
+    with open(torrent_file_path, "wb") as f:
+        f.write(bencode(torrent))
+    
+    return torrent_file_path
+
+# Magnet Link Generation
+def generate_magnet_link(filename, torrent_file_path):
+    with open(torrent_file_path, 'rb') as f:
+        torrent_data = f.read()
+        info_hash = hashlib.sha1(torrent_data).hexdigest()
+        magnet_link = f"magnet:?xt=urn:btih:{info_hash}&dn={filename}&tr=http://{request.host}/announce"
+        return magnet_link
+
+# Announce URL Handling
 @app.route('/announce', methods=['GET'])
 def announce():
     global active_peers, seeding
-
-    filename = request.args.get('filename')
+    
+    info_hash = request.args.get('info_hash')
     event = request.args.get('event')
-
-    if not filename:
-        return "Filename not provided", 400
-
-    if filename not in active_peers:
-        active_peers[filename] = 0
-        seeding[filename] = True
-
+    
+    if not info_hash:
+        return "Info hash not provided", 400
+    
+    if info_hash not in active_peers:
+        active_peers[info_hash] = 0
+        seeding[info_hash] = True
+    
     if event == 'started':
-        active_peers[filename] += 1
+        active_peers[info_hash] += 1
     elif event == 'stopped':
-        active_peers[filename] -= 1
+        active_peers[info_hash] -= 1
+    
+    # If peers start seeding, stop web seeding
+    if active_peers[info_hash] > 1 and seeding[info_hash]:
+        seeding[info_hash] = False
+        threading.Thread(target=stop_seeding_and_delete_file, args=(info_hash,)).start()
+    
+    return jsonify({"peers": active_peers[info_hash]})
 
-    if active_peers[filename] > 1 and seeding[filename]:
-        seeding[filename] = False
-        threading.Thread(target=drop_file_after_delay, args=(filename,)).start()
-
-    return jsonify({"peers": active_peers[filename]})
-
-def drop_file_after_delay(filename):
-    time.sleep(60)  # Wait for 1 minute before dropping the file
-    if active_peers[filename] > 1:
+# Stop Seeding and Delete File
+def stop_seeding_and_delete_file(info_hash):
+    time.sleep(60)
+    for filename, _ in seeding.items():
+        torrent_file_path = os.path.join(TORRENT_DIR, f"{filename}.torrent")
         file_path = os.path.join(FILE_DIR, filename)
+        
         if os.path.exists(file_path):
             os.remove(file_path)
-            print(f"File {filename} dropped from the server")
+            print(f"File {filename} removed from server")
+        
+        if os.path.exists(torrent_file_path):
+            os.remove(torrent_file_path)
+            print(f"Torrent {filename} removed from server")
 
+# File Upload Handling
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -87,55 +132,23 @@ def upload_file():
         file_path = os.path.join(FILE_DIR, filename)
         file.save(file_path)
 
-        # Create and seed the .torrent file
         torrent_file_path = create_torrent_file(file_path, filename)
-        magnet_url = start_seeding(torrent_file_path)
+        magnet_url = generate_magnet_link(filename, torrent_file_path)
         return jsonify({"magnetUrl": magnet_url})
 
     return jsonify({"error": "Unknown error occurred"}), 500
 
-def create_torrent_file(file_path, filename):
-    torrent_file_path = os.path.join(TORRENT_DIR, f"{filename}.torrent")
+# Serving Static Files
+@app.route('/static/<filename>')
+def serve_file(filename):
+    file_path = os.path.join(FILE_DIR, filename)
+    if os.path.exists(file_path):
+        return send_file(file_path)
+    return "File not found", 404
 
-    # Remove the existing .torrent file if it exists
-    if os.path.exists(torrent_file_path):
-        os.remove(torrent_file_path)
-
-    # Create the .torrent file using mktorrent command
-    command = [
-        "mktorrent",
-        "-o", torrent_file_path,
-        "-a", "http://127.0.0.1:8080/announce",
-        file_path
-    ]
-
-    # Run the command
-    subprocess.run(command, check=True)
-
-    return torrent_file_path
-
-
-def start_seeding(torrent_file_path):
-    # Add the .torrent file to the qBittorrent client for seeding
-    client.torrents_add(torrent_files=[torrent_file_path])
-
-    # Get the magnet link for the torrent
-    torrents = client.torrents_info()  # Get the list of torrents
-    magnet_url = None
-    for t in torrents:
-        if t['name'] == os.path.basename(torrent_file_path).replace('.torrent', ''):
-            magnet_url = t['magnet_uri']
-            break
-
-    # Function to drop the file after some peers are seeding
-    def drop_file():
-        time.sleep(60)  # Wait for 1 minute
-        if os.path.exists(torrent_file_path):
-            os.remove(torrent_file_path)
-
-    threading.Thread(target=drop_file).start()
-    return magnet_url if magnet_url else "Magnet link not found"
-
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

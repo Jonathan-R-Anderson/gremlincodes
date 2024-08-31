@@ -39,20 +39,17 @@
     </div>
 
     <script>
-        console.log(WebTorrent);  // Should log the WebTorrent function or object
-        let gremlinThreadContract;
+
+let gremlinThreadContract;
         let currentScrollPage = 1;
         let loadedThreads = 0;
         const postsToLoad = 5;
 
         async function initializeContracts() {
-            console.log("initializeContracts called");
             if (typeof window.ethereum !== 'undefined') {
-                console.log("Ethereum provider found");
                 const web3 = new Web3(window.ethereum);
 
                 try {
-                    console.log("Requesting MetaMask access...");
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
 
                     gremlinThreadContract = new web3.eth.Contract(
@@ -60,10 +57,8 @@
                         '{{ gremlinThreadAddress }}'
                     );
 
-                    console.log('Contracts initialized, loading posts...');
                     await loadMorePosts();
                 } catch (error) {
-                    console.error('Error in initializeContracts:', error);
                     alert('Could not access MetaMask. Please ensure MetaMask is installed and you have authorized access.');
                 }
             } else {
@@ -72,34 +67,29 @@
         }
 
         async function submitPost() {
-            console.log("submitPost called");
             const title = document.getElementById('newPostTitle').value;
             const content = document.getElementById('newPostContent').value;
             const tags = document.getElementById('newPostTags').value.split(',').map(tag => tag.trim());
             const imageFile = document.getElementById('imageUpload').files[0];
-            console.log("Post details:", { title, content, tags, imageFile });
 
             try {
                 // Upload the image file to the server and get the magnet URL in response
                 const magnetUrl = await uploadToServer(imageFile);
-                console.log("Magnet URL received:", magnetUrl);
                 const attachments = [magnetUrl];
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 const account = accounts[0];
-                console.log("Sending post transaction...");
 
+                // Create a new thread on the blockchain using the gremlinThreadContract
                 await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account });
 
-                console.log("Post submitted successfully:", { title, tags, attachments });
                 closeOverlay();
-                await refreshThreads();  // Refresh the threads to move the new post to the top
+                await refreshThreads();
             } catch (error) {
                 console.error('Error in submitPost:', error);
             }
         }
 
         async function uploadToServer(file) {
-            console.log("uploadToServer called with file:", file);
             const formData = new FormData();
             formData.append('file', file);
 
@@ -110,7 +100,6 @@
             .then(response => response.json())
             .then(data => {
                 if (data.magnetUrl) {
-                    console.log("Magnet URL received from server:", data.magnetUrl);
                     return data.magnetUrl;
                 } else {
                     throw new Error('Failed to receive magnet URL from server.');
@@ -123,214 +112,98 @@
         }
 
         async function refreshThreads() {
-            document.getElementById('infiniteScrollContent').innerHTML = ''; // Clear current threads
-            loadedThreads = 0;  // Reset loaded threads counter
-            currentScrollPage = 1;  // Reset scroll page
-            await loadMorePosts();  // Load threads again
-        }
-
-        async function getAllThreads(start, limit) {
-            console.log(`getAllThreads called with start=${start}, limit=${limit}`);
-            try {
-                const threadCount = await gremlinThreadContract.methods.getThreadCount().call();
-                console.log(`Total threads available: ${threadCount}`);
-                const totalThreads = Number(threadCount);
-
-                let threads = [];
-
-                for (let i = start + 1; i <= Math.min(start + limit, totalThreads); i++) {
-                    try {
-                        console.log(`Fetching thread ${i}...`);
-                        const thread = await gremlinThreadContract.methods.getThreadInfo(i).call();
-                        console.log(`Thread ${i} fetched:`, thread);
-                        thread.id = i;
-                        thread.timestamp = new Date(thread.timestamp * 1000); // Convert to Date object
-                        thread.lastReplyTimestamp = new Date(thread.lastReplyTimestamp * 1000); // Assuming lastReplyTimestamp exists
-                        threads.push(thread);
-                    } catch (innerError) {
-                        console.error(`Error fetching thread ${i}:`, innerError);
-                    }
-                }
-
-                // Sort threads by last reply timestamp or original timestamp if no replies
-                threads.sort((a, b) => {
-                    return (b.lastReplyTimestamp || b.timestamp) - (a.lastReplyTimestamp || a.timestamp);
-                });
-
-                for (let thread of threads) {
-                    await displayThread(thread);
-                    loadedThreads++;
-                }
-
-            } catch (error) {
-                console.error('Error in getAllThreads:', error);
-            }
+            document.getElementById('infiniteScrollContent').innerHTML = '';
+            loadedThreads = 0;
+            currentScrollPage = 1;
+            await loadMorePosts();
         }
 
         async function loadMorePosts() {
-            console.log(`loadMorePosts called, current page: ${currentScrollPage}`);
             await getAllThreads(loadedThreads, postsToLoad);
             currentScrollPage++;
-            console.log(`Page ${currentScrollPage - 1} loaded successfully`);
         }
 
-        async function retrieveImageFromMagnet(magnetUrl) {
-            console.log("retrieveImageFromMagnet called with magnetUrl:", magnetUrl);
+        async function displayThread(thread) {
+            const threadContainer = document.createElement('div');
+            threadContainer.className = 'thread-container';
+            threadContainer.id = `thread-${thread.id}`;
 
-            return new Promise((resolve, reject) => {
-                try {
-                    const client = new WebTorrent();
+            const subject = document.createElement('h3');
+            subject.innerText = `Subject: ${thread.subject}`;
+            threadContainer.appendChild(subject);
 
-                    client.add(magnetUrl, (torrent) => {
-                        console.log(`Torrent added with infoHash: ${torrent.infoHash}`);
+            const tags = Array.isArray(thread.tags) ? thread.tags.join(', ') : thread.tags;
+            const tagsElement = document.createElement('p');
+            tagsElement.innerText = `Tags: ${tags}`;
+            threadContainer.appendChild(tagsElement);
 
-                        torrent.on('download', (bytes) => {
-                            const progress = (torrent.downloaded / torrent.length * 100).toFixed(2);
-                            console.log(`Downloading: ${progress}% complete (${torrent.downloaded} out of ${torrent.length} bytes)`);
-                        });
+            const ethAddressElement = document.createElement('p');
+            ethAddressElement.innerText = `Ethereum Address: ${thread.ethAddress}`;
+            threadContainer.appendChild(ethAddressElement);
 
-                        torrent.on('done', () => {
-                            console.log("Download complete!");
+            const dateElement = document.createElement('p');
+            dateElement.innerText = `Posted: ${thread.timestamp.toLocaleString()}`;
+            threadContainer.appendChild(dateElement);
 
-                            const file = torrent.files[0];
-                            console.log("File found in torrent:", file.name);
+            document.getElementById('infiniteScrollContent').appendChild(threadContainer);
 
-                            file.getBlobURL((err, url) => {
-                                if (err) {
-                                    console.error('Error retrieving image blob:', err);
-                                    reject(err);
-                                } else {
-                                    console.log("Blob URL created:", url);
-                                    resolve(url);
-                                }
-                            });
-                        });
-                    });
-
-                    client.on('error', (err) => {
-                        console.error('Error with WebTorrent client:', err);
-                        reject(err);
-                    });
-                } catch (err) {
-                    console.error('Error in retrieveImageFromMagnet:', err);
-                    reject(err);
-                }
-            });
+            const attachments = thread.attachments || [];
+            for (let attachment of attachments) {
+                loadImageForThread(thread.id, attachment);
+            }
         }
 
         async function loadImageForThread(threadId, magnetUrl) {
-            console.log(`loadImageForThread called for thread ${threadId} with magnetUrl:`, magnetUrl);
-
             const isValidMagnet = /^magnet:\?xt=urn:btih:[a-fA-F0-9]{40,}/.test(magnetUrl);
             if (!isValidMagnet) {
-                console.error(`Invalid magnet URL format for thread ${threadId}:`, magnetUrl);
                 return;
             }
 
             try {
                 const client = new WebTorrent();
-                console.log("Adding magnet URL to WebTorrent client...");
 
                 client.add(magnetUrl, (torrent) => {
-                    console.log(`Torrent added with infoHash: ${torrent.infoHash}`);
-
-                    torrent.on('download', (bytes) => {
-                        const progress = (torrent.downloaded / torrent.length * 100).toFixed(2);
-                        console.log(`Downloading: ${progress}% complete (${torrent.downloaded} out of ${torrent.length} bytes)`);
-                    });
-
                     torrent.on('done', () => {
-                        console.log("Download complete!");
-                    });
+                        const file = torrent.files[0];
+                        file.getBlobURL((err, url) => {
+                            if (err) {
+                                return;
+                            }
 
-                    torrent.files[0].getBlobURL((err, url) => {
-                        if (err) {
-                            console.error('Error retrieving image blob:', err);
-                            return;
-                        }
+                            const img = document.createElement('img');
+                            img.src = url;
+                            img.alt = 'Image from magnet URL';
+                            img.style.maxWidth = '100%';
 
-                        console.log("Blob URL created:", url);
-
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.alt = 'Image from magnet URL';
-                        img.style.maxWidth = '100%';
-
-                        console.log("Appending image to thread:", threadId);
-                        document.querySelector(`#thread-${threadId}`).appendChild(img);
-                        console.log(`Image appended successfully to thread ${threadId}`);
+                            document.querySelector(`#thread-${threadId}`).appendChild(img);
+                        });
                     });
                 });
-
-                client.on('error', (err) => {
-                    console.error('Error with WebTorrent client:', err);
-                });
-
             } catch (err) {
                 console.error(`Error in loadImageForThread for thread ${threadId}:`, err);
             }
         }
 
-        async function displayThread(thread) {
-            console.log("displayThread called with thread:", thread);
-            try {
-                const threadContainer = document.createElement('div');
-                threadContainer.className = 'thread-container';
-                threadContainer.id = `thread-${thread.id}`;
-
-                const subject = document.createElement('h3');
-                subject.innerText = `Subject: ${thread.subject}`;
-                threadContainer.appendChild(subject);
-
-                const tags = Array.isArray(thread.tags) ? thread.tags.join(', ') : thread.tags;
-                const tagsElement = document.createElement('p');
-                tagsElement.innerText = `Tags: ${tags}`;
-                threadContainer.appendChild(tagsElement);
-
-                const ethAddressElement = document.createElement('p');
-                ethAddressElement.innerText = `Ethereum Address: ${thread.ethAddress}`;
-                threadContainer.appendChild(ethAddressElement);
-
-                const dateElement = document.createElement('p');
-                dateElement.innerText = `Posted: ${thread.timestamp.toLocaleString()}`;
-                threadContainer.appendChild(dateElement);
-
-                document.getElementById('infiniteScrollContent').appendChild(threadContainer);
-                console.log(`Thread displayed successfully:`, thread);
-
-                const attachments = thread.attachments || [];
-                for (let attachment of attachments) {
-                    loadImageForThread(thread.id, attachment);
-                }
-            } catch (error) {
-                console.error('Error in displayThread:', error);
-            }
-        }
-
         function showOverlay() {
-            console.log("showOverlay called");
             document.getElementById('overlay').style.height = "100%";
             document.getElementById('closeOverlayBtn').style.display = 'block';
         }
 
         function closeOverlay() {
-            console.log("closeOverlay called");
             document.getElementById('overlay').style.height = "0%";
             document.getElementById('closeOverlayBtn').style.display = 'none';
         }
 
         window.onscroll = function() {
-            console.log("onscroll event triggered");
             if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
-                console.log("Bottom of page reached, loading more posts...");
                 loadMorePosts();
             }
         };
 
         window.onload = function() {
-            console.log("window.onload event triggered");
             initializeContracts();
         };
+
     </script>
 </body>
 </html>
