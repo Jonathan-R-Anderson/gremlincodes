@@ -5,6 +5,7 @@ import threading
 from shared import app, gremlinThreadABI, gremlinThreadAddress
 import time
 from werkzeug.utils import secure_filename
+import json
 
 # Setup directories and Flask app
 FILE_DIR = 'static'
@@ -148,7 +149,7 @@ def serve_file(filename):
 
 @app.route('/')
 def index():
-    return render_template('index.html', gremlinThreadABI=gremlinThreadABI, gremlinThreadAddress=gremlinThreadAddress)
+    return render_template('index.html', gremlinThreadABI=json.dumps(gremlinThreadABI), gremlinThreadAddress=gremlinThreadAddress)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
