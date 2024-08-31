@@ -55,7 +55,7 @@
                         {{ gremlinThreadABI | safe }},
                         '{{ gremlinThreadAddress }}'
                     );
-                    console.log({{ gremlinThreadABI }});
+                    console.log({{ gremlinThreadABI | safe }});
                     console.log({{ gremlinThreadAddress }});
                     await loadMorePosts();
                 } catch (error) {
