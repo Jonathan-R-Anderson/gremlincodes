@@ -52,10 +52,10 @@
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
 
                     gremlinThreadContract = new web3.eth.Contract(
-                        {{ gremlinThreadABI|tojson }},
+                        {{ gremlinThreadABI }},
                         {{ gremlinThreadAddress }}
                     );
-                    console.log(gremlinThreadABI|tojson);
+                    console.log(gremlinThreadABI);
                     console.log(gremlinThreadAddress);
                     await loadMorePosts();
                 } catch (error) {
