@@ -82,6 +82,21 @@
 
                 // Assign the id manually since there's no timestamp or transaction data
                 thread.id = i;
+
+                // Safely handle timestamp conversion if it exists
+                if (thread.timestamp) {
+                    thread.timestamp = new Date(thread.timestamp * 1000).toLocaleString();
+                } else {
+                    thread.timestamp = "No timestamp available";
+                }
+
+                // Safely handle last reply timestamp conversion if it exists
+                if (thread.lastReplyTimestamp) {
+                    thread.lastReplyTimestamp = new Date(thread.lastReplyTimestamp * 1000).toLocaleString();
+                } else {
+                    thread.lastReplyTimestamp = "No last reply timestamp available";
+                }
+
                 threads.push(thread);
             } catch (innerError) {
                 console.log(`Error fetching thread ${i}:`, innerError);
