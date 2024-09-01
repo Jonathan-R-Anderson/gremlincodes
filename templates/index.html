@@ -97,7 +97,7 @@
 
         // Store a reference to the added torrents
         const addedTorrents = new Map();
-        
+
         async function initializeContracts() {
             if (typeof window.ethereum !== 'undefined') {
                 const web3 = new Web3(window.ethereum);
@@ -231,56 +231,58 @@
             }
         }
 
+        async function downloadAndDisplayImage(threadId, magnetUrl) {
+            console.log(`Attempting to download image for thread ${threadId} with magnet URL: ${magnetUrl}`);
 
-async function downloadAndDisplayImage(threadId, magnetUrl) {
-    console.log(`Attempting to download image for thread ${threadId} with magnet URL: ${magnetUrl}`);
+            if (addedTorrents.has(magnetUrl)) {
+                console.log(`Torrent already added for magnet URL: ${magnetUrl}`);
+                const torrent = addedTorrents.get(magnetUrl);
+                displayImageFromTorrent(threadId, torrent);
+                return;
+            }
 
-    if (addedTorrents.has(magnetUrl)) {
-        console.log(`Torrent already added for magnet URL: ${magnetUrl}`);
-        const torrent = addedTorrents.get(magnetUrl);
-        displayImageFromTorrent(threadId, torrent);
-        return;
-    }
+            try {
+                client.add(magnetUrl, (torrent) => {
+                    console.log(`Torrent added for thread ${threadId}.`);
 
-    client.add(magnetUrl, (torrent) => {
-        console.log(`Torrent added for thread ${threadId}.`);
+                    // Store the torrent in the map to avoid duplicate additions
+                    addedTorrents.set(magnetUrl, torrent);
 
-        // Store the torrent in the map to avoid duplicate additions
-        addedTorrents.set(magnetUrl, torrent);
-
-        displayImageFromTorrent(threadId, torrent);
-    });
-}
-
-function displayImageFromTorrent(threadId, torrent) {
-    const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
-    if (!file) {
-        console.log(`No image file found in torrent for thread ${threadId}`);
-        return;
-    }
-
-    file.getBlobURL((err, url) => {
-        if (err) {
-            console.log(`Error generating blob URL for thread ${threadId}:`, err);
-            return;
+                    displayImageFromTorrent(threadId, torrent);
+                });
+            } catch (error) {
+                console.log(`Error adding torrent for thread ${threadId}:`, error);
+            }
         }
 
-        console.log(`Image URL generated for thread ${threadId}: ${url}`);
-        const img = document.createElement('img');
-        img.src = url;
-        img.alt = 'Image from magnet URL';
-        img.style.maxWidth = '100%';
+        function displayImageFromTorrent(threadId, torrent) {
+            const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
+            if (!file) {
+                console.log(`No image file found in torrent for thread ${threadId}`);
+                return;
+            }
 
-        const threadContainer = document.querySelector(`#thread-${threadId}`);
-        if (threadContainer) {
-            threadContainer.appendChild(img);
-            console.log(`Image appended to thread ${threadId}`);
-        } else {
-            console.log(`Thread container not found for thread ${threadId}`);
+            file.getBlobURL((err, url) => {
+                if (err) {
+                    console.log(`Error generating blob URL for thread ${threadId}:`, err);
+                    return;
+                }
+
+                console.log(`Image URL generated for thread ${threadId}: ${url}`);
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = 'Image from magnet URL';
+                img.style.maxWidth = '100%';
+
+                const threadContainer = document.querySelector(`#thread-${threadId}`);
+                if (threadContainer) {
+                    threadContainer.appendChild(img);
+                    console.log(`Image appended to thread ${threadId}`);
+                } else {
+                    console.log(`Thread container not found for thread ${threadId}`);
+                }
+            });
         }
-    });
-}
-
 
         function showOverlay() {
             document.getElementById('overlay').style.height = "100%";
@@ -302,7 +304,6 @@ function displayImageFromTorrent(threadId, torrent) {
             initializeContracts();
             console.log("after");
         };
-
     </script>
 </body>
 </html>
