@@ -84,11 +84,10 @@ def generate_magnet_link(filename, torrent_file_path):
         magnet_link = f"magnet:?xt=urn:btih:{info_hash}&dn={filename}&tr=http://{request.host}/announce"
         return magnet_link
 
-# Announce URL Handling
 @app.route('/announce', methods=['GET'])
 def announce():
     global active_peers, seeding
-
+    
     info_hash = request.args.get('info_hash')
     peer_id = request.args.get('peer_id')
     ip = request.remote_addr
@@ -97,21 +96,14 @@ def announce():
     downloaded = int(request.args.get('downloaded', 0))
     left = int(request.args.get('left', 0))
     event = request.args.get('event')
-
-    if not info_hash:
-        return "Missing info_hash", 400
-
-    # Handle metadata request via special request
-    if event == 'metadata' and info_hash in torrent_info_cache:
-        return jsonify(torrent_info_cache[info_hash])
-
-    if not peer_id:
-        return "Missing peer_id", 400
-
+    
+    if not info_hash or not peer_id:
+        return "Missing info_hash or peer_id", 400
+    
     if info_hash not in active_peers:
         active_peers[info_hash] = {}
         seeding[info_hash] = True
-
+    
     if event == 'started' or peer_id not in active_peers[info_hash]:
         active_peers[info_hash][peer_id] = {
             'ip': ip,
@@ -125,25 +117,30 @@ def announce():
             del active_peers[info_hash][peer_id]
     elif event == 'completed':
         pass
-
+    
     # If peers start seeding, stop web seeding
     if len(active_peers[info_hash]) > 1 and seeding[info_hash]:
         seeding[info_hash] = False
         threading.Thread(target=stop_seeding_and_delete_file, args=(info_hash,)).start()
-
+    
     # Include the tracker server itself as a peer
+    server_ip = request.host.split(':')[0]  # Extract the server IP
     server_peer = {
-        'ip': request.host.split(':')[0],  # Server's IP
-        'port': 5000  # Assuming the server listens on port 5000
+        'ip': server_ip,  # Use the external IP if possible
+        'port': 5000  # Assuming your server listens on port 5000
     }
+    
     peers = [{'ip': peer['ip'], 'port': int(peer['port'])} for peer in active_peers[info_hash].values()]
-    peers.append(server_peer)
+    
+    # Add the tracker server as a peer
+    if server_peer not in peers:
+        peers.append(server_peer)
 
     response = {
         'interval': 1800,
         'peers': peers
     }
-
+    
     return jsonify(response)
 
 
