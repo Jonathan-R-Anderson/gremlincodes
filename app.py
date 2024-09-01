@@ -106,6 +106,34 @@ def announce():
     
     return jsonify({"peers": active_peers[info_hash]})
 
+
+@app.route('/scrape', methods=['GET'])
+def scrape():
+    global active_peers, seeding
+    
+    info_hash = request.args.get('info_hash')
+    
+    if not info_hash:
+        return "Info hash not provided", 400
+    
+    # Respond with the number of seeders and leechers
+    num_seeders = active_peers.get(info_hash, 0)
+    num_leechers = max(num_seeders - 1, 0)  # Assume one peer is the seeder, the rest are leechers
+    
+    scrape_response = {
+        'files': {
+            info_hash: {
+                'complete': num_seeders,
+                'incomplete': num_leechers,
+                'downloaded': 0  # Total number of times the file has been downloaded
+            }
+        }
+    }
+    
+    return jsonify(scrape_response)
+
+
+
 # Stop Seeding and Delete File
 def stop_seeding_and_delete_file(info_hash):
     time.sleep(60)
