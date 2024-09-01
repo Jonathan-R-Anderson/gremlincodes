@@ -47,22 +47,36 @@
             const client = new WebTorrent();
 
             client.add(magnetURI, torrent => {
-                // Select the first file with an image extension
-                const file = torrent.files.find(file => /\.(jpg|jpeg|png|gif)$/.test(file.name.toLowerCase()));
+                console.log('Torrent info hash:', torrent.infoHash);
+                console.log('Torrent metadata:', torrent);
 
-                if (file) {
-                    file.getBlobURL((err, url) => {
-                        if (err) {
-                            console.error('Error getting the file:', err);
-                            return;
-                        }
+                // Ensure the torrent is ready
+                torrent.on('ready', () => {
+                    console.log('Torrent is ready. Files:', torrent.files);
 
-                        const imageContainer = document.getElementById('image-container');
-                        imageContainer.innerHTML = `<img src="${url}" alt="Torrent Image">`;
-                    });
-                } else {
-                    alert('No image found in the torrent');
-                }
+                    // Select the first file with an image extension
+                    const file = torrent.files.find(file => /\.(jpg|jpeg|png|gif)$/.test(file.name.toLowerCase()));
+
+                    if (file) {
+                        file.getBlobURL((err, url) => {
+                            if (err) {
+                                console.error('Error getting the file:', err);
+                                return;
+                            }
+
+                            const imageContainer = document.getElementById('image-container');
+                            imageContainer.innerHTML = `<img src="${url}" alt="Torrent Image">`;
+                        });
+                    } else {
+                        alert('No image found in the torrent');
+                    }
+                });
+
+                // Error handling
+                torrent.on('error', (err) => {
+                    console.error('Torrent error:', err);
+                    alert('Failed to download the torrent.');
+                });
             });
         }
     </script>
