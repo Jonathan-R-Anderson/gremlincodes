@@ -260,18 +260,24 @@
             try {
                 client.add(magnetUrl, (torrent) => {
                     console.log(`Torrent added for thread ${threadId}.`);
-
-                    // Store the torrent in the map to avoid duplicate additions
                     addedTorrents.set(magnetUrl, torrent);
-
                     displayImageFromTorrent(threadId, torrent);
                 });
             } catch (error) {
                 console.log(`Error adding torrent for thread ${threadId}:`, error);
+
+                // If the torrent is a duplicate, still try to display the image
+                const existingTorrent = addedTorrents.get(magnetUrl);
+                if (existingTorrent) {
+                    displayImageFromTorrent(threadId, existingTorrent);
+                }
             }
         }
 
+
         function displayImageFromTorrent(threadId, torrent) {
+            console.log(`displayImageFromTorrent called for thread ${threadId}`);
+
             const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
             if (!file) {
                 console.log(`No image file found in torrent for thread ${threadId}`);
@@ -290,20 +296,18 @@
                 img.alt = 'Image from magnet URL';
                 img.style.maxWidth = '100%';
 
-                const threadContainer = document.querySelector(`#thread-${threadId}`);
+                const threadContainer = document.querySelector(`#thread-${threadId} .placeholder-image`);
                 if (threadContainer) {
-                    // Replace the placeholder with the actual image
-                    const placeholder = threadContainer.querySelector('.placeholder-image');
-                    if (placeholder) {
-                        placeholder.innerText = ''; // Clear the placeholder text
-                        placeholder.appendChild(img); // Add the image to the placeholder
-                    }
+                    threadContainer.appendChild(img);
                     console.log(`Image appended to thread ${threadId}`);
                 } else {
                     console.log(`Thread container not found for thread ${threadId}`);
                 }
             });
         }
+
+
+
 
         function showOverlay() {
             document.getElementById('overlay').style.height = "100%";
