@@ -88,7 +88,7 @@ def generate_magnet_link(filename, torrent_file_path):
 @app.route('/announce', methods=['GET'])
 def announce():
     global active_peers, seeding
-    
+
     info_hash = request.args.get('info_hash')
     peer_id = request.args.get('peer_id')
     ip = request.remote_addr
@@ -97,21 +97,21 @@ def announce():
     downloaded = int(request.args.get('downloaded', 0))
     left = int(request.args.get('left', 0))
     event = request.args.get('event')
-    
+
     if not info_hash:
         return "Missing info_hash", 400
-    
+
     # Handle metadata request via special request
     if event == 'metadata' and info_hash in torrent_info_cache:
         return jsonify(torrent_info_cache[info_hash])
-    
+
     if not peer_id:
         return "Missing peer_id", 400
-    
+
     if info_hash not in active_peers:
         active_peers[info_hash] = {}
         seeding[info_hash] = True
-    
+
     if event == 'started' or peer_id not in active_peers[info_hash]:
         active_peers[info_hash][peer_id] = {
             'ip': ip,
@@ -125,21 +125,50 @@ def announce():
             del active_peers[info_hash][peer_id]
     elif event == 'completed':
         pass
-    
+
     # If peers start seeding, stop web seeding
     if len(active_peers[info_hash]) > 1 and seeding[info_hash]:
         seeding[info_hash] = False
         threading.Thread(target=stop_seeding_and_delete_file, args=(info_hash,)).start()
-    
-    # Build peer list response
+
+    # Include the tracker server itself as a peer
+    server_peer = {
+        'ip': request.host.split(':')[0],  # Server's IP
+        'port': 5000  # Assuming the server listens on port 5000
+    }
     peers = [{'ip': peer['ip'], 'port': int(peer['port'])} for peer in active_peers[info_hash].values()]
-    
+    peers.append(server_peer)
+
     response = {
         'interval': 1800,
         'peers': peers
     }
-    
+
     return jsonify(response)
+
+
+@app.route('/peer/<info_hash>/<piece_index>', methods=['GET'])
+def serve_piece(info_hash, piece_index):
+    # Locate the file based on info_hash
+    file_metadata = torrent_info_cache.get(info_hash)
+    if not file_metadata:
+        return "Metadata not found", 404
+
+    file_name = file_metadata['name']
+    file_path = os.path.join(FILE_DIR, file_name)
+
+    if not os.path.exists(file_path):
+        return "File not found", 404
+
+    piece_index = int(piece_index)
+    piece_length = file_metadata['piece length']
+    with open(file_path, 'rb') as f:
+        f.seek(piece_index * piece_length)
+        piece_data = f.read(piece_length)
+
+    return piece_data
+
+
 
 # Scrape URL Handling
 @app.route('/scrape', methods=['GET'])
