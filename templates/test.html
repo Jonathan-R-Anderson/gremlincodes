@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magnet URL Image Resolver</title>
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        input[type="text"] {
+            width: 80%;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #image-container {
+            margin-top: 30px;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Resolve Magnet URL</h1>
+    <input type="text" id="magnet-url" placeholder="Enter magnet URL here">
+    <button onclick="resolveMagnet()">Resolve and Display Image</button>
+
+    <div id="image-container"></div>
+
+    <script>
+        function resolveMagnet() {
+            const magnetURI = document.getElementById('magnet-url').value;
+            const client = new WebTorrent();
+
+            client.add(magnetURI, torrent => {
+                // Select the first file with an image extension
+                const file = torrent.files.find(file => /\.(jpg|jpeg|png|gif)$/.test(file.name.toLowerCase()));
+
+                if (file) {
+                    file.getBlobURL((err, url) => {
+                        if (err) {
+                            console.error('Error getting the file:', err);
+                            return;
+                        }
+
+                        const imageContainer = document.getElementById('image-container');
+                        imageContainer.innerHTML = `<img src="${url}" alt="Torrent Image">`;
+                    });
+                } else {
+                    alert('No image found in the torrent');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
