@@ -39,44 +39,55 @@
     <input type="text" id="magnet-url" placeholder="Enter magnet URL here">
     <button onclick="resolveMagnet()">Resolve and Display Image</button>
 
+    <div id="status"></div>
     <div id="image-container"></div>
 
     <script>
         function resolveMagnet() {
             const magnetURI = document.getElementById('magnet-url').value;
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = "Adding torrent...";
             const client = new WebTorrent();
 
             client.add(magnetURI, torrent => {
                 console.log('Torrent info hash:', torrent.infoHash);
                 console.log('Torrent metadata:', torrent);
 
-                // Ensure the torrent is ready
                 torrent.on('ready', () => {
+                    statusDiv.textContent = "Torrent is ready. Looking for image files...";
                     console.log('Torrent is ready. Files:', torrent.files);
 
-                    // Select the first file with an image extension
                     const file = torrent.files.find(file => /\.(jpg|jpeg|png|gif)$/.test(file.name.toLowerCase()));
 
                     if (file) {
                         file.getBlobURL((err, url) => {
                             if (err) {
                                 console.error('Error getting the file:', err);
+                                statusDiv.textContent = "Error getting the image file.";
                                 return;
                             }
 
                             const imageContainer = document.getElementById('image-container');
                             imageContainer.innerHTML = `<img src="${url}" alt="Torrent Image">`;
+                            statusDiv.textContent = "Image loaded successfully.";
                         });
                     } else {
-                        alert('No image found in the torrent');
+                        statusDiv.textContent = "No image found in the torrent.";
+                        alert('No image found in the torrent.');
                     }
                 });
 
-                // Error handling
                 torrent.on('error', (err) => {
                     console.error('Torrent error:', err);
+                    statusDiv.textContent = "Failed to download the torrent.";
                     alert('Failed to download the torrent.');
                 });
+            });
+
+            client.on('error', (err) => {
+                console.error('Client error:', err);
+                statusDiv.textContent = "Failed to add the torrent.";
+                alert('Failed to add the torrent.');
             });
         }
     </script>
