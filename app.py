@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file, render_template
+from flask import Flask, request, jsonify, send_file, render_template, abort
 import os
 import hashlib
 import threading
@@ -20,6 +20,7 @@ os.makedirs(TORRENT_DIR, exist_ok=True)
 
 active_peers = {}  # Structure: {info_hash: {peer_id: {ip, port, uploaded, downloaded, left}}}
 seeding = {}
+torrent_info_cache = {}  # Cache to store torrent info metadata for serving to clients
 
 # Bencode encoding function
 def bencode(value):
@@ -66,6 +67,10 @@ def create_torrent_file(file_path, filename):
         "url-list": [f"http://{request.host}/static/{filename}"]  # Web seeding URL
     }
     
+    # Cache the info dictionary using the info_hash for quick lookup
+    info_hash = hashlib.sha1(bencode(info)).hexdigest()
+    torrent_info_cache[info_hash] = info
+
     with open(torrent_file_path, "wb") as f:
         f.write(bencode(torrent))
     
@@ -93,8 +98,15 @@ def announce():
     left = int(request.args.get('left', 0))
     event = request.args.get('event')
     
-    if not info_hash or not peer_id:
-        return "Missing info_hash or peer_id", 400
+    if not info_hash:
+        return "Missing info_hash", 400
+    
+    # Handle metadata request via special request
+    if event == 'metadata' and info_hash in torrent_info_cache:
+        return jsonify(torrent_info_cache[info_hash])
+    
+    if not peer_id:
+        return "Missing peer_id", 400
     
     if info_hash not in active_peers:
         active_peers[info_hash] = {}
@@ -112,7 +124,6 @@ def announce():
         if peer_id in active_peers[info_hash]:
             del active_peers[info_hash][peer_id]
     elif event == 'completed':
-        # Optionally handle completed events
         pass
     
     # If peers start seeding, stop web seeding
