@@ -96,7 +96,6 @@ def generate_magnet_link(filename, torrent_file_path):
         logging.debug(f"Magnet link: {magnet_link}")
         return magnet_link
 
-# Announce URL Handling (the core of the tracker)
 @app.route('/announce', methods=['GET'])
 def announce():
     global active_peers, seeding
@@ -111,10 +110,9 @@ def announce():
     downloaded = int(request.args.get('downloaded', 0))
     left = int(request.args.get('left', 0))
     event = request.args.get('event')
-    compact = int(request.args.get('compact', 0))  # 1 if compact response is requested
     numwant = int(request.args.get('numwant', 50))  # Number of peers client wants
 
-    logging.debug(f"info_hash: {info_hash}, peer_id: {peer_id}, ip: {ip}, port: {port}, event: {event}, compact: {compact}, numwant: {numwant}")
+    logging.debug(f"info_hash: {info_hash}, peer_id: {peer_id}, ip: {ip}, port: {port}, event: {event}, numwant: {numwant}")
     
     if not info_hash or not peer_id:
         logging.error("Missing info_hash or peer_id")
@@ -163,27 +161,12 @@ def announce():
     except socket.gaierror as e:
         logging.error(f"Error resolving gremlin.codes: {e}")
 
-    # Return peers in the requested format
-    if compact:
-        # Compact peer list format
-        compact_peers = b""
-        for peer in peers:
-            try:
-                packed_ip = socket.inet_aton(peer['ip'])
-                packed_port = struct.pack("!H", peer['port'])
-                compact_peers += packed_ip + packed_port
-            except Exception as e:
-                logging.error(f"Error packing peer {peer}: {e}")
-        
-        logging.debug(f"Returning compact peer list: {compact_peers.hex()}")
-        return Response(compact_peers, content_type='application/octet-stream')
-    else:
-        # Non-compact peer list (default)
-        logging.debug(f"Returning non-compact peer list")
-        return jsonify({
-            'interval': 1800,
-            'peers': [{'ip': peer['ip'], 'port': peer['port']} for peer in peers]
-        })
+    # Always return non-compact peer list format
+    logging.debug(f"Returning non-compact peer list")
+    return jsonify({
+        'interval': 1800,
+        'peers': [{'ip': peer['ip'], 'port': peer['port']} for peer in peers]
+    })
 
 # Scrape URL Handling
 @app.route('/scrape', methods=['GET'])
