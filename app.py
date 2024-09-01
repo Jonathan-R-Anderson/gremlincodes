@@ -1,7 +1,9 @@
-from flask import Flask, request, jsonify, send_file, render_template, abort
+from flask import Flask, request, jsonify, send_file, render_template, Response
 import os
 import hashlib
 import threading
+import struct
+import socket
 from shared import app
 import time
 from werkzeug.utils import secure_filename
@@ -84,6 +86,7 @@ def generate_magnet_link(filename, torrent_file_path):
         magnet_link = f"magnet:?xt=urn:btih:{info_hash}&dn={filename}&tr=http://{request.host}/announce"
         return magnet_link
 
+# Announce URL Handling (the core of the tracker)
 @app.route('/announce', methods=['GET'])
 def announce():
     global active_peers, seeding
@@ -91,11 +94,13 @@ def announce():
     info_hash = request.args.get('info_hash')
     peer_id = request.args.get('peer_id')
     ip = request.remote_addr
-    port = request.args.get('port')
+    port = int(request.args.get('port', 6881))
     uploaded = int(request.args.get('uploaded', 0))
     downloaded = int(request.args.get('downloaded', 0))
     left = int(request.args.get('left', 0))
     event = request.args.get('event')
+    compact = int(request.args.get('compact', 0))  # 1 if compact response is requested
+    numwant = int(request.args.get('numwant', 50))  # Number of peers client wants
     
     if not info_hash or not peer_id:
         return "Missing info_hash or peer_id", 400
@@ -116,56 +121,41 @@ def announce():
         if peer_id in active_peers[info_hash]:
             del active_peers[info_hash][peer_id]
     elif event == 'completed':
+        # Optionally handle completed events
         pass
     
     # If peers start seeding, stop web seeding
     if len(active_peers[info_hash]) > 1 and seeding[info_hash]:
         seeding[info_hash] = False
         threading.Thread(target=stop_seeding_and_delete_file, args=(info_hash,)).start()
+
+    # Prepare the list of peers
+    peers = list(active_peers[info_hash].values())[:numwant]
     
-    # Include the tracker server itself as a peer
-    server_ip = request.host.split(':')[0]  # Extract the server IP
+    # Add the tracker server as a peer with its actual IP
+    server_ip = socket.gethostbyname('gremlin.codes')  # Resolve IP of gremlin.codes
     server_peer = {
-        'ip': server_ip,  # Use the external IP if possible
-        'port': 5000  # Assuming your server listens on port 5000
+        'ip': server_ip,
+        'port': 5000  # Port 5000
     }
-    
-    peers = [{'ip': peer['ip'], 'port': int(peer['port'])} for peer in active_peers[info_hash].values()]
-    
-    # Add the tracker server as a peer
-    if server_peer not in peers:
-        peers.append(server_peer)
+    peers.append(server_peer)
 
-    response = {
-        'interval': 1800,
-        'peers': peers
-    }
-    
-    return jsonify(response)
-
-
-@app.route('/peer/<info_hash>/<piece_index>', methods=['GET'])
-def serve_piece(info_hash, piece_index):
-    # Locate the file based on info_hash
-    file_metadata = torrent_info_cache.get(info_hash)
-    if not file_metadata:
-        return "Metadata not found", 404
-
-    file_name = file_metadata['name']
-    file_path = os.path.join(FILE_DIR, file_name)
-
-    if not os.path.exists(file_path):
-        return "File not found", 404
-
-    piece_index = int(piece_index)
-    piece_length = file_metadata['piece length']
-    with open(file_path, 'rb') as f:
-        f.seek(piece_index * piece_length)
-        piece_data = f.read(piece_length)
-
-    return piece_data
-
-
+    # Return peers in the requested format
+    if compact:
+        # Compact peer list format
+        compact_peers = b""
+        for peer in peers:
+            packed_ip = socket.inet_aton(peer['ip'])
+            packed_port = struct.pack("!H", peer['port'])
+            compact_peers += packed_ip + packed_port
+        
+        return Response(compact_peers, content_type='application/octet-stream')
+    else:
+        # Non-compact peer list (default)
+        return jsonify({
+            'interval': 1800,
+            'peers': [{'ip': peer['ip'], 'port': peer['port']} for peer in peers]
+        })
 
 # Scrape URL Handling
 @app.route('/scrape', methods=['GET'])
