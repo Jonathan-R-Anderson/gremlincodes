@@ -295,7 +295,8 @@
                     // Replace the placeholder with the actual image
                     const placeholder = threadContainer.querySelector('.placeholder-image');
                     if (placeholder) {
-                        threadContainer.replaceChild(img, placeholder);
+                        placeholder.innerText = ''; // Clear the placeholder text
+                        placeholder.appendChild(img); // Add the image to the placeholder
                     }
                     console.log(`Image appended to thread ${threadId}`);
                 } else {
