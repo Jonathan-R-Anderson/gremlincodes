@@ -57,6 +57,17 @@
             margin: 10px auto;
             padding: 10px 20px;
         }
+
+        .placeholder-image {
+            width: 100%;
+            height: 200px;
+            background-color: #eaeaea;
+            display: block;
+            text-align: center;
+            line-height: 200px;
+            font-size: 14px;
+            color: #ccc;
+        }
     </style>
 </head>
 <body>
@@ -223,6 +234,11 @@
             dateElement.innerText = `Posted: ${thread.timestamp}`;
             threadContainer.appendChild(dateElement);
 
+            const imgPlaceholder = document.createElement('div');
+            imgPlaceholder.className = 'placeholder-image';
+            imgPlaceholder.innerText = 'No Image Available';
+            threadContainer.appendChild(imgPlaceholder);
+
             document.getElementById('infiniteScrollContent').appendChild(threadContainer);
 
             const attachments = thread.attachments || [];
@@ -276,7 +292,11 @@
 
                 const threadContainer = document.querySelector(`#thread-${threadId}`);
                 if (threadContainer) {
-                    threadContainer.appendChild(img);
+                    // Replace the placeholder with the actual image
+                    const placeholder = threadContainer.querySelector('.placeholder-image');
+                    if (placeholder) {
+                        threadContainer.replaceChild(img, placeholder);
+                    }
                     console.log(`Image appended to thread ${threadId}`);
                 } else {
                     console.log(`Thread container not found for thread ${threadId}`);
