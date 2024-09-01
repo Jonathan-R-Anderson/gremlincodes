@@ -49,13 +49,14 @@
             statusDiv.textContent = "Adding torrent...";
             const client = new WebTorrent();
 
+            console.log('Magnet URI:', magnetURI);
+
             client.add(magnetURI, torrent => {
-                console.log('Torrent info hash:', torrent.infoHash);
-                console.log('Torrent metadata:', torrent);
+                console.log('Torrent added:', torrent);
 
                 torrent.on('ready', () => {
                     statusDiv.textContent = "Torrent is ready. Looking for image files...";
-                    console.log('Torrent is ready. Files:', torrent.files);
+                    console.log('Torrent is ready:', torrent);
 
                     const file = torrent.files.find(file => /\.(jpg|jpeg|png|gif)$/.test(file.name.toLowerCase()));
 
@@ -88,6 +89,15 @@
                 console.error('Client error:', err);
                 statusDiv.textContent = "Failed to add the torrent.";
                 alert('Failed to add the torrent.');
+            });
+
+            client.on('torrent', (torrent) => {
+                console.log('Torrent download started:', torrent);
+                statusDiv.textContent = "Torrent download started...";
+            });
+
+            client.on('warning', (err) => {
+                console.warn('Client warning:', err);
             });
         }
     </script>
