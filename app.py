@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file, render_template, Response
+from flask import Flask, request, jsonify, send_file, Response
 import os
 import hashlib
 import threading
@@ -96,6 +96,23 @@ def generate_magnet_link(filename, torrent_file_path):
         logging.debug(f"Magnet link: {magnet_link}")
         return magnet_link
 
+def stop_seeding_and_delete_file(info_hash):
+    logging.debug(f"Delaying the stop of web seeding for {info_hash} for 10 minutes to ensure proper seeding.")
+    time.sleep(600)  # Wait for 10 minutes before stopping web seeding
+    if info_hash in seeding and not seeding[info_hash]:
+        filename = next((f for f, h in torrent_info_cache.items() if hashlib.sha1(bencode(h)).hexdigest() == info_hash), None)
+        if filename:
+            torrent_file_path = os.path.join(TORRENT_DIR, f"{filename}.torrent")
+            file_path = os.path.join(FILE_DIR, filename)
+            
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                logging.debug(f"File {filename} removed from server")
+            
+            if os.path.exists(torrent_file_path):
+                os.remove(torrent_file_path)
+                logging.debug(f"Torrent {filename} removed from server")
+
 @app.route('/announce', methods=['GET'])
 def announce():
     global active_peers, seeding
@@ -140,33 +157,37 @@ def announce():
         logging.debug(f"Peer {peer_id} completed download")
 
     # If peers start seeding, stop web seeding
-    if len(active_peers[info_hash]) > 1 and seeding[info_hash]:
-        seeding[info_hash] = False
-        logging.debug(f"Multiple peers found for {info_hash}, stopping web seeding")
-        threading.Thread(target=stop_seeding_and_delete_file, args=(info_hash,)).start()
-
-    # Prepare the list of peers
-    peers = list(active_peers[info_hash].values())[:numwant]
-    logging.debug(f"Prepared list of peers: {peers}")
+    # Web seeding should stop only if a complete peer is found
+    if len(active_peers[info_hash]) > 1:
+        complete_peers = [p for p in active_peers[info_hash].values() if p['left'] == 0]
+        if complete_peers:
+            seeding[info_hash] = False
+            logging.debug(f"Complete peer found for {info_hash}, stopping web seeding")
+            threading.Thread(target=stop_seeding_and_delete_file, args=(info_hash,)).start()
+        else:
+            logging.debug(f"No complete peers yet for {info_hash}, continuing web seeding")
     
-    # Add the tracker server as a peer with its actual IP
+    # Avoid duplicate peer entries
+    peers = list({f"{p['ip']}:{p['port']}": p for p in active_peers[info_hash].values()}.values())
+    
+    # Add the server peer
     try:
-        server_ip = socket.gethostbyname('gremlin.codes')  # Resolve IP of gremlin.codes
+        server_ip = socket.gethostbyname('gremlin.codes')
         server_peer = {
             'ip': server_ip,
-            'port': 5000  # Port 5000
+            'port': 5000
         }
         peers.append(server_peer)
         logging.debug(f"Server peer added: {server_peer}")
     except socket.gaierror as e:
         logging.error(f"Error resolving gremlin.codes: {e}")
-
-    # Always return non-compact peer list format
-    logging.debug(f"Returning non-compact peer list")
+    
+    # Return the non-compact peer list
     return jsonify({
         'interval': 1800,
         'peers': [{'ip': peer['ip'], 'port': peer['port']} for peer in peers]
     })
+
 
 # Scrape URL Handling
 @app.route('/scrape', methods=['GET'])
@@ -198,21 +219,6 @@ def scrape():
     logging.debug(f"Scrape response: {scrape_response}")
     return jsonify(scrape_response)
 
-# Stop Seeding and Delete File
-def stop_seeding_and_delete_file(info_hash):
-    logging.debug(f"Stopping seeding and deleting file for {info_hash} after delay")
-    time.sleep(60)
-    for filename, _ in seeding.items():
-        torrent_file_path = os.path.join(TORRENT_DIR, f"{filename}.torrent")
-        file_path = os.path.join(FILE_DIR, filename)
-        
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            logging.debug(f"File {filename} removed from server")
-        
-        if os.path.exists(torrent_file_path):
-            os.remove(torrent_file_path)
-            logging.debug(f"Torrent {filename} removed from server")
 
 # File Upload Handling
 @app.route('/upload', methods=['POST'])
