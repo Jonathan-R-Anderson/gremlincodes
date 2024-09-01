@@ -18,7 +18,7 @@ TRACKER_PORT = 6969
 os.makedirs(FILE_DIR, exist_ok=True)
 os.makedirs(TORRENT_DIR, exist_ok=True)
 
-active_peers = {}
+active_peers = {}  # Structure: {info_hash: {peer_id: {ip, port, uploaded, downloaded, left}}}
 seeding = {}
 
 # Bencode encoding function
@@ -85,28 +85,52 @@ def announce():
     global active_peers, seeding
     
     info_hash = request.args.get('info_hash')
+    peer_id = request.args.get('peer_id')
+    ip = request.remote_addr
+    port = request.args.get('port')
+    uploaded = int(request.args.get('uploaded', 0))
+    downloaded = int(request.args.get('downloaded', 0))
+    left = int(request.args.get('left', 0))
     event = request.args.get('event')
     
-    if not info_hash:
-        return "Info hash not provided", 400
+    if not info_hash or not peer_id:
+        return "Missing info_hash or peer_id", 400
     
     if info_hash not in active_peers:
-        active_peers[info_hash] = 0
+        active_peers[info_hash] = {}
         seeding[info_hash] = True
     
-    if event == 'started':
-        active_peers[info_hash] += 1
+    if event == 'started' or peer_id not in active_peers[info_hash]:
+        active_peers[info_hash][peer_id] = {
+            'ip': ip,
+            'port': port,
+            'uploaded': uploaded,
+            'downloaded': downloaded,
+            'left': left
+        }
     elif event == 'stopped':
-        active_peers[info_hash] -= 1
+        if peer_id in active_peers[info_hash]:
+            del active_peers[info_hash][peer_id]
+    elif event == 'completed':
+        # Optionally handle completed events
+        pass
     
     # If peers start seeding, stop web seeding
-    if active_peers[info_hash] > 1 and seeding[info_hash]:
+    if len(active_peers[info_hash]) > 1 and seeding[info_hash]:
         seeding[info_hash] = False
         threading.Thread(target=stop_seeding_and_delete_file, args=(info_hash,)).start()
     
-    return jsonify({"peers": active_peers[info_hash]})
+    # Build peer list response
+    peers = [{'ip': peer['ip'], 'port': int(peer['port'])} for peer in active_peers[info_hash].values()]
+    
+    response = {
+        'interval': 1800,
+        'peers': peers
+    }
+    
+    return jsonify(response)
 
-
+# Scrape URL Handling
 @app.route('/scrape', methods=['GET'])
 def scrape():
     global active_peers, seeding
@@ -117,8 +141,8 @@ def scrape():
         return "Info hash not provided", 400
     
     # Respond with the number of seeders and leechers
-    num_seeders = active_peers.get(info_hash, 0)
-    num_leechers = max(num_seeders - 1, 0)  # Assume one peer is the seeder, the rest are leechers
+    num_seeders = sum(1 for peer in active_peers.get(info_hash, {}).values() if peer['left'] == 0)
+    num_leechers = sum(1 for peer in active_peers.get(info_hash, {}).values() if peer['left'] > 0)
     
     scrape_response = {
         'files': {
@@ -131,8 +155,6 @@ def scrape():
     }
     
     return jsonify(scrape_response)
-
-
 
 # Stop Seeding and Delete File
 def stop_seeding_and_delete_file(info_hash):
@@ -178,9 +200,6 @@ def serve_file(filename):
         return send_file(file_path)
     return "File not found", 404
 
-@app.route('/')
-def index():
-    return render_template('index.html', gremlinThreadABI=json.dumps(gremlinThreadABI), gremlinThreadAddress=gremlinThreadAddress)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
