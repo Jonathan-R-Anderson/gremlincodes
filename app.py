@@ -91,7 +91,7 @@ def generate_magnet_link(filename, torrent_file_path):
     logging.debug(f"Generating magnet link for {filename}")
     with open(torrent_file_path, 'rb') as f:
         torrent_data = f.read()
-        info_hash = hashlib.sha1(torrent_data).hexdigest()
+        info_hash = hashlib.sha1(bencode(torrent_info_cache[info_hash])).hexdigest()
         magnet_link = f"magnet:?xt=urn:btih:{info_hash}&dn={filename}&tr=http://{request.host}/announce"
         logging.debug(f"Magnet link: {magnet_link}")
         return magnet_link
