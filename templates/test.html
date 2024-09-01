@@ -44,31 +44,34 @@
 
     <script>
         function resolveMagnet() {
-            const magnetURI = document.getElementById('magnet-url').value;
+            const magnetURI = document.getElementById('magnet-url').value.trim();
             const statusDiv = document.getElementById('status');
+            const imageContainer = document.getElementById('image-container');
+
+            if (!magnetURI) {
+                alert('Please enter a valid magnet URL.');
+                return;
+            }
+
             statusDiv.textContent = "Adding torrent...";
+            imageContainer.innerHTML = ""; // Clear any previous image
+
             const client = new WebTorrent();
 
-            console.log('Magnet URI:', magnetURI);
-
             client.add(magnetURI, torrent => {
-                console.log('Torrent added:', torrent);
+                statusDiv.textContent = "Torrent is added. Searching for image files...";
 
                 torrent.on('ready', () => {
-                    statusDiv.textContent = "Torrent is ready. Looking for image files...";
-                    console.log('Torrent is ready:', torrent);
-
-                    const file = torrent.files.find(file => /\.(jpg|jpeg|png|gif)$/.test(file.name.toLowerCase()));
+                    const file = torrent.files.find(file => /\.(jpg|jpeg|png|gif)$/i.test(file.name));
 
                     if (file) {
                         file.getBlobURL((err, url) => {
                             if (err) {
                                 console.error('Error getting the file:', err);
-                                statusDiv.textContent = "Error getting the image file.";
+                                statusDiv.textContent = "Error retrieving the image file.";
                                 return;
                             }
 
-                            const imageContainer = document.getElementById('image-container');
                             imageContainer.innerHTML = `<img src="${url}" alt="Torrent Image">`;
                             statusDiv.textContent = "Image loaded successfully.";
                         });
@@ -78,26 +81,20 @@
                     }
                 });
 
-                torrent.on('error', (err) => {
+                torrent.on('error', err => {
                     console.error('Torrent error:', err);
                     statusDiv.textContent = "Failed to download the torrent.";
-                    alert('Failed to download the torrent.');
                 });
             });
 
-            client.on('error', (err) => {
+            client.on('error', err => {
                 console.error('Client error:', err);
                 statusDiv.textContent = "Failed to add the torrent.";
-                alert('Failed to add the torrent.');
             });
 
-            client.on('torrent', (torrent) => {
-                console.log('Torrent download started:', torrent);
-                statusDiv.textContent = "Torrent download started...";
-            });
-
-            client.on('warning', (err) => {
+            client.on('warning', err => {
                 console.warn('Client warning:', err);
+                statusDiv.textContent = "Warning: " + err.message;
             });
         }
     </script>
