@@ -192,36 +192,36 @@ def scrape():
     
     logging.debug("Received scrape request")
     
-    info_hashes = request.args.getlist('info_hash')
+    info_hash = request.args.get('info_hash')
     
-    if not info_hashes:
+    if not info_hash:
         logging.error("Info hash not provided")
-        return "Info hash not provided", 400
+        return jsonify({"error": "Info hash not provided"}), 400
     
-    files = {}
-    
-    for info_hash in info_hashes:
-        # Decode the info_hash from URL-encoded format to bytes
-        info_hash_bin = urllib.parse.unquote_to_bytes(info_hash)
-        
-        # Calculate the number of seeders and leechers for this info_hash
-        num_seeders = sum(1 for peer in active_peers.get(info_hash_bin, {}).values() if peer['left'] == 0)
-        num_leechers = sum(1 for peer in active_peers.get(info_hash_bin, {}).values() if peer['left'] > 0)
-        
-        # Prepare the dictionary for this particular info_hash
-        files[info_hash_bin] = {
-            b'complete': num_seeders,
-            b'incomplete': num_leechers,
-            b'downloaded': 0  # Total number of times the file has been downloaded
-        }
-    
-    response = {b'files': files}
-    
-    logging.debug(f"Scrape response: {response}")
-    
-    # Return the response as a properly bencoded dictionary
-    return Response(bencode(response), content_type='text/plain; charset=utf-8')
+    # Decode the URL-encoded info_hash
+    try:
+        info_hash_bin = urllib.parse.unquote(info_hash).encode('latin-1')
+    except Exception as e:
+        logging.error(f"Error decoding info_hash: {e}")
+        return jsonify({"error": "Invalid info_hash"}), 400
 
+    # Respond with the number of seeders and leechers
+    num_seeders = sum(1 for peer in active_peers.get(info_hash_bin, {}).values() if peer['left'] == 0)
+    num_leechers = sum(1 for peer in active_peers.get(info_hash_bin, {}).values() if peer['left'] > 0)
+    
+    scrape_response = {
+        'files': {
+            info_hash: {
+                'complete': num_seeders,
+                'incomplete': num_leechers,
+                'downloaded': 0  # Total number of times the file has been downloaded
+            }
+        }
+    }
+    
+    logging.debug(f"Scrape response: {scrape_response}")
+    
+    return jsonify(scrape_response)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
