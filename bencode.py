@@ -116,13 +116,6 @@ def decode_int(data):
 
     return int(t)
 
-def encode_str(data):
-    check_type(data, str)
-    return f"{len(data)}:{data}"
-
-def encode_bytes(data):
-    check_type(data, bytes)
-    return str(len(data)).encode() + b":" + data
 
 def decode_str(data):
     check_ben_type(data, str)
@@ -148,13 +141,6 @@ def decode_list(data):
     temp = inflate(data[1:-1])
     return [decode(item) for item in temp]
 
-def encode_dict(data):
-    check_type(data, dict)
-    if data == {}:
-        return "de"
-    temp = [encode_str(key) + encode(data[key]) for key in sorted(data.keys())]
-    return "d" + collapse(temp) + "e"
-
 def decode_dict(data):
     check_ben_type(data, dict)
     if data == "de":
@@ -168,7 +154,37 @@ def decode_dict(data):
         count += 2
     return temp
 
-# Dictionaries of the data type, and the function to use
+def encode_dict(data):
+    """ Given a dictionary, return the bencoded dictionary. """
+
+    check_type(data, dict)
+
+    # Special case of an empty dictionary.
+    if data == {}:
+        return "de".encode()
+
+    # Encode each key and value for each key in the dictionary.
+    temp = []
+    for key in sorted(data.keys()):
+        encoded_key = encode_str(key) if isinstance(key, str) else encode_bytes(key)
+        temp.append(encoded_key + encode(data[key]))
+
+    # Add dict annotation, and collapse the dictionary.
+    return b"d" + b"".join(temp) + b"e"
+
+# Update the encode_str function to return bytes instead of a string
+def encode_str(data):
+    """ Given a string, returns a bencoded string of that string. """
+    check_type(data, str)
+    return (str(len(data)) + ":" + data).encode()
+
+# Add encode_bytes to handle byte strings
+def encode_bytes(data):
+    """ Given a bytes object, return a bencoded string. """
+    check_type(data, bytes)
+    return str(len(data)).encode() + b":" + data
+
+# Update encode_functions dictionary to include bytes
 encode_functions = {
     int: encode_int,
     str: encode_str,
@@ -176,6 +192,7 @@ encode_functions = {
     dict: encode_dict,
     bytes: encode_bytes  # Add the new handler for bytes
 }
+
 
 decode_functions = {
     int: decode_int,
