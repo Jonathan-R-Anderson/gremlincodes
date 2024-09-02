@@ -236,7 +236,7 @@
 
             const imgPlaceholder = document.createElement('div');
             imgPlaceholder.className = 'placeholder-image';
-            imgPlaceholder.innerText = 'No Image Available';
+            imgPlaceholder.innerText = 'Loading image...';
             threadContainer.appendChild(imgPlaceholder);
 
             document.getElementById('infiniteScrollContent').appendChild(threadContainer);
@@ -266,7 +266,6 @@
             } catch (error) {
                 console.log(`Error adding torrent for thread ${threadId}:`, error);
 
-                // If the torrent is a duplicate, still try to display the image
                 const existingTorrent = addedTorrents.get(magnetUrl);
                 if (existingTorrent) {
                     displayImageFromTorrent(threadId, existingTorrent);
@@ -283,6 +282,11 @@
                 return;
             }
 
+            // Download the image from the webseed first
+            fetchWebseedImage(file, threadId);
+        }
+
+        function fetchWebseedImage(file, threadId) {
             file.getBlobURL((err, url) => {
                 if (err) {
                     console.log(`Error generating blob URL for thread ${threadId}:`, err);
@@ -292,11 +296,12 @@
                 console.log(`Image URL generated for thread ${threadId}: ${url}`);
                 const img = document.createElement('img');
                 img.src = url;
-                img.alt = 'Image from magnet URL';
+                img.alt = 'Image from webseed URL';
                 img.style.maxWidth = '100%';
 
                 const threadContainer = document.querySelector(`#thread-${threadId} .placeholder-image`);
                 if (threadContainer) {
+                    threadContainer.innerHTML = '';
                     threadContainer.appendChild(img);
                     console.log(`Image appended to thread ${threadId}`);
                 } else {
@@ -304,8 +309,6 @@
                 }
             });
         }
-
-
 
         function showOverlay() {
             document.getElementById('overlay').style.height = "100%";
@@ -325,7 +328,6 @@
 
         window.onload = function() {
             initializeContracts();
-            console.log("after");
         };
     </script>
 </body>
