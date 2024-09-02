@@ -1,10 +1,20 @@
-from flask import Flask, send_from_directory, request, Response
+from flask import Flask, request, jsonify, send_file, Response, make_response
 import os
+import hashlib
+import threading
+import struct
+import socket
 import logging
+from shared import app
 import time
+from werkzeug.utils import secure_filename
+import json
+from blueprints.routes import blueprint
+import urllib.parse
 
-app = Flask(__name__)
+app.register_blueprint(blueprint)
 
+# Setup logging
 logging.basicConfig(level=logging.DEBUG)
 
 # Setup directories and Flask app
