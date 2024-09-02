@@ -141,7 +141,9 @@ def announce():
         logging.error("Missing info_hash or peer_id")
         return make_response("Missing info_hash or peer_id", 400)
     
-    info_hash = info_hash.encode('latin1')  # Properly encode info_hash as bytes
+    # Convert info_hash to bytes
+    info_hash = info_hash.encode('latin1')
+    
     if info_hash not in active_peers:
         active_peers[info_hash] = {}
         seeding[info_hash] = True
