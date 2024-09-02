@@ -186,8 +186,6 @@ def announce():
     
     return make_response(bencode(response), 200)
 
-import urllib.parse
-
 @app.route('/scrape', methods=['GET'])
 def scrape():
     global active_peers, seeding
@@ -203,8 +201,8 @@ def scrape():
     files = {}
     
     for info_hash in info_hashes:
-        # Decode the info_hash from URL-encoded format to binary
-        info_hash_bin = urllib.parse.unquote(info_hash).encode('latin-1')
+        # Decode the info_hash from URL-encoded format to bytes
+        info_hash_bin = urllib.parse.unquote_to_bytes(info_hash)
         
         # Calculate the number of seeders and leechers for this info_hash
         num_seeders = sum(1 for peer in active_peers.get(info_hash_bin, {}).values() if peer['left'] == 0)
