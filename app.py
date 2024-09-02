@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file, Response
+from flask import Flask, request, jsonify, send_file, Response, make_response
 import os
 import hashlib
 import threading
@@ -68,16 +68,13 @@ def create_torrent_file(file_path, filename):
         "length": file_length
     }
     
-    # Including the web seed URL
     torrent = {
         "announce": f"http://{request.host}/announce",
         "info": info,
         "url-list": [f"http://{request.host}/static/{filename}"]  # Web seeding URL
     }
     
-    # Cache the info dictionary using the info_hash for quick lookup
-    info_hash = hashlib.sha1(bencode(info)).hexdigest()
-    logging.debug(f"Info hash: {info_hash}")
+    info_hash = hashlib.sha1(bencode(info)).digest()
     torrent_info_cache[info_hash] = info
 
     with open(torrent_file_path, "wb") as f:
@@ -86,25 +83,24 @@ def create_torrent_file(file_path, filename):
     logging.debug(f"Torrent file created at {torrent_file_path}")
     return torrent_file_path
 
-# Magnet Link Generation
 def generate_magnet_link(filename, torrent_file_path):
     logging.debug(f"Generating magnet link for {filename}")
     with open(torrent_file_path, 'rb') as f:
         torrent_data = f.read()
-        info_hash = hashlib.sha1(torrent_data).hexdigest()
+        info_hash = hashlib.sha1(torrent_data).digest()
         web_seed_url = f"http://{request.host}/static/{filename}"
         magnet_link = (
-            f"magnet:?xt=urn:btih:{info_hash}&dn={filename}"
+            f"magnet:?xt=urn:btih:{info_hash.hex()}&dn={filename}"
             f"&tr=http://{request.host}/announce&ws={web_seed_url}"
         )
         logging.debug(f"Magnet link: {magnet_link}")
         return magnet_link
 
 def stop_seeding_and_delete_file(info_hash):
-    logging.debug(f"Delaying the stop of web seeding for {info_hash} for 10 minutes to ensure proper seeding.")
+    logging.debug(f"Delaying the stop of web seeding for {info_hash.hex()} for 10 minutes to ensure proper seeding.")
     time.sleep(600)  # Wait for 10 minutes before stopping web seeding
     if info_hash in seeding and not seeding[info_hash]:
-        filename = next((f for f, h in torrent_info_cache.items() if hashlib.sha1(bencode(h)).hexdigest() == info_hash), None)
+        filename = next((f for f, h in torrent_info_cache.items() if hashlib.sha1(bencode(h)).digest() == info_hash), None)
         if filename:
             torrent_file_path = os.path.join(TORRENT_DIR, f"{filename}.torrent")
             file_path = os.path.join(FILE_DIR, filename)
@@ -117,32 +113,39 @@ def stop_seeding_and_delete_file(info_hash):
                 os.remove(torrent_file_path)
                 logging.debug(f"Torrent {filename} removed from server")
 
-@app.route('/announce', methods=['GET'])
+@app.route('/announce', methods=['GET', 'POST'])
 def announce():
     global active_peers, seeding
 
     logging.debug("Received announce request")
     
-    info_hash = request.args.get('info_hash')
-    peer_id = request.args.get('peer_id')
+    if request.method == 'GET':
+        params = request.args
+    else:  # POST
+        params = request.form
+    
+    info_hash = params.get('info_hash')
+    peer_id = params.get('peer_id')
     ip = request.remote_addr
-    port = int(request.args.get('port', 6881))
-    uploaded = int(request.args.get('uploaded', 0))
-    downloaded = int(request.args.get('downloaded', 0))
-    left = int(request.args.get('left', 0))
-    event = request.args.get('event')
-    numwant = int(request.args.get('numwant', 50))  # Number of peers client wants
-
-    logging.debug(f"info_hash: {info_hash}, peer_id: {peer_id}, ip: {ip}, port: {port}, event: {event}, numwant: {numwant}")
+    port = int(params.get('port', 6881))
+    uploaded = int(params.get('uploaded', 0))
+    downloaded = int(params.get('downloaded', 0))
+    left = int(params.get('left', 0))
+    event = params.get('event')
+    numwant = int(params.get('numwant', 50))  # Number of peers client wants
+    compact = int(params.get('compact', 0))
+    
+    logging.debug(f"info_hash: {info_hash}, peer_id: {peer_id}, ip: {ip}, port: {port}, event: {event}, numwant: {numwant}, compact: {compact}")
     
     if not info_hash or not peer_id:
         logging.error("Missing info_hash or peer_id")
-        return "Missing info_hash or peer_id", 400
+        return make_response("Missing info_hash or peer_id", 400)
     
+    info_hash = info_hash.encode('latin1')  # Properly encode info_hash as bytes
     if info_hash not in active_peers:
         active_peers[info_hash] = {}
         seeding[info_hash] = True
-        logging.debug(f"New info_hash {info_hash} added to active_peers")
+        logging.debug(f"New info_hash {info_hash.hex()} added to active_peers")
 
     if event == 'started' or peer_id not in active_peers[info_hash]:
         active_peers[info_hash][peer_id] = {
@@ -160,64 +163,56 @@ def announce():
     elif event == 'completed':
         logging.debug(f"Peer {peer_id} completed download")
 
-    # If there are no peers, ensure web seeding continues
-    if len(active_peers[info_hash]) == 0:
-        logging.debug(f"No active peers for {info_hash}, continuing web seeding")
+    if len(active_peers[info_hash]) > 1:
+        complete_peers = [p for p in active_peers[info_hash].values() if p['left'] == 0]
+        if complete_peers:
+            seeding[info_hash] = False
+            logging.debug(f"Complete peer found for {info_hash.hex()}, stopping web seeding")
+            threading.Thread(target=stop_seeding_and_delete_file, args=(info_hash,)).start()
+        else:
+            logging.debug(f"No complete peers yet for {info_hash.hex()}, continuing web seeding")
+    
+    peers = list(active_peers[info_hash].values())
+    
+    if compact:
+        peer_list = b''.join([socket.inet_aton(peer['ip']) + struct.pack("!H", peer['port']) for peer in peers])
+    else:
+        peer_list = [{'ip': peer['ip'], 'port': peer['port']} for peer in peers]
 
-    # Avoid duplicate peer entries
-    peers = list({f"{p['ip']}:{p['port']}": p for p in active_peers[info_hash].values()}.values())
-    
-    # Add the server peer (if applicable)
-    try:
-        server_ip = socket.gethostbyname('gremlin.codes')
-        server_peer = {
-            'ip': server_ip,
-            'port': 5000
-        }
-        peers.append(server_peer)
-        logging.debug(f"Server peer added: {server_peer}")
-    except socket.gaierror as e:
-        logging.error(f"Error resolving gremlin.codes: {e}")
-    
-    # Return the non-compact peer list
-    return jsonify({
+    response = {
         'interval': 1800,
-        'peers': [{'ip': peer['ip'], 'port': peer['port']} for peer in peers]
-    })
+        'peers': peer_list
+    }
+    
+    return make_response(bencode(response), 200)
 
-
-# Scrape URL Handling
 @app.route('/scrape', methods=['GET'])
 def scrape():
     global active_peers, seeding
     
     logging.debug("Received scrape request")
     
-    info_hash = request.args.get('info_hash')
+    info_hashes = request.args.getlist('info_hash')
     
-    if not info_hash:
+    if not info_hashes:
         logging.error("Info hash not provided")
-        return "Info hash not provided", 400
+        return make_response("Info hash not provided", 400)
     
-    # Respond with the number of seeders and leechers
-    num_seeders = sum(1 for peer in active_peers.get(info_hash, {}).values() if peer['left'] == 0)
-    num_leechers = sum(1 for peer in active_peers.get(info_hash, {}).values() if peer['left'] > 0)
+    response = {'files': {}}
     
-    scrape_response = {
-        'files': {
-            info_hash: {
-                'complete': num_seeders,
-                'incomplete': num_leechers,
-                'downloaded': 0  # Total number of times the file has been downloaded
-            }
+    for info_hash in info_hashes:
+        info_hash = info_hash.encode('latin1')
+        num_seeders = sum(1 for peer in active_peers.get(info_hash, {}).values() if peer['left'] == 0)
+        num_leechers = sum(1 for peer in active_peers.get(info_hash, {}).values() if peer['left'] > 0)
+        response['files'][info_hash] = {
+            'complete': num_seeders,
+            'incomplete': num_leechers,
+            'downloaded': 0  # Assuming no download tracking
         }
-    }
     
-    logging.debug(f"Scrape response: {scrape_response}")
-    return jsonify(scrape_response)
+    logging.debug(f"Scrape response: {response}")
+    return make_response(bencode(response), 200)
 
-
-# File Upload Handling
 @app.route('/upload', methods=['POST'])
 def upload_file():
     logging.debug("Received file upload request")
@@ -245,7 +240,6 @@ def upload_file():
     logging.error("Unknown error occurred during file upload")
     return jsonify({"error": "Unknown error occurred"}), 500
 
-# Serving Static Files
 @app.route('/static/<filename>')
 def serve_file(filename):
     logging.debug(f"Serving static file {filename}")
@@ -254,7 +248,6 @@ def serve_file(filename):
         return send_file(file_path)
     logging.error(f"File {filename} not found")
     return "File not found", 404
-
 
 if __name__ == "__main__":
     logging.debug("Starting tracker server")
