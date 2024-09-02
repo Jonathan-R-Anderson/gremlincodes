@@ -132,10 +132,8 @@ def announce():
     left = int(request.args.get('left', 0))
     event = request.args.get('event')
     numwant = int(request.args.get('numwant', 50))  # Number of peers client wants
-    compact = int(request.args.get('compact', 0))  # 1 if compact mode requested, 0 otherwise
-    no_peer_id = int(request.args.get('no_peer_id', 0))  # 1 if peer_id should be omitted, 0 otherwise
 
-    logging.debug(f"info_hash: {info_hash}, peer_id: {peer_id}, ip: {ip}, port: {port}, event: {event}, numwant: {numwant}, compact: {compact}, no_peer_id: {no_peer_id}")
+    logging.debug(f"info_hash: {info_hash}, peer_id: {peer_id}, ip: {ip}, port: {port}, event: {event}, numwant: {numwant}")
     
     if not info_hash or not peer_id:
         logging.error("Missing info_hash or peer_id")
@@ -162,21 +160,14 @@ def announce():
     elif event == 'completed':
         logging.debug(f"Peer {peer_id} completed download")
 
-    # If peers start seeding, stop web seeding
-    # Web seeding should stop only if a complete peer is found
-    if len(active_peers[info_hash]) > 1:
-        complete_peers = [p for p in active_peers[info_hash].values() if p['left'] == 0]
-        if complete_peers:
-            seeding[info_hash] = False
-            logging.debug(f"Complete peer found for {info_hash}, stopping web seeding")
-            threading.Thread(target=stop_seeding_and_delete_file, args=(info_hash,)).start()
-        else:
-            logging.debug(f"No complete peers yet for {info_hash}, continuing web seeding")
-    
+    # If there are no peers, ensure web seeding continues
+    if len(active_peers[info_hash]) == 0:
+        logging.debug(f"No active peers for {info_hash}, continuing web seeding")
+
     # Avoid duplicate peer entries
     peers = list({f"{p['ip']}:{p['port']}": p for p in active_peers[info_hash].values()}.values())
     
-    # Add the server peer
+    # Add the server peer (if applicable)
     try:
         server_ip = socket.gethostbyname('gremlin.codes')
         server_peer = {
@@ -188,22 +179,11 @@ def announce():
     except socket.gaierror as e:
         logging.error(f"Error resolving gremlin.codes: {e}")
     
-    # Construct the response
-    if compact == 1:
-        # Compact mode: return peers as binary strings
-        peers_binary = b''.join(struct.pack('!4sH', socket.inet_aton(peer['ip']), peer['port']) for peer in peers)
-        response = {'interval': 1800, 'peers': peers_binary}
-    else:
-        # Non-compact mode: return peers as dictionaries
-        response_peers = []
-        for peer in peers:
-            peer_dict = {'ip': peer['ip'], 'port': peer['port']}
-            if no_peer_id == 0:
-                peer_dict['peer_id'] = peer_id  # Or a stored peer_id, depending on your needs
-            response_peers.append(peer_dict)
-        response = {'interval': 1800, 'peers': response_peers}
-
-    return bencode(response)
+    # Return the non-compact peer list
+    return jsonify({
+        'interval': 1800,
+        'peers': [{'ip': peer['ip'], 'port': peer['port']} for peer in peers]
+    })
 
 
 # Scrape URL Handling
