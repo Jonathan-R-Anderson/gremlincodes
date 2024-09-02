@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.DEBUG)
 # Setup directories and Flask app
 FILE_DIR = 'static'
 TORRENT_DIR = 'torrents'
-TRACKER_PORT = 6969
+TRACKER_PORT = 5000
 
 os.makedirs(FILE_DIR, exist_ok=True)
 os.makedirs(TORRENT_DIR, exist_ok=True)
@@ -110,9 +110,6 @@ def scrape():
 
     return Response(encode(response), content_type="text/plain")
 
-def start_tracker():
+if __name__ == "__main__":
     logging.debug("Starting tracker server")
     app.run(host="0.0.0.0", port=TRACKER_PORT, debug=True)
-
-if __name__ == "__main__":
-    start_tracker()
