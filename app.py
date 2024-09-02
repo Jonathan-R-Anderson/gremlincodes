@@ -3,7 +3,6 @@ import os
 import logging
 import socket
 import struct
-import threading
 from bencode import encode
 from urllib.parse import unquote_to_bytes
 
@@ -19,7 +18,7 @@ TRACKER_PORT = 5000
 os.makedirs(FILE_DIR, exist_ok=True)
 os.makedirs(TORRENT_DIR, exist_ok=True)
 
-active_peers = {}  # Structure: {info_hash: {peer_id: {ip, port, uploaded, downloaded, left}}}
+active_peers = {}  # Structure: {info_hash: [(peer_id, ip, port, uploaded, downloaded, left)]}
 seeding = {}
 interval = 1800
 
@@ -29,15 +28,16 @@ def decode_request(path):
     path = path.lstrip("/?")
     return dict(request.args)
 
-def add_peer(info_hash, peer_id, ip, port):
+def add_peer(info_hash, peer_id, ip, port, uploaded, downloaded, left):
     """ Add the peer to the torrent database. """
+    peer_info = (peer_id, ip, port, uploaded, downloaded, left)
     # If we've heard of this, just add the peer
     if info_hash in active_peers:
-        if (peer_id, ip, port) not in active_peers[info_hash]:
-            active_peers[info_hash].append((peer_id, ip, port))
+        if peer_info not in active_peers[info_hash]:
+            active_peers[info_hash].append(peer_info)
     # Otherwise, add the info_hash and the peer
     else:
-        active_peers[info_hash] = [(peer_id, ip, port)]
+        active_peers[info_hash] = [peer_info]
 
 def make_compact_peer_list(peer_list):
     """ Return a compact peer string, given a list of peer details. """
@@ -70,10 +70,12 @@ def announce():
     ip = request.remote_addr
     port = package["port"]
     peer_id = package["peer_id"]
-    left = int(package.get("left", 0))  # Ensure 'left' is an integer
+    uploaded = int(package.get("uploaded", 0))
+    downloaded = int(package.get("downloaded", 0))
+    left = int(package.get("left", 0))
     event = package.get("event")
 
-    add_peer(info_hash, peer_id, ip, port)
+    add_peer(info_hash, peer_id, ip, port, uploaded, downloaded, left)
 
     # Handle the 'stopped' event properly
     if event == 'stopped':
@@ -82,14 +84,12 @@ def announce():
 
     response = {
         "interval": interval,
-        "complete": sum(1 for peer in active_peers[info_hash] if int(peer[2]) == 0),
-        "incomplete": sum(1 for peer in active_peers[info_hash] if int(peer[2]) > 0),
+        "complete": sum(1 for peer in active_peers[info_hash] if peer[5] == 0),  # peers with nothing left to download
+        "incomplete": sum(1 for peer in active_peers[info_hash] if peer[5] > 0),  # peers still downloading
         "peers": make_compact_peer_list(active_peers[info_hash]) if compact else make_peer_list(active_peers[info_hash])
     }
 
     return Response(encode(response), content_type="text/plain")
-
-
 
 @app.route('/scrape', methods=['GET'])
 def scrape():
@@ -105,9 +105,9 @@ def scrape():
     response = {
         "files": {
             info_hash: {
-                "complete": sum(1 for peer in active_peers.get(info_hash, []) if peer[2] == 0),
-                "incomplete": sum(1 for peer in active_peers.get(info_hash, []) if peer[2] > 0),
-                "downloaded": 0
+                "complete": sum(1 for peer in active_peers.get(info_hash, []) if peer[5] == 0),
+                "incomplete": sum(1 for peer in active_peers.get(info_hash, []) if peer[5] > 0),
+                "downloaded": 0  # Placeholder, as this isn't tracked
             }
         }
     }
