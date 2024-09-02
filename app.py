@@ -132,8 +132,10 @@ def announce():
     left = int(request.args.get('left', 0))
     event = request.args.get('event')
     numwant = int(request.args.get('numwant', 50))  # Number of peers client wants
+    compact = int(request.args.get('compact', 0))  # 1 if compact mode requested, 0 otherwise
+    no_peer_id = int(request.args.get('no_peer_id', 0))  # 1 if peer_id should be omitted, 0 otherwise
 
-    logging.debug(f"info_hash: {info_hash}, peer_id: {peer_id}, ip: {ip}, port: {port}, event: {event}, numwant: {numwant}")
+    logging.debug(f"info_hash: {info_hash}, peer_id: {peer_id}, ip: {ip}, port: {port}, event: {event}, numwant: {numwant}, compact: {compact}, no_peer_id: {no_peer_id}")
     
     if not info_hash or not peer_id:
         logging.error("Missing info_hash or peer_id")
@@ -186,11 +188,22 @@ def announce():
     except socket.gaierror as e:
         logging.error(f"Error resolving gremlin.codes: {e}")
     
-    # Return the non-compact peer list
-    return jsonify({
-        'interval': 1800,
-        'peers': [{'ip': peer['ip'], 'port': peer['port']} for peer in peers]
-    })
+    # Construct the response
+    if compact == 1:
+        # Compact mode: return peers as binary strings
+        peers_binary = b''.join(struct.pack('!4sH', socket.inet_aton(peer['ip']), peer['port']) for peer in peers)
+        response = {'interval': 1800, 'peers': peers_binary}
+    else:
+        # Non-compact mode: return peers as dictionaries
+        response_peers = []
+        for peer in peers:
+            peer_dict = {'ip': peer['ip'], 'port': peer['port']}
+            if no_peer_id == 0:
+                peer_dict['peer_id'] = peer_id  # Or a stored peer_id, depending on your needs
+            response_peers.append(peer_dict)
+        response = {'interval': 1800, 'peers': response_peers}
+
+    return bencode(response)
 
 
 # Scrape URL Handling
