@@ -198,10 +198,10 @@ def scrape():
         logging.error("Info hash not provided")
         return jsonify({"error": "Info hash not provided"}), 400
     
-    # Decode the URL-encoded info_hash
+    # Correctly decode the URL-encoded info_hash to binary
     try:
-        info_hash_bin = urllib.parse.unquote(info_hash).encode('latin-1')
-    except Exception as e:
+        info_hash_bin = bytes.fromhex(urllib.parse.unquote(info_hash).replace('%', ''))
+    except ValueError as e:
         logging.error(f"Error decoding info_hash: {e}")
         return jsonify({"error": "Invalid info_hash"}), 400
 
@@ -222,6 +222,7 @@ def scrape():
     logging.debug(f"Scrape response: {scrape_response}")
     
     return jsonify(scrape_response)
+
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
