@@ -124,7 +124,7 @@ def announce():
     else:  # POST
         params = request.form
     
-    info_hash = params.get('info_hash')
+    info_hash = params.get('info_hash').encode('latin1')
     peer_id = params.get('peer_id')
     ip = request.remote_addr
     port = int(params.get('port', 6881))
@@ -135,14 +135,11 @@ def announce():
     numwant = int(params.get('numwant', 50))  # Number of peers client wants
     compact = int(params.get('compact', 0))
     
-    logging.debug(f"info_hash: {info_hash}, peer_id: {peer_id}, ip: {ip}, port: {port}, event: {event}, numwant: {numwant}, compact: {compact}")
+    logging.debug(f"info_hash: {info_hash.hex()}, peer_id: {peer_id}, ip: {ip}, port: {port}, event: {event}, numwant: {numwant}, compact: {compact}")
     
     if not info_hash or not peer_id:
         logging.error("Missing info_hash or peer_id")
         return make_response("Missing info_hash or peer_id", 400)
-    
-    # Convert info_hash to bytes
-    info_hash = info_hash.encode('latin1')
     
     if info_hash not in active_peers:
         active_peers[info_hash] = {}
@@ -206,10 +203,11 @@ def scrape():
         info_hash = info_hash.encode('latin1')
         num_seeders = sum(1 for peer in active_peers.get(info_hash, {}).values() if peer['left'] == 0)
         num_leechers = sum(1 for peer in active_peers.get(info_hash, {}).values() if peer['left'] > 0)
+        
         response['files'][info_hash] = {
             'complete': num_seeders,
             'incomplete': num_leechers,
-            'downloaded': 0  # Assuming no download tracking
+            'downloaded': 0  # Total number of times the file has been downloaded
         }
     
     logging.debug(f"Scrape response: {response}")
