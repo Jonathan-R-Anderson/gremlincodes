@@ -70,22 +70,26 @@ def announce():
     ip = request.remote_addr
     port = package["port"]
     peer_id = package["peer_id"]
+    left = int(package.get("left", 0))  # Ensure 'left' is an integer
     event = package.get("event")
 
     add_peer(info_hash, peer_id, ip, port)
 
+    # Handle the 'stopped' event properly
     if event == 'stopped':
         if info_hash in active_peers:
             active_peers[info_hash] = [p for p in active_peers[info_hash] if p[0] != peer_id]
 
     response = {
         "interval": interval,
-        "complete": sum(1 for peer in active_peers[info_hash] if peer[2] == 0),
-        "incomplete": sum(1 for peer in active_peers[info_hash] if peer[2] > 0),
+        "complete": sum(1 for peer in active_peers[info_hash] if int(peer[2]) == 0),
+        "incomplete": sum(1 for peer in active_peers[info_hash] if int(peer[2]) > 0),
         "peers": make_compact_peer_list(active_peers[info_hash]) if compact else make_peer_list(active_peers[info_hash])
     }
 
     return Response(encode(response), content_type="text/plain")
+
+
 
 @app.route('/scrape', methods=['GET'])
 def scrape():
