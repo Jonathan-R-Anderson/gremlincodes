@@ -200,7 +200,7 @@ def scrape():
     
     # Correctly decode the URL-encoded info_hash to binary
     try:
-        info_hash_bin = bytes.fromhex(urllib.parse.unquote(info_hash).replace('%', ''))
+        info_hash_bin = urllib.parse.unquote_to_bytes(info_hash)
     except ValueError as e:
         logging.error(f"Error decoding info_hash: {e}")
         return jsonify({"error": "Invalid info_hash"}), 400
