@@ -55,7 +55,6 @@ def generate_pieces(file_path, piece_length=524288):
     logging.debug(f"Generated pieces hash: {pieces}")
     return pieces
 
-# Create Torrent File
 def create_torrent_file(file_path, filename):
     logging.debug(f"Creating torrent file for {filename}")
     torrent_file_path = os.path.join(TORRENT_DIR, f"{filename}.torrent")
@@ -69,6 +68,7 @@ def create_torrent_file(file_path, filename):
         "length": file_length
     }
     
+    # Including the web seed URL
     torrent = {
         "announce": f"http://{request.host}/announce",
         "info": info,
@@ -91,8 +91,12 @@ def generate_magnet_link(filename, torrent_file_path):
     logging.debug(f"Generating magnet link for {filename}")
     with open(torrent_file_path, 'rb') as f:
         torrent_data = f.read()
-        info_hash = hashlib.sha1(bencode(torrent_info_cache[info_hash])).hexdigest()
-        magnet_link = f"magnet:?xt=urn:btih:{info_hash}&dn={filename}&tr=http://{request.host}/announce"
+        info_hash = hashlib.sha1(torrent_data).hexdigest()
+        web_seed_url = f"http://{request.host}/static/{filename}"
+        magnet_link = (
+            f"magnet:?xt=urn:btih:{info_hash}&dn={filename}"
+            f"&tr=http://{request.host}/announce&ws={web_seed_url}"
+        )
         logging.debug(f"Magnet link: {magnet_link}")
         return magnet_link
 
