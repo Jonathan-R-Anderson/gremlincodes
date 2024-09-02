@@ -191,18 +191,17 @@ def scrape():
     
     logging.debug("Received scrape request")
     
-    # Collect all info_hash values from the request
     info_hashes = request.args.getlist('info_hash')
     
     if not info_hashes:
         logging.error("Info hash not provided")
-        return make_response("Info hash not provided", 400)
+        return "Info hash not provided", 400
     
     files = {}
     
     for info_hash in info_hashes:
-        # Convert URL-encoded info_hash to its binary form
-        info_hash_bin = info_hash.encode('latin1')
+        # Decode the info_hash from URL-encoded format to binary
+        info_hash_bin = bytes.fromhex(info_hash.strip('%').replace('%', ''))
         
         # Calculate the number of seeders and leechers for this info_hash
         num_seeders = sum(1 for peer in active_peers.get(info_hash_bin, {}).values() if peer['left'] == 0)
@@ -220,7 +219,7 @@ def scrape():
     logging.debug(f"Scrape response: {response}")
     
     # Return the response as a properly bencoded dictionary
-    return make_response(bencode(response), 200)
+    return Response(bencode(response), content_type='text/plain; charset=utf-8')
 
 
 @app.route('/upload', methods=['POST'])
