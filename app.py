@@ -191,27 +191,37 @@ def scrape():
     
     logging.debug("Received scrape request")
     
+    # Collect all info_hash values from the request
     info_hashes = request.args.getlist('info_hash')
     
     if not info_hashes:
         logging.error("Info hash not provided")
         return make_response("Info hash not provided", 400)
     
-    response = {'files': {}}
+    files = {}
     
     for info_hash in info_hashes:
-        info_hash = info_hash.encode('latin1')
-        num_seeders = sum(1 for peer in active_peers.get(info_hash, {}).values() if peer['left'] == 0)
-        num_leechers = sum(1 for peer in active_peers.get(info_hash, {}).values() if peer['left'] > 0)
+        # Convert URL-encoded info_hash to its binary form
+        info_hash_bin = info_hash.encode('latin1')
         
-        response['files'][info_hash] = {
-            'complete': num_seeders,
-            'incomplete': num_leechers,
-            'downloaded': 0  # Total number of times the file has been downloaded
+        # Calculate the number of seeders and leechers for this info_hash
+        num_seeders = sum(1 for peer in active_peers.get(info_hash_bin, {}).values() if peer['left'] == 0)
+        num_leechers = sum(1 for peer in active_peers.get(info_hash_bin, {}).values() if peer['left'] > 0)
+        
+        # Prepare the dictionary for this particular info_hash
+        files[info_hash_bin] = {
+            b'complete': num_seeders,
+            b'incomplete': num_leechers,
+            b'downloaded': 0  # Total number of times the file has been downloaded
         }
     
+    response = {b'files': files}
+    
     logging.debug(f"Scrape response: {response}")
+    
+    # Return the response as a properly bencoded dictionary
     return make_response(bencode(response), 200)
+
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
