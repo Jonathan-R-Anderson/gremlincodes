@@ -114,41 +114,39 @@ def stop_seeding_and_delete_file(info_hash):
                 os.remove(torrent_file_path)
                 logging.debug(f"Torrent {filename} removed from server")
 
-@app.route('/announce', methods=['GET', 'POST'])
+@app.route('/announce', methods=['GET'])
 def announce():
     global active_peers, seeding
 
     logging.debug("Received announce request")
     
-    if request.method == 'GET':
-        params = request.args
-    else:  # POST
-        params = request.form
-    
-    info_hash = params.get('info_hash').encode('latin1')
-    peer_id = params.get('peer_id')
+    info_hash = request.args.get('info_hash')
+    peer_id = request.args.get('peer_id')
     ip = request.remote_addr
-    port = int(params.get('port', 6881))
-    uploaded = int(params.get('uploaded', 0))
-    downloaded = int(params.get('downloaded', 0))
-    left = int(params.get('left', 0))
-    event = params.get('event')
-    numwant = int(params.get('numwant', 50))  # Number of peers client wants
-    compact = int(params.get('compact', 0))
-    
-    logging.debug(f"info_hash: {info_hash.hex()}, peer_id: {peer_id}, ip: {ip}, port: {port}, event: {event}, numwant: {numwant}, compact: {compact}")
-    
-    if not info_hash or not peer_id:
-        logging.error("Missing info_hash or peer_id")
-        return make_response("Missing info_hash or peer_id", 400)
-    
-    if info_hash not in active_peers:
-        active_peers[info_hash] = {}
-        seeding[info_hash] = True
-        logging.debug(f"New info_hash {info_hash.hex()} added to active_peers")
+    port = int(request.args.get('port', 6881))
+    uploaded = int(request.args.get('uploaded', 0))
+    downloaded = int(request.args.get('downloaded', 0))
+    left = int(request.args.get('left', 0))
+    event = request.args.get('event')
+    numwant = int(request.args.get('numwant', 50))  # Number of peers client wants
+    compact = int(request.args.get('compact', 0))  # Compact mode flag
 
-    if event == 'started' or peer_id not in active_peers[info_hash]:
-        active_peers[info_hash][peer_id] = {
+    logging.debug(f"info_hash: {info_hash}, peer_id: {peer_id}, ip: {ip}, port: {port}, event: {event}, numwant: {numwant}, compact: {compact}")
+    
+    # Decode info_hash
+    try:
+        info_hash_bin = urllib.parse.unquote_to_bytes(info_hash)
+    except ValueError as e:
+        logging.error(f"Error decoding info_hash: {e}")
+        return jsonify({"error": "Invalid info_hash"}), 400
+    
+    if info_hash_bin not in active_peers:
+        active_peers[info_hash_bin] = {}
+        seeding[info_hash_bin] = True
+        logging.debug(f"New info_hash {info_hash_bin.hex()} added to active_peers")
+
+    if event == 'started' or peer_id not in active_peers[info_hash_bin]:
+        active_peers[info_hash_bin][peer_id] = {
             'ip': ip,
             'port': port,
             'uploaded': uploaded,
@@ -157,34 +155,35 @@ def announce():
         }
         logging.debug(f"Peer {peer_id} started or added to active_peers")
     elif event == 'stopped':
-        if peer_id in active_peers[info_hash]:
-            del active_peers[info_hash][peer_id]
+        if peer_id in active_peers[info_hash_bin]:
+            del active_peers[info_hash_bin][peer_id]
             logging.debug(f"Peer {peer_id} stopped and removed from active_peers")
     elif event == 'completed':
         logging.debug(f"Peer {peer_id} completed download")
 
-    if len(active_peers[info_hash]) > 1:
-        complete_peers = [p for p in active_peers[info_hash].values() if p['left'] == 0]
-        if complete_peers:
-            seeding[info_hash] = False
-            logging.debug(f"Complete peer found for {info_hash.hex()}, stopping web seeding")
-            threading.Thread(target=stop_seeding_and_delete_file, args=(info_hash,)).start()
+    # Prepare the peer list
+    peer_list = []
+    for peer in active_peers[info_hash_bin].values():
+        if compact:
+            # Compact format: 6-byte binary string for each peer (4 bytes IP + 2 bytes port)
+            peer_list.append(struct.pack("!4sH", socket.inet_aton(peer['ip']), peer['port']))
         else:
-            logging.debug(f"No complete peers yet for {info_hash.hex()}, continuing web seeding")
-    
-    peers = list(active_peers[info_hash].values())
+            peer_list.append({'ip': peer['ip'], 'port': peer['port']})
     
     if compact:
-        peer_list = b''.join([socket.inet_aton(peer['ip']) + struct.pack("!H", peer['port']) for peer in peers])
+        # Join all binary peer entries into a single binary string
+        peers = b''.join(peer_list)
+        response = bencode({
+            'interval': 1800,
+            'peers': peers
+        })
+        return Response(response, content_type="text/plain")
     else:
-        peer_list = [{'ip': peer['ip'], 'port': peer['port']} for peer in peers]
+        return jsonify({
+            'interval': 1800,
+            'peers': peer_list
+        })
 
-    response = {
-        'interval': 1800,
-        'peers': peer_list
-    }
-    
-    return make_response(bencode(response), 200)
 
 @app.route('/scrape', methods=['GET'])
 def scrape():
