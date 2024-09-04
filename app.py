@@ -1,23 +1,16 @@
-from flask import Flask, request, jsonify, send_file, Response, make_response
+from flask import Flask, request, jsonify, send_from_directory, Response
 import os
 import hashlib
-import threading
-import struct
-import socket
+import subprocess
 import logging
-from shared import app
-import time
 from werkzeug.utils import secure_filename
-import json
-from blueprints.routes import blueprint
-import urllib.parse
 
-app.register_blueprint(blueprint)
+app = Flask(__name__)
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Setup directories and Flask app
+# Setup directories
 FILE_DIR = 'static'
 TORRENT_DIR = 'torrents'
 TRACKER_PORT = 5000
@@ -25,62 +18,89 @@ TRACKER_PORT = 5000
 os.makedirs(FILE_DIR, exist_ok=True)
 os.makedirs(TORRENT_DIR, exist_ok=True)
 
-# Dictionary to keep track of active torrents and peers
-active_peers = {}
-webseed_active = True  # Indicates if the webseed is still active
-
-# Define the path to the image file
-IMAGE_FILE = 'example.jpg'  # Replace with your image file name
-IMAGE_PATH = os.path.join(FILE_DIR, IMAGE_FILE)
-
 # Torrent trackers to be used for distribution
 TRACKER_URLS = [
     "udp://tracker.opentrackr.org:1337/announce",
     "http://tracker.opentrackr.org:1337/announce",
-    # Add more trackers from the list you provided...
+    "udp://open.tracker.cl:1337/announce",
+    "udp://open.demonii.com:1337/announce",
+    "udp://open.stealth.si:80/announce",
+    "udp://tracker.torrent.eu.org:451/announce",
+    "udp://tracker-udp.gbitt.info:80/announce",
+    "udp://explodie.org:6969/announce",
+    "udp://exodus.desync.com:6969/announce",
+    # ... add the rest of the provided trackers here ...
 ]
 
-def add_peer(info_hash, peer_id):
-    """ Add a peer to the active_peers dictionary. """
-    if info_hash in active_peers:
-        if peer_id not in active_peers[info_hash]:
-            active_peers[info_hash].append(peer_id)
-    else:
-        active_peers[info_hash] = [peer_id]
+# Allowed file extensions
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
-@app.route('/announce', methods=['GET'])
-def announce():
-    """ This route no longer acts as a tracker, but will monitor peers. """
-    global webseed_active
-    
-    # Extract info_hash and peer_id from request
-    info_hash = request.args.get("info_hash")
-    peer_id = request.args.get("peer_id")
-    
-    if not info_hash or not peer_id:
-        return Response(status=400)
-    
-    # Add peer to the active list
-    add_peer(info_hash, peer_id)
-    
-    # If more than one peer (excluding the webseed itself) exists, deactivate the webseed
-    if len(active_peers.get(info_hash, [])) > 1 and webseed_active:
-        logging.debug(f"More than one peer detected for {info_hash}. Disabling webseed.")
-        webseed_active = False
-    
-    return Response(status=200)
+def allowed_file(filename):
+    """Check if the file has an allowed extension."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@app.route('/<path:filename>', methods=['GET'])
-def serve_file(filename):
-    """ Serve the image file as a webseed until there are sufficient peers. """
-    global webseed_active
+def generate_magnet_link(info_hash, file_name):
+    """Generate a magnet link using the provided trackers and info hash."""
+    trackers = "&".join([f"tr={urllib.parse.quote(tracker)}" for tracker in TRACKER_URLS])
+    magnet_link = f"magnet:?xt=urn:btih:{info_hash}&dn={urllib.parse.quote(file_name)}&{trackers}"
+    return magnet_link
 
-    if webseed_active and filename == IMAGE_FILE:
-        logging.debug(f"Serving {filename} as webseed.")
-        return send_from_directory(FILE_DIR, filename)
-    else:
-        return Response(status=404)
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    """Handle the image upload, create a torrent, and return the magnet link."""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files['file']
+
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(FILE_DIR, filename)
+        file.save(file_path)
+        logging.info(f"File saved to {file_path}")
+
+        # Create torrent and start seeding with WebTorrent CLI
+        try:
+            torrent_file_path = os.path.join(TORRENT_DIR, f"{filename}.torrent")
+
+            # Create the torrent file using webtorrent CLI
+            tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
+            cmd = f"webtorrent create '{file_path}' {tracker_list} -o '{torrent_file_path}'"
+            logging.info(f"Running command: {cmd}")
+            subprocess.run(cmd, shell=True, check=True)
+
+            # Extract info hash from the torrent file
+            torrent_info_cmd = f"webtorrent info '{torrent_file_path}'"
+            logging.info(f"Getting torrent info with command: {torrent_info_cmd}")
+            result = subprocess.run(torrent_info_cmd, shell=True, check=True, capture_output=True, text=True)
+            torrent_info = json.loads(result.stdout)
+
+            # Start seeding the file
+            seed_cmd = f"webtorrent seed '{file_path}' {tracker_list}"
+            logging.info(f"Seeding with command: {seed_cmd}")
+            subprocess.Popen(seed_cmd, shell=True)
+
+            # Generate magnet link
+            info_hash = torrent_info['infoHash']
+            magnet_url = generate_magnet_link(info_hash, filename)
+            logging.info(f"Magnet URL generated: {magnet_url}")
+
+            return jsonify({"magnet_url": magnet_url}), 200
+
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Error creating or seeding torrent: {e}")
+            return jsonify({"error": "Error creating or seeding torrent"}), 500
+
+    return jsonify({"error": "Invalid file type"}), 400
+
+@app.route('/static/<path:filename>', methods=['GET'])
+def serve_static(filename):
+    """Serve the uploaded image."""
+    return send_from_directory(FILE_DIR, filename)
 
 if __name__ == "__main__":
-    logging.debug("Starting webseed server")
+    logging.info("Starting webseed server")
     app.run(host="0.0.0.0", port=TRACKER_PORT, debug=True)
