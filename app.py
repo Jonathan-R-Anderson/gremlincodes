@@ -3,9 +3,11 @@ import os
 import hashlib
 import subprocess
 import logging
+from shared import app
+from blueprints.routes import blueprint
 from werkzeug.utils import secure_filename
 
-app = Flask(__name__)
+app.register_blueprint(blueprint)
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
