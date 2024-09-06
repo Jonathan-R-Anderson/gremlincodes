@@ -7,6 +7,7 @@ from shared import app
 from blueprints.routes import blueprint
 from werkzeug.utils import secure_filename
 import json
+import urllib
 
 app.register_blueprint(blueprint)
 
