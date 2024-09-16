@@ -58,31 +58,46 @@ def seed_file(file_path, tracker_list, target_peer_count=5):
     """Function to run the WebTorrent seed command in a separate thread and monitor peers."""
     cmd = f"webtorrent seed '{file_path}' {tracker_list} --keep-seeding"
     logging.info(f"Running seeding command: {cmd}")
-    
-    seed_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    
-    connected_peers = 0
-    # Parse the output to extract the magnet URL and number of connected peers
-    for line in seed_process.stdout:
-        logging.info(f"Seeding output: {line.strip()}")
-        if line.startswith("Magnet:"):
-            # Store the magnet URL for the file
-            seeded_files[file_path] = line.split("Magnet:")[1].strip()
-        elif "Peers:" in line:
-            peer_info = line.split("Peers:")[1].split("/")[0].strip()
-            connected_peers = int(peer_info)
-            logging.info(f"Connected peers: {connected_peers}")
-        
-        # Stop seeding if the target peer count is reached
-        if connected_peers >= target_peer_count:
-            logging.info(f"Target peer count {target_peer_count} reached. Stopping seeding.")
-            seed_process.terminate()
-            break
 
-    stdout, stderr = seed_process.communicate()
-    
-    if seed_process.returncode != 0:
-        logging.error(f"Error during seeding: {stderr}")
+    try:
+        seed_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        connected_peers = 0
+        magnet_url = None
+
+        # Parse the output to extract the magnet URL and number of connected peers
+        for line in seed_process.stdout:
+            logging.info(f"Seeding output: {line.strip()}")
+            if "Magnet:" in line:
+                # Store the magnet URL for the file
+                magnet_url = line.split("Magnet:")[1].strip()
+                seeded_files[file_path] = magnet_url
+                logging.info(f"Magnet URL found: {magnet_url}")
+            elif "Peers:" in line:
+                # Example of WebTorrent output for peers: "Peers: 2/50"
+                peer_info = line.split("Peers:")[1].split("/")[0].strip()
+                connected_peers = int(peer_info)
+                logging.info(f"Connected peers: {connected_peers}")
+
+            # If the target peer count is reached, stop seeding
+            if connected_peers >= target_peer_count:
+                logging.info(f"Target peer count {target_peer_count} reached. Stopping seeding.")
+                break
+
+        stdout, stderr = seed_process.communicate()
+
+        if seed_process.returncode != 0:
+            logging.error(f"Error during seeding: {stderr}")
+        else:
+            logging.info(f"Seeding finished successfully for {file_path}")
+
+        # Log stderr if there's any error
+        if stderr:
+            logging.error(f"Seeding error output: {stderr}")
+
+    except Exception as e:
+        logging.error(f"Seeding process failed: {str(e)}")
+
 
 
 def load_seeded_files():
