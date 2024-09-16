@@ -275,18 +275,18 @@
                 await downloadAndDisplayContent(thread.id, attachment);
             }
 
-            // Display the first 3 replies (indented)
-            const replies = await getThreadReplies(thread.id, 3);
-            replies.forEach(reply => {
+            // Fetch and display the last 3 replies
+            const replies = await getThreadReplies(thread.id);
+            replies.slice(-3).forEach(reply => {
                 displayReply(reply, threadContainer);
             });
         }
 
-        async function getThreadReplies(threadId, limit = 3) {
-            // Fetch replies from smart contract
+        async function getThreadReplies(threadId) {
+            // Fetch all replies from smart contract
             const replyCount = await gremlinThreadContract.methods.getReplyCount(threadId).call();
             const replies = [];
-            for (let i = 0; i < Math.min(limit, replyCount); i++) {
+            for (let i = 0; i < replyCount; i++) {
                 const reply = await gremlinThreadContract.methods.getReply(threadId, i).call();
                 replies.push(reply);
             }
