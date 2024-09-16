@@ -249,30 +249,55 @@
         }
 
         async function downloadAndDisplayImage(threadId, magnetUrl) {
-            console.log(`Attempting to download image for thread ${threadId} with magnet URL: ${magnetUrl}`);
-
+            // Check if the torrent has already been added
             if (addedTorrents.has(magnetUrl)) {
-                console.log(`Torrent already added for magnet URL: ${magnetUrl}`);
-                const torrent = addedTorrents.get(magnetUrl);
-                displayImageFromTorrent(threadId, torrent);
-                return;
+                console.log(`Torrent already added for thread ${threadId} with magnet URL: ${magnetUrl}`);
+                return; // Exit the function since it's already added
             }
+
+            // Add the magnet URL to the Set to prevent duplicates
+            addedTorrents.add(magnetUrl);
 
             try {
+                // Add the torrent using WebTorrent
                 client.add(magnetUrl, (torrent) => {
-                    console.log(`Torrent added for thread ${threadId}.`);
-                    addedTorrents.set(magnetUrl, torrent);
-                    displayImageFromTorrent(threadId, torrent);
+                    console.log(`Torrent added for thread ${threadId} with magnet URL: ${magnetUrl}`);
+
+                    // Find the first image file in the torrent
+                    const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
+
+                    if (file) {
+                        // Display the image in the thread
+                        file.getBlobURL((err, url) => {
+                            if (err) {
+                                console.error(`Error generating Blob URL for thread ${threadId}:`, err);
+                                return;
+                            }
+
+                            // Create an image element and set its source to the Blob URL
+                            const img = document.createElement('img');
+                            img.src = url;
+                            img.alt = 'Image from torrent';
+                            img.style.maxWidth = '100%';
+
+                            // Insert the image into the thread's container
+                            const threadContainer = document.querySelector(`#thread-${threadId} .placeholder-image`);
+                            if (threadContainer) {
+                                threadContainer.innerHTML = ''; // Clear any previous content
+                                threadContainer.appendChild(img);
+                                console.log(`Image displayed for thread ${threadId}`);
+                            }
+                        });
+                    } else {
+                        console.log(`No image file found in torrent for thread ${threadId}`);
+                    }
                 });
             } catch (error) {
-                console.log(`Error adding torrent for thread ${threadId}:`, error);
-
-                const existingTorrent = addedTorrents.get(magnetUrl);
-                if (existingTorrent) {
-                    displayImageFromTorrent(threadId, existingTorrent);
-                }
+                console.error(`Error adding torrent for thread ${threadId}:`, error);
             }
         }
+
+
 
         function displayImageFromTorrent(threadId, torrent) {
             console.log(`displayImageFromTorrent called for thread ${threadId}`);
