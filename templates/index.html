@@ -182,7 +182,7 @@
                 const account = accounts[0];
 
                 console.log(`Submitting post with title: ${title}, content: ${content}, tags: ${tags}, attachments: ${attachments}`);
-                await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: 6000000 });
+                await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: 6000000, gasPrice: web3.utils.toWei('50', 'gwei') });
 
                 closeOverlay();
                 await refreshThreads();
