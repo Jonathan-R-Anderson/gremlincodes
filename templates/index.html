@@ -182,7 +182,8 @@
                 const account = accounts[0];
 
                 console.log(`Submitting post with title: ${title}, content: ${content}, tags: ${tags}, attachments: ${attachments}`);
-                await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: 6000000, gasPrice: 6000000});
+                const gasEstimate = await gremlinThreadContract.methods.createThread(title, tags, attachments).estimateGas({ from: account });
+                await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: gasEstimate});
 
                 closeOverlay();
                 await refreshThreads();
