@@ -138,6 +138,7 @@ def upload_file():
 
             if file_path in seeded_files:
                 magnet_url = seeded_files[file_path]
+                save_seeded_files() 
                 logging.info(f"Magnet URL generated: {magnet_url}")
                 return jsonify({"magnet_url": magnet_url, "web_seed": server_url}), 200
             else:
