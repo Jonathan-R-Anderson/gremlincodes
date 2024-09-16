@@ -15,10 +15,21 @@
             background-color: #f9f9f9;
         }
 
-        img, video {
+        /* Initial small image size */
+        img.thumbnail {
             display: block;
-            max-width: 100%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer; /* Make it look clickable */
+            transition: transform 0.2s ease;
+        }
+
+        /* Enlarged image */
+        img.enlarged {
+            width: auto;
             height: auto;
+            max-width: 100%;
+            max-height: 100%;
         }
 
         #overlay {
@@ -183,7 +194,6 @@
 
                 console.log(`Submitting post with title: ${title}, content: ${content}, tags: ${tags}, attachments: ${attachments}`);
                 const gasEstimate = await gremlinThreadContract.methods.createThread(title, tags, attachments).estimateGas({ from: account });
-                console.log('Gas estimate ${gasEstimate}');
                 await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: gasEstimate});
 
                 closeOverlay();
@@ -246,71 +256,82 @@
         }
 
         async function downloadAndDisplayContent(threadId, magnetUrl) {
-        // Check if the torrent has already been added
-        if (addedTorrents.has(magnetUrl)) {
-            console.log(`Torrent already added for thread ${threadId} with magnet URL: ${magnetUrl}`);
-            return; // Exit the function since it's already added
+            // Check if the torrent has already been added
+            if (addedTorrents.has(magnetUrl)) {
+                console.log(`Torrent already added for thread ${threadId} with magnet URL: ${magnetUrl}`);
+                return; // Exit the function since it's already added
+            }
+
+            // Add the magnet URL to the Set to prevent duplicates
+            addedTorrents.add(magnetUrl);
+
+            try {
+                // Add the torrent using WebTorrent
+                client.add(magnetUrl, (torrent) => {
+                    console.log(`Torrent added for thread ${threadId} with magnet URL: ${magnetUrl}`);
+
+                    // Find the first image file in the torrent
+                    const file = torrent.files.find(file =>
+                        file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg')
+                    );
+
+                    if (file) {
+                        // Generate a Blob URL and create an image element
+                        file.getBlobURL((err, url) => {
+                            if (err) {
+                                console.error(`Error generating Blob URL for thread ${threadId}:`, err);
+                                removePost(threadId); // Remove the post if the image fails to load
+                                return;
+                            }
+
+                            const img = document.createElement('img');
+                            img.src = url;
+                            img.alt = file.name;
+                            img.classList.add('thumbnail'); // Add the thumbnail class to style as 50x50 initially
+
+                            // Insert the image into the thread's container
+                            const threadContainer = document.querySelector(`#thread-${threadId} .placeholder-content`);
+                            if (threadContainer) {
+                                threadContainer.innerHTML = ''; // Clear any previous content
+                                threadContainer.appendChild(img);
+                                console.log(`Image displayed for thread ${threadId}`);
+                            }
+
+                            // Toggle between enlarged and thumbnail on click
+                            img.addEventListener('click', function () {
+                                if (img.classList.contains('enlarged')) {
+                                    img.classList.remove('enlarged');
+                                    img.classList.add('thumbnail');
+                                } else {
+                                    img.classList.remove('thumbnail');
+                                    img.classList.add('enlarged');
+                                }
+                            });
+
+                            // Handle image load failure (e.g., if the image is corrupted or cannot be loaded)
+                            img.onerror = function() {
+                                console.error(`Failed to load image for thread ${threadId}. Removing post.`);
+                                removePost(threadId); // Remove the post if the image fails to load
+                            };
+                        });
+                    } else {
+                        console.log(`No image file found in torrent for thread ${threadId}`);
+                        removePost(threadId); // Remove the post if no image file is found
+                    }
+                });
+            } catch (error) {
+                console.error(`Error adding torrent for thread ${threadId}:`, error);
+                removePost(threadId); // Remove the post in case of an error
+            }
         }
 
-        // Add the magnet URL to the Set to prevent duplicates
-        addedTorrents.add(magnetUrl);
-
-        try {
-            // Add the torrent using WebTorrent
-            client.add(magnetUrl, (torrent) => {
-                console.log(`Torrent added for thread ${threadId} with magnet URL: ${magnetUrl}`);
-
-                // Find the first image file in the torrent
-                const file = torrent.files.find(file =>
-                    file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg')
-                );
-
-                if (file) {
-                    // Generate a Blob URL and create an image element
-                    file.getBlobURL((err, url) => {
-                        if (err) {
-                            console.error(`Error generating Blob URL for thread ${threadId}:`, err);
-                            removePost(threadId); // Remove the post if the image fails to load
-                            return;
-                        }
-
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.alt = file.name;
-                        img.style.maxWidth = '100%';
-
-                        // Insert the image into the thread's container
-                        const threadContainer = document.querySelector(`#thread-${threadId} .placeholder-content`);
-                        if (threadContainer) {
-                            threadContainer.innerHTML = ''; // Clear any previous content
-                            threadContainer.appendChild(img);
-                            console.log(`Image displayed for thread ${threadId}`);
-                        }
-
-                        // Handle image load failure (e.g., if the image is corrupted or cannot be loaded)
-                        img.onerror = function() {
-                            console.error(`Failed to load image for thread ${threadId}. Removing post.`);
-                            removePost(threadId); // Remove the post if the image fails to load
-                        };
-                    });
-                } else {
-                    console.log(`No image file found in torrent for thread ${threadId}`);
-                    removePost(threadId); // Remove the post if no image file is found
-                }
-            });
-        } catch (error) {
-            console.error(`Error adding torrent for thread ${threadId}:`, error);
-            removePost(threadId); // Remove the post in case of an error
+        function removePost(threadId) {
+            const threadContainer = document.getElementById(`thread-${threadId}`);
+            if (threadContainer) {
+                threadContainer.remove(); // Remove the entire post from the DOM
+                console.log(`Post removed for thread ${threadId}`);
+            }
         }
-    }
-
-    function removePost(threadId) {
-        const threadContainer = document.getElementById(`thread-${threadId}`);
-        if (threadContainer) {
-            threadContainer.remove(); // Remove the entire post from the DOM
-            console.log(`Post removed for thread ${threadId}`);
-        }
-    }
 
         function showOverlay() {
             document.getElementById('overlay').style.height = "100%";
