@@ -102,18 +102,43 @@ def seed_file(file_path, tracker_list, target_peer_count=5):
 
 def load_seeded_files():
     """Load previously seeded files from the JSON file and resume seeding."""
+    logging.debug("Starting load_seeded_files()")
+    
     if os.path.exists(SEED_FILE):
-        with open(SEED_FILE, 'r') as f:
-            seeded = json.load(f)
-            logging.info(f"Loaded previously seeded files: {seeded}")
-            for file_path, magnet_url in seeded.items():
-                tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
-                threading.Thread(target=seed_file, args=(file_path, tracker_list)).start()
+        logging.debug(f"Seed file {SEED_FILE} exists. Attempting to load it.")
+        try:
+            with open(SEED_FILE, 'r') as f:
+                seeded = json.load(f)
+                logging.info(f"Successfully loaded previously seeded files: {seeded}")
+                
+                for file_path, magnet_url in seeded.items():
+                    logging.debug(f"Preparing to resume seeding for file: {file_path} with magnet: {magnet_url}")
+                    tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
+                    logging.debug(f"Generated tracker list: {tracker_list}")
+                    
+                    # Start a new thread to seed the file
+                    threading.Thread(target=seed_file, args=(file_path, tracker_list)).start()
+                    logging.info(f"Started seeding thread for file: {file_path}")
+                    
+        except json.JSONDecodeError as e:
+            logging.error(f"Error decoding JSON from {SEED_FILE}: {e}")
+        except Exception as e:
+            logging.error(f"An unexpected error occurred while loading seeded files: {e}")
+    else:
+        logging.debug(f"Seed file {SEED_FILE} does not exist. Nothing to load.")
 
 def save_seeded_files():
     """Save the current seeded files to a JSON file."""
-    with open(SEED_FILE, 'w') as f:
-        json.dump(seeded_files, f)
+    logging.debug("Starting save_seeded_files()")
+    
+    try:
+        with open(SEED_FILE, 'w') as f:
+            json.dump(seeded_files, f)
+            logging.info(f"Successfully saved current seeded files to {SEED_FILE}: {seeded_files}")
+    except IOError as e:
+        logging.error(f"IOError when saving seeded files to {SEED_FILE}: {e}")
+    except Exception as e:
+        logging.error(f"An unexpected error occurred while saving seeded files: {e}")
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
