@@ -231,10 +231,6 @@
             ethAddressElement.innerText = `Ethereum Address: ${thread.ethAddress}`;
             threadContainer.appendChild(ethAddressElement);
 
-            const dateElement = document.createElement('p');
-            dateElement.innerText = `Posted: ${thread.timestamp}`;
-            threadContainer.appendChild(dateElement);
-
             const contentPlaceholder = document.createElement('div');
             contentPlaceholder.className = 'placeholder-content';
             contentPlaceholder.innerText = 'Loading content...';
