@@ -4,12 +4,13 @@ import subprocess
 import logging
 import threading
 import time
+from shared import app
+from blueprints.routes import blueprint
+from werkzeug.utils import secure_filename
 import json
 import urllib
-from werkzeug.utils import secure_filename
 
-# Initialize Flask app
-app = Flask(__name__)
+app.register_blueprint(blueprint)
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
@@ -19,6 +20,7 @@ FILE_DIR = 'static'
 TORRENT_DIR = 'torrents'
 TRACKER_PORT = 5000
 SEED_FILE = 'seeded_files.json'
+
 
 os.makedirs(FILE_DIR, exist_ok=True)
 os.makedirs(TORRENT_DIR, exist_ok=True)
@@ -82,6 +84,7 @@ def seed_file(file_path, tracker_list, target_peer_count=5):
     if seed_process.returncode != 0:
         logging.error(f"Error during seeding: {stderr}")
 
+
 def load_seeded_files():
     """Load previously seeded files from the JSON file and resume seeding."""
     if os.path.exists(SEED_FILE):
@@ -115,6 +118,7 @@ def upload_file():
         logging.info(f"File saved to {file_path}")
 
         try:
+            # Use 127.0.0.1 for local development instead of localhost
             server_url = f"http://127.0.0.1:5000/static/{filename}"
             logging.info(f"Web seed URL: {server_url}")
 
@@ -126,15 +130,14 @@ def upload_file():
             seed_thread.start()
 
             # Poll the shared dictionary until the magnet URL is available
-            max_wait_time = 10
+            max_wait_time = 10  # Max wait time in seconds
             wait_time = 0
             while file_path not in seeded_files and wait_time < max_wait_time:
-                time.sleep(0.5)
+                time.sleep(0.5)  # Sleep for 500ms
                 wait_time += 0.5
 
             if file_path in seeded_files:
                 magnet_url = seeded_files[file_path]
-                save_seeded_files()  # Save seeded files after seeding starts
                 logging.info(f"Magnet URL generated: {magnet_url}")
                 return jsonify({"magnet_url": magnet_url, "web_seed": server_url}), 200
             else:
@@ -153,5 +156,4 @@ def serve_static(filename):
 
 if __name__ == "__main__":
     logging.info("Starting webseed server")
-    load_seeded_files()  # Resume seeding on server startup
     app.run(host="0.0.0.0", port=TRACKER_PORT, debug=True)
