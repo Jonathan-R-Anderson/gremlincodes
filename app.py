@@ -82,7 +82,8 @@ def seed_file(file_path, tracker_list, target_peer_count=5):
                 break
             
             if output:
-                logging.info(f"WebTorrent output: {output.strip()}")
+                for i in range(100):
+                    logging.info(f"WebTorrent output: {output.strip()}")
                 if "Magnet:" in output:
                     # Extract magnet URL
                     magnet_url = output.split("Magnet:")[1].strip()
