@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gremlin Image</title>
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+</head>
+<body>
+    <h1>Gremlin Image</h1>
+    <div id="status">Connecting to peers...</div>
+    <div id="progress" style="margin-top: 10px;"></div>
+    <img id="gremlinImage" alt="Gremlin Image" style="max-width: 100%; display: none;">
+
+    <script>
+        // Magnet URL with additional WebSocket trackers
+        var magnetURI = "magnet:?xt=urn:btih:94bbc9e005c5412f612ed8bd94197ea380674506&dn=gremlin.png&tr=wss%3A%2F%2Ftracker.openwebtorrent.com%2Fannounce%2Cwss%3A%2F%2Ftracker.btorrent.xyz%2Fannounce%2Cwss%3A%2F%2Ftracker.fastcast.nz%2Fannounce%2Cwss%3A%2F%2Ftracker.webtorrent.io%2Fannounce";
+        console.log("Magnet URI:", magnetURI);
+
+        // Initialize WebTorrent client
+        var client = new WebTorrent();
+        console.log("WebTorrent client initialized:", client);
+
+        // Add the torrent to the client
+        client.add(magnetURI, function (torrent) {
+            console.log("Torrent added:", torrent);
+            document.getElementById('status').textContent = 'Torrent metadata received. Downloading...';
+            console.log("Torrent metadata received.");
+
+            // Find the file in the torrent (assuming it's a .png file)
+            var file = torrent.files.find(function (file) {
+                console.log("Checking file:", file.name);
+                return file.name.endsWith('.png');
+            });
+
+            if (file) {
+                console.log("PNG file found:", file.name);
+
+                // Progress updates
+                torrent.on('download', function (bytes) {
+                    console.log("Downloaded bytes:", bytes);
+                    console.log("Torrent progress:", torrent.progress);
+                    document.getElementById('progress').textContent = 'Downloaded ' + (torrent.progress * 100).toFixed(2) + '%';
+                });
+
+                torrent.on('done', function () {
+                    console.log("Torrent download complete.");
+                    document.getElementById('status').textContent = 'Download complete!';
+                });
+
+                // Render the image once it's fully downloaded
+                file.getBlobURL(function (err, url) {
+                    if (err) {
+                        console.error("Error getting Blob URL:", err);
+                        document.getElementById('status').textContent = 'Error downloading image!';
+                        return;
+                    }
+                    console.log("Blob URL created:", url);
+                    document.getElementById('gremlinImage').src = url;
+                    document.getElementById('gremlinImage').style.display = 'block';
+                    document.getElementById('status').textContent = 'Image loaded successfully!';
+                });
+            } else {
+                console.error("No PNG file found in the torrent.");
+                document.getElementById('status').textContent = 'No image found in the torrent!';
+            }
+        });
+
+        // Error handling
+        client.on('error', function (err) {
+            console.error("An error occurred with the WebTorrent client:", err);
+            document.getElementById('status').textContent = 'An error occurred: ' + err.message;
+        });
+
+        client.on('warning', function (err) {
+            console.warn("A warning occurred:", err);
+            document.getElementById('status').textContent = 'Warning: ' + err.message;
+        });
+
+        client.on('torrent', function (torrent) {
+            console.log("Torrent event triggered:", torrent);
+        });
+
+        client.on('noPeers', function (announceType) {
+            console.warn("No peers found for announce type:", announceType);
+        });
+
+        client.on('wire', function (wire, addr) {
+            console.log("Connected to peer:", addr);
+        });
+
+        client.on('dhtAnnounce', function () {
+            console.log("DHT announce event triggered.");
+        });
+    </script>
+</body>
+</html>

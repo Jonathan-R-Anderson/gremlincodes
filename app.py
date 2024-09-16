@@ -21,21 +21,16 @@ TORRENT_DIR = 'torrents'
 TRACKER_PORT = 5000
 SEED_FILE = 'seeded_files.json'
 
-
 os.makedirs(FILE_DIR, exist_ok=True)
 os.makedirs(TORRENT_DIR, exist_ok=True)
 
-# Torrent trackers to be used for distribution
+# Torrent WSS trackers to be used for distribution (updated for WebSockets)
 TRACKER_URLS = [
-    "udp://tracker.opentrackr.org:1337/announce",
-    "http://tracker.opentrackr.org:1337/announce",
-    "udp://open.tracker.cl:1337/announce",
-    "udp://open.demonii.com:1337/announce",
-    "udp://open.stealth.si:80/announce",
-    "udp://tracker.torrent.eu.org:451/announce",
-    "udp://tracker-udp.gbitt.info:80/announce",
-    "udp://explodie.org:6969/announce",
-    "udp://exodus.desync.com:6969/announce",
+    "wss://tracker.openwebtorrent.com",
+    "wss://tracker.btorrent.xyz",
+    "wss://tracker.fastcast.nz",
+    "wss://tracker.webtorrent.io",
+    "wss://tracker.openbittorrent.com:443/announce"
 ]
 
 # Allowed file extensions
@@ -82,8 +77,7 @@ def seed_file(file_path, tracker_list, target_peer_count=5):
                 break
             
             if output:
-                for i in range(100):
-                    logging.info(f"WebTorrent output: {output.strip()}")
+                logging.info(f"WebTorrent output: {output.strip()}")
                 if "Magnet:" in output:
                     # Extract magnet URL
                     magnet_url = output.split("Magnet:")[1].strip()
@@ -113,8 +107,6 @@ def seed_file(file_path, tracker_list, target_peer_count=5):
 
     except Exception as e:
         logging.error(f"Seeding process failed: {str(e)}")
-
-
 
 
 def load_seeded_files():
@@ -176,7 +168,7 @@ def upload_file():
 
         try:
             # Use 127.0.0.1 for local development instead of localhost
-            server_url = f"http://127.0.0.1:5000/static/{filename}"
+            server_url = f"http://0.0.0.0:5000/static/{filename}"
             logging.info(f"Web seed URL: {server_url}")
 
             # Build the seed command with trackers
@@ -197,7 +189,6 @@ def upload_file():
                 magnet_url = seeded_files[file_path]
                 logging.info(f"Magnet URL generated: {magnet_url}")
                 save_seeded_files() 
-                logging.info(f"saved seeded files: {seeded_files}")
                 return jsonify({"magnet_url": magnet_url, "web_seed": server_url}), 200
             else:
                 return jsonify({"error": "Failed to generate magnet URL in time"}), 500
