@@ -7,8 +7,12 @@ from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 import json
 import urllib
+from shared import app
+from blueprints import blueprint
 
-app = Flask(__name__)
+
+app.register_blueprint(blueprint)
+
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
