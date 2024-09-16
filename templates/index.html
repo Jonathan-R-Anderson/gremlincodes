@@ -15,6 +15,13 @@
             background-color: #f9f9f9;
         }
 
+        .reply-container {
+            margin-left: 20px;
+            padding: 10px;
+            border-left: 3px solid #ccc;
+            background-color: #f0f0f0;
+        }
+
         /* Initial small image size */
         img.thumbnail {
             display: block;
@@ -99,12 +106,12 @@
 
     <div id="overlay">
         <div id="overlayContent">
-            <h2>Create a New Post</h2>
+            <h2 id="overlayTitle">Create a New Post</h2>
             <input type="text" id="newPostTitle" placeholder="Title" style="width: 100%; padding: 10px;" />
             <textarea id="newPostContent" placeholder="Content" style="width: 100%; padding: 10px; height: 100px;"></textarea>
             <input type="text" id="newPostTags" placeholder="Tags (comma-separated)" style="width: 100%; padding: 10px;" />
             <input type="file" id="imageUpload" accept="image/*" style="width: 100%; padding: 10px;" />
-            <button onclick="submitPost()">Submit Post</button>
+            <button id="submitPostBtn" onclick="submitPost()">Submit Post</button>
         </div>
     </div>
 
@@ -112,6 +119,7 @@
         let gremlinThreadContract;
         let currentScrollPage = 1;
         let loadedThreads = 0;
+        let replyingToThreadId = null; // To track which thread we are replying to
         const postsToLoad = 5;
 
         // Initialize WebTorrent client
@@ -192,9 +200,15 @@
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 const account = accounts[0];
 
-                console.log(`Submitting post with title: ${title}, content: ${content}, tags: ${tags}, attachments: ${attachments}`);
-                const gasEstimate = await gremlinThreadContract.methods.createThread(title, tags, attachments).estimateGas({ from: account });
-                await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: gasEstimate});
+                let tx;
+                if (replyingToThreadId) {
+                    console.log(`Submitting reply to thread ID: ${replyingToThreadId}`);
+                    tx = await gremlinThreadContract.methods.replyToThread(replyingToThreadId, content, attachments).send({ from: account });
+                } else {
+                    console.log(`Submitting post with title: ${title}, content: ${content}, tags: ${tags}, attachments: ${attachments}`);
+                    const gasEstimate = await gremlinThreadContract.methods.createThread(title, tags, attachments).estimateGas({ from: account });
+                    tx = await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: gasEstimate});
+                }
 
                 closeOverlay();
                 await refreshThreads();
@@ -242,6 +256,13 @@
             ethAddressElement.innerText = `Ethereum Address: ${thread.ethAddress}`;
             threadContainer.appendChild(ethAddressElement);
 
+            // Add a "Reply" link to open the overlay for replying
+            const replyLink = document.createElement('a');
+            replyLink.href = '#';
+            replyLink.innerText = 'Reply';
+            replyLink.addEventListener('click', () => openReplyOverlay(thread.id));
+            threadContainer.appendChild(replyLink);
+
             const contentPlaceholder = document.createElement('div');
             contentPlaceholder.className = 'placeholder-content';
             contentPlaceholder.innerText = 'Loading content...';
@@ -253,6 +274,35 @@
             for (let attachment of attachments) {
                 await downloadAndDisplayContent(thread.id, attachment);
             }
+
+            // Display the first 3 replies (indented)
+            const replies = await getThreadReplies(thread.id, 3);
+            replies.forEach(reply => {
+                displayReply(reply, threadContainer);
+            });
+        }
+
+        async function getThreadReplies(threadId, limit = 3) {
+            // Fetch replies from smart contract
+            const replyCount = await gremlinThreadContract.methods.getReplyCount(threadId).call();
+            const replies = [];
+            for (let i = 0; i < Math.min(limit, replyCount); i++) {
+                const reply = await gremlinThreadContract.methods.getReply(threadId, i).call();
+                replies.push(reply);
+            }
+            return replies;
+        }
+
+        async function displayReply(reply, threadContainer) {
+            const replyContainer = document.createElement('div');
+            replyContainer.className = 'reply-container';
+
+            const contentElement = document.createElement('p');
+            contentElement.innerText = reply.content;
+            replyContainer.appendChild(contentElement);
+
+            // Append reply to the thread container
+            threadContainer.appendChild(replyContainer);
         }
 
         async function downloadAndDisplayContent(threadId, magnetUrl) {
@@ -334,11 +384,21 @@
         }
 
         function showOverlay() {
+            replyingToThreadId = null;
+            document.getElementById('overlayTitle').innerText = 'Create a New Post';
             document.getElementById('overlay').style.height = "100%";
             document.getElementById('closeOverlayBtn').style.display = 'block';
         }
 
+        function openReplyOverlay(threadId) {
+            replyingToThreadId = threadId;
+            document.getElementById('overlayTitle').innerText = 'Reply to Thread';
+            document.getElementById('overlay').style.height = "100%";
+        }
+
         function closeOverlay() {
+            replyingToThreadId = null;
+            document.getElementById('overlayTitle').innerText = 'Create a New Post';
             document.getElementById('overlay').style.height = "0%";
             document.getElementById('closeOverlayBtn').style.display = 'none';
         }
