@@ -156,4 +156,5 @@ def serve_static(filename):
 
 if __name__ == "__main__":
     logging.info("Starting webseed server")
+    load_seeded_files()  # Resume seeding on server startup
     app.run(host="0.0.0.0", port=TRACKER_PORT, debug=True)
