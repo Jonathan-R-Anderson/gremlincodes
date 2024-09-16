@@ -15,7 +15,7 @@
             background-color: #f9f9f9;
         }
 
-        img {
+        img, video {
             display: block;
             max-width: 100%;
             height: auto;
@@ -58,7 +58,7 @@
             padding: 10px 20px;
         }
 
-        .placeholder-image {
+        .placeholder-content {
             width: 100%;
             height: 200px;
             background-color: #eaeaea;
@@ -107,7 +107,7 @@
         const client = new WebTorrent();
 
         // Store a reference to the added torrents
-        const addedTorrents = new Map();
+        const addedTorrents = new Set();
 
         async function initializeContracts() {
             if (typeof window.ethereum !== 'undefined') {
@@ -235,20 +235,20 @@
             dateElement.innerText = `Posted: ${thread.timestamp}`;
             threadContainer.appendChild(dateElement);
 
-            const imgPlaceholder = document.createElement('div');
-            imgPlaceholder.className = 'placeholder-image';
-            imgPlaceholder.innerText = 'Loading image...';
-            threadContainer.appendChild(imgPlaceholder);
+            const contentPlaceholder = document.createElement('div');
+            contentPlaceholder.className = 'placeholder-content';
+            contentPlaceholder.innerText = 'Loading content...';
+            threadContainer.appendChild(contentPlaceholder);
 
             document.getElementById('infiniteScrollContent').appendChild(threadContainer);
 
             const attachments = thread.attachments || [];
             for (let attachment of attachments) {
-                await downloadAndDisplayImage(thread.id, attachment);
+                await downloadAndDisplayContent(thread.id, attachment);
             }
         }
 
-        async function downloadAndDisplayImage(threadId, magnetUrl) {
+        async function downloadAndDisplayContent(threadId, magnetUrl) {
             // Check if the torrent has already been added
             if (addedTorrents.has(magnetUrl)) {
                 console.log(`Torrent already added for thread ${threadId} with magnet URL: ${magnetUrl}`);
@@ -263,77 +263,48 @@
                 client.add(magnetUrl, (torrent) => {
                     console.log(`Torrent added for thread ${threadId} with magnet URL: ${magnetUrl}`);
 
-                    // Find the first image file in the torrent
-                    const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
+                    // Find the first image or video file in the torrent
+                    const file = torrent.files.find(file =>
+                        file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg') ||
+                        file.name.endsWith('.mp4') || file.name.endsWith('.webm')
+                    );
 
                     if (file) {
-                        // Display the image in the thread
+                        // Display the file (image or video) in the thread
                         file.getBlobURL((err, url) => {
                             if (err) {
                                 console.error(`Error generating Blob URL for thread ${threadId}:`, err);
                                 return;
                             }
 
-                            // Create an image element and set its source to the Blob URL
-                            const img = document.createElement('img');
-                            img.src = url;
-                            img.alt = 'Image from torrent';
-                            img.style.maxWidth = '100%';
+                            let contentElement;
+                            if (file.name.endsWith('.mp4') || file.name.endsWith('.webm')) {
+                                // If it's a video, create a video element
+                                contentElement = document.createElement('video');
+                                contentElement.src = url;
+                                contentElement.controls = true;
+                            } else {
+                                // Otherwise, assume it's an image
+                                contentElement = document.createElement('img');
+                                contentElement.src = url;
+                            }
+                            contentElement.style.maxWidth = '100%';
 
-                            // Insert the image into the thread's container
-                            const threadContainer = document.querySelector(`#thread-${threadId} .placeholder-image`);
+                            // Insert the content into the thread's container
+                            const threadContainer = document.querySelector(`#thread-${threadId} .placeholder-content`);
                             if (threadContainer) {
                                 threadContainer.innerHTML = ''; // Clear any previous content
-                                threadContainer.appendChild(img);
-                                console.log(`Image displayed for thread ${threadId}`);
+                                threadContainer.appendChild(contentElement);
+                                console.log(`Content displayed for thread ${threadId}`);
                             }
                         });
                     } else {
-                        console.log(`No image file found in torrent for thread ${threadId}`);
+                        console.log(`No suitable file found in torrent for thread ${threadId}`);
                     }
                 });
             } catch (error) {
                 console.error(`Error adding torrent for thread ${threadId}:`, error);
             }
-        }
-
-
-
-        function displayImageFromTorrent(threadId, torrent) {
-            console.log(`displayImageFromTorrent called for thread ${threadId}`);
-
-            const file = torrent.files.find(file => file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg'));
-            if (!file) {
-                console.log(`No image file found in torrent for thread ${threadId}`);
-                return;
-            }
-
-            // Download the image from the webseed first
-            fetchWebseedImage(file, threadId);
-        }
-
-        function fetchWebseedImage(file, threadId) {
-            file.getBlobURL((err, url) => {
-                if (err) {
-                    console.log(`Error generating blob URL for thread ${threadId}:`, err);
-                    return;
-                }
-
-                console.log(`Image URL generated for thread ${threadId}: ${url}`);
-                const img = document.createElement('img');
-                img.src = url;
-                img.alt = 'Image from webseed URL';
-                img.style.maxWidth = '100%';
-
-                const threadContainer = document.querySelector(`#thread-${threadId} .placeholder-image`);
-                if (threadContainer) {
-                    threadContainer.innerHTML = '';
-                    threadContainer.appendChild(img);
-                    console.log(`Image appended to thread ${threadId}`);
-                } else {
-                    console.log(`Thread container not found for thread ${threadId}`);
-                }
-            });
         }
 
         function showOverlay() {
