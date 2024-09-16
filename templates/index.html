@@ -183,7 +183,7 @@
 
                 console.log(`Submitting post with title: ${title}, content: ${content}, tags: ${tags}, attachments: ${attachments}`);
                 const gasEstimate = await gremlinThreadContract.methods.createThread(title, tags, attachments).estimateGas({ from: account });
-                await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: gasEstimate});
+                await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: gasEstimate + 10000});
 
                 closeOverlay();
                 await refreshThreads();
