@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify, send_from_directory, Response
 import os
-import hashlib
 import subprocess
 import logging
+import threading
+import time
 from shared import app
 from blueprints.routes import blueprint
 from werkzeug.utils import secure_filename
@@ -33,11 +34,13 @@ TRACKER_URLS = [
     "udp://tracker-udp.gbitt.info:80/announce",
     "udp://explodie.org:6969/announce",
     "udp://exodus.desync.com:6969/announce",
-    # ... add the rest of the provided trackers here ...
 ]
 
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+# Dictionary to store magnet URLs for seeding files
+seeded_files = {}
 
 def allowed_file(filename):
     """Check if the file has an allowed extension."""
@@ -49,9 +52,40 @@ def generate_magnet_link(info_hash, file_name):
     magnet_link = f"magnet:?xt=urn:btih:{info_hash}&dn={urllib.parse.quote(file_name)}&{trackers}"
     return magnet_link
 
+def seed_file(file_path, tracker_list, target_peer_count=5):
+    """Function to run the WebTorrent seed command in a separate thread and monitor peers."""
+    cmd = f"webtorrent seed '{file_path}' {tracker_list} --keep-seeding"
+    logging.info(f"Running seeding command: {cmd}")
+    
+    seed_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    
+    connected_peers = 0
+    # Parse the output to extract the magnet URL and number of connected peers
+    for line in seed_process.stdout:
+        logging.info(f"Seeding output: {line.strip()}")
+        if line.startswith("Magnet:"):
+            # Store the magnet URL for the file
+            seeded_files[file_path] = line.split("Magnet:")[1].strip()
+        elif "Peers:" in line:
+            # Example of WebTorrent output for peers: "Peers: 2/50"
+            peer_info = line.split("Peers:")[1].split("/")[0].strip()
+            connected_peers = int(peer_info)
+            logging.info(f"Connected peers: {connected_peers}")
+        
+        # If the target peer count is reached, stop seeding
+        if connected_peers >= target_peer_count:
+            logging.info(f"Target peer count {target_peer_count} reached. Stopping seeding.")
+            seed_process.terminate()
+            break
+
+    stdout, stderr = seed_process.communicate()
+    
+    if seed_process.returncode != 0:
+        logging.error(f"Error during seeding: {stderr}")
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """Handle the image upload, create a torrent, and return the magnet link."""
+    """Handle the image upload, start torrent seeding in a separate thread, and return the magnet link."""
     if 'file' not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
@@ -66,37 +100,35 @@ def upload_file():
         file.save(file_path)
         logging.info(f"File saved to {file_path}")
 
-        # Create torrent and start seeding with WebTorrent CLI
         try:
-            torrent_file_path = os.path.join(TORRENT_DIR, f"{filename}.torrent")
+            # Use 127.0.0.1 for local development instead of localhost
+            server_url = f"http://127.0.0.1:5000/static/{filename}"
+            logging.info(f"Web seed URL: {server_url}")
 
-            # Create the torrent file using webtorrent CLI
+            # Build the seed command with trackers
             tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
-            cmd = f"webtorrent create '{file_path}' {tracker_list} -o '{torrent_file_path}'"
-            logging.info(f"Running command: {cmd}")
-            subprocess.run(cmd, shell=True, check=True)
 
-            # Extract info hash from the torrent file
-            torrent_info_cmd = f"webtorrent info '{torrent_file_path}'"
-            logging.info(f"Getting torrent info with command: {torrent_info_cmd}")
-            result = subprocess.run(torrent_info_cmd, shell=True, check=True, capture_output=True, text=True)
-            torrent_info = json.loads(result.stdout)
+            # Start seeding in a separate thread
+            seed_thread = threading.Thread(target=seed_file, args=(file_path, tracker_list))
+            seed_thread.start()
 
-            # Start seeding the file
-            seed_cmd = f"webtorrent seed '{file_path}' {tracker_list}"
-            logging.info(f"Seeding with command: {seed_cmd}")
-            subprocess.Popen(seed_cmd, shell=True)
+            # Poll the shared dictionary until the magnet URL is available
+            max_wait_time = 10  # Max wait time in seconds
+            wait_time = 0
+            while file_path not in seeded_files and wait_time < max_wait_time:
+                time.sleep(0.5)  # Sleep for 500ms
+                wait_time += 0.5
 
-            # Generate magnet link
-            info_hash = torrent_info['infoHash']
-            magnet_url = generate_magnet_link(info_hash, filename)
-            logging.info(f"Magnet URL generated: {magnet_url}")
-
-            return jsonify({"magnet_url": magnet_url}), 200
+            if file_path in seeded_files:
+                magnet_url = seeded_files[file_path]
+                logging.info(f"Magnet URL generated: {magnet_url}")
+                return jsonify({"magnet_url": magnet_url, "web_seed": server_url}), 200
+            else:
+                return jsonify({"error": "Failed to generate magnet URL in time"}), 500
 
         except subprocess.CalledProcessError as e:
-            logging.error(f"Error creating or seeding torrent: {e}")
-            return jsonify({"error": "Error creating or seeding torrent"}), 500
+            logging.error(f"Error during seeding: {e}")
+            return jsonify({"error": "Error creating torrent", "details": str(e)}), 500
 
     return jsonify({"error": "Invalid file type"}), 400
 
