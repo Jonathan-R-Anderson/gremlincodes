@@ -1,16 +1,14 @@
-from flask import Flask, request, jsonify, send_from_directory, Response
 import os
 import subprocess
 import logging
 import threading
 import time
-from shared import app
-from blueprints.routes import blueprint
+from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 import json
 import urllib
 
-app.register_blueprint(blueprint)
+app = Flask(__name__)
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
@@ -29,8 +27,7 @@ TRACKER_URLS = [
     "wss://tracker.openwebtorrent.com",
     "wss://tracker.btorrent.xyz",
     "wss://tracker.fastcast.nz",
-    "wss://tracker.webtorrent.io",
-    "wss://tracker.openbittorrent.com:443/announce"
+    "wss://tracker.webtorrent.io"
 ]
 
 # Allowed file extensions
@@ -43,23 +40,18 @@ def allowed_file(filename):
     """Check if the file has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def generate_magnet_link(info_hash, file_name):
-    """Generate a magnet link using the provided trackers and info hash."""
-    trackers = "&".join([f"tr={urllib.parse.quote(tracker)}" for tracker in TRACKER_URLS])
-    magnet_link = f"magnet:?xt=urn:btih:{info_hash}&dn={urllib.parse.quote(file_name)}&{trackers}"
-    return magnet_link
-
-import subprocess
-import logging
-
-def seed_file(file_path, tracker_list, target_peer_count=5):
-    """Function to run the WebTorrent seed command in a separate thread and monitor peers."""
-    cmd = f"webtorrent seed '{file_path}' {tracker_list} --keep-seeding"
-    logging.info(f"Running seeding command: {cmd}")
-
+def seed_file(file_path):
+    """Function to seed the file using the WebTorrent command."""
     try:
-        # Run the WebTorrent seed command
-        seed_process = subprocess.Popen(
+        # Prepare tracker list for WebTorrent seed command
+        tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
+        
+        # WebTorrent seed command with trackers and keep-seeding
+        cmd = f"webtorrent seed '{file_path}' {tracker_list} --keep-seeding"
+        logging.info(f"Running seeding command: {cmd}")
+
+        # Run the command in a subprocess
+        process = subprocess.Popen(
             cmd, 
             shell=True, 
             stdout=subprocess.PIPE, 
@@ -67,87 +59,29 @@ def seed_file(file_path, tracker_list, target_peer_count=5):
             text=True
         )
 
-        connected_peers = 0
         magnet_url = None
 
-        # Read stdout and stderr in real-time
+        # Read output to extract magnet link
         while True:
-            output = seed_process.stdout.readline()
-            if output == '' and seed_process.poll() is not None:
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
                 break
-            
+
             if output:
                 logging.info(f"WebTorrent output: {output.strip()}")
-                if "Magnet:" in output:
-                    # Extract magnet URL
-                    magnet_url = output.split("Magnet:")[1].strip()
+                if "Magnet URI:" in output:
+                    magnet_url = output.split("Magnet URI:")[1].strip()
                     seeded_files[file_path] = magnet_url
                     logging.info(f"Magnet URL found: {magnet_url}")
-                elif "Peers:" in output:
-                    # Example of WebTorrent output for peers: "Peers: 2/50"
-                    peer_info = output.split("Peers:")[1].split("/")[0].strip()
-                    connected_peers = int(peer_info)
-                    logging.info(f"Connected peers: {connected_peers}")
 
-                # Stop if we hit the target peer count
-                if connected_peers >= target_peer_count:
-                    logging.info(f"Target peer count {target_peer_count} reached. Stopping seeding.")
-                    break
+        # Ensure subprocess completes
+        process.communicate()
 
-        # Capture final stdout and stderr
-        stdout, stderr = seed_process.communicate()
-
-        if seed_process.returncode != 0:
-            logging.error(f"Error during seeding: {stderr}")
-        else:
-            logging.info(f"Seeding finished successfully for {file_path}")
-
-        if stderr:
-            logging.error(f"Seeding error output: {stderr}")
+        if process.returncode != 0:
+            logging.error(f"Seeding process failed for {file_path}")
 
     except Exception as e:
-        logging.error(f"Seeding process failed: {str(e)}")
-
-
-def load_seeded_files():
-    """Load previously seeded files from the JSON file and resume seeding."""
-    logging.debug("Starting load_seeded_files()")
-    
-    if os.path.exists(SEED_FILE):
-        logging.debug(f"Seed file {SEED_FILE} exists. Attempting to load it.")
-        try:
-            with open(SEED_FILE, 'r') as f:
-                seeded = json.load(f)
-                logging.info(f"Successfully loaded previously seeded files: {seeded}")
-                
-                for file_path, magnet_url in seeded.items():
-                    logging.debug(f"Preparing to resume seeding for file: {file_path} with magnet: {magnet_url}")
-                    tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
-                    logging.debug(f"Generated tracker list: {tracker_list}")
-                    
-                    # Start a new thread to seed the file
-                    threading.Thread(target=seed_file, args=(file_path, tracker_list)).start()
-                    logging.info(f"Started seeding thread for file: {file_path}")
-                    
-        except json.JSONDecodeError as e:
-            logging.error(f"Error decoding JSON from {SEED_FILE}: {e}")
-        except Exception as e:
-            logging.error(f"An unexpected error occurred while loading seeded files: {e}")
-    else:
-        logging.debug(f"Seed file {SEED_FILE} does not exist. Nothing to load.")
-
-def save_seeded_files():
-    """Save the current seeded files to a JSON file."""
-    logging.debug("Starting save_seeded_files()")
-    
-    try:
-        with open(SEED_FILE, 'w') as f:
-            json.dump(seeded_files, f)
-            logging.info(f"Successfully saved current seeded files to {SEED_FILE}: {seeded_files}")
-    except IOError as e:
-        logging.error(f"IOError when saving seeded files to {SEED_FILE}: {e}")
-    except Exception as e:
-        logging.error(f"An unexpected error occurred while saving seeded files: {e}")
+        logging.error(f"Error while seeding file: {str(e)}")
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -167,18 +101,11 @@ def upload_file():
         logging.info(f"File saved to {file_path}")
 
         try:
-            # Use 127.0.0.1 for local development instead of localhost
-            server_url = f"http://0.0.0.0:5000/static/{filename}"
-            logging.info(f"Web seed URL: {server_url}")
-
-            # Build the seed command with trackers
-            tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
-
             # Start seeding in a separate thread
-            seed_thread = threading.Thread(target=seed_file, args=(file_path, tracker_list))
+            seed_thread = threading.Thread(target=seed_file, args=(file_path,))
             seed_thread.start()
 
-            # Poll the shared dictionary until the magnet URL is available
+            # Poll the seeded_files dictionary until the magnet URL is available
             max_wait_time = 10  # Max wait time in seconds
             wait_time = 0
             while file_path not in seeded_files and wait_time < max_wait_time:
@@ -188,12 +115,11 @@ def upload_file():
             if file_path in seeded_files:
                 magnet_url = seeded_files[file_path]
                 logging.info(f"Magnet URL generated: {magnet_url}")
-                save_seeded_files() 
-                return jsonify({"magnet_url": magnet_url, "web_seed": server_url}), 200
+                return jsonify({"magnet_url": magnet_url}), 200
             else:
                 return jsonify({"error": "Failed to generate magnet URL in time"}), 500
 
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             logging.error(f"Error during seeding: {e}")
             return jsonify({"error": "Error creating torrent", "details": str(e)}), 500
 
@@ -206,5 +132,4 @@ def serve_static(filename):
 
 if __name__ == "__main__":
     logging.info("Starting webseed server")
-    load_seeded_files()  # Resume seeding on server startup
     app.run(host="0.0.0.0", port=TRACKER_PORT, debug=True)

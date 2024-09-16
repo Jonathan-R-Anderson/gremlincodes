@@ -3,94 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gremlin Image</title>
-    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+    <title>WebTorrent Image Downloader</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        #imageContainer img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
 </head>
 <body>
-    <h1>Gremlin Image</h1>
-    <div id="status">Connecting to peers...</div>
-    <div id="progress" style="margin-top: 10px;"></div>
-    <img id="gremlinImage" alt="Gremlin Image" style="max-width: 100%; display: none;">
+    <h1>Download Image via Magnet Link</h1>
+    <label for="magnetInput">Enter Magnet URL:</label>
+    <input type="text" id="magnetInput" placeholder="Enter Magnet URL" size="80">
+    <button id="downloadBtn">Download Image</button>
+    
+    <div id="output"></div>
+    <div id="imageContainer"></div>
 
-    <script>
-        // Magnet URL with additional WebSocket trackers
-        var magnetURI = "magnet:?xt=urn:btih:94bbc9e005c5412f612ed8bd94197ea380674506&dn=gremlin.png&tr=wss%3A%2F%2Ftracker.openwebtorrent.com%2Fannounce%2Cwss%3A%2F%2Ftracker.btorrent.xyz%2Fannounce%2Cwss%3A%2F%2Ftracker.fastcast.nz%2Fannounce%2Cwss%3A%2F%2Ftracker.webtorrent.io%2Fannounce";
-        console.log("Magnet URI:", magnetURI);
+    <!-- Include WebTorrent library -->
+    <script type="module">
+        import WebTorrent from 'https://esm.sh/webtorrent';
 
-        // Initialize WebTorrent client
-        var client = new WebTorrent();
-        console.log("WebTorrent client initialized:", client);
+        const client = new WebTorrent();
+        const downloadBtn = document.getElementById('downloadBtn');
+        const magnetInput = document.getElementById('magnetInput');
+        const output = document.getElementById('output');
+        const imageContainer = document.getElementById('imageContainer');
 
-        // Add the torrent to the client
-        client.add(magnetURI, function (torrent) {
-            console.log("Torrent added:", torrent);
-            document.getElementById('status').textContent = 'Torrent metadata received. Downloading...';
-            console.log("Torrent metadata received.");
+        // Download image when button is clicked
+        downloadBtn.addEventListener('click', () => {
+            const magnetURI = magnetInput.value.trim();
+            
+            if (magnetURI) {
+                output.innerHTML = 'Downloading image...';
 
-            // Find the file in the torrent (assuming it's a .png file)
-            var file = torrent.files.find(function (file) {
-                console.log("Checking file:", file.name);
-                return file.name.endsWith('.png');
-            });
+                // Add torrent to WebTorrent client
+                client.add(magnetURI, torrent => {
+                    // Display torrent information
+                    output.innerHTML = `Downloading <strong>${torrent.name}</strong>...<br>Peers: ${torrent.numPeers}`;
 
-            if (file) {
-                console.log("PNG file found:", file.name);
+                    // When torrent is ready, find the image and display it
+                    torrent.files.forEach(file => {
+                        if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
+                            // Create a stream to read the file
+                            const stream = file.createReadStream();
+                            const chunks = [];
 
-                // Progress updates
-                torrent.on('download', function (bytes) {
-                    console.log("Downloaded bytes:", bytes);
-                    console.log("Torrent progress:", torrent.progress);
-                    document.getElementById('progress').textContent = 'Downloaded ' + (torrent.progress * 100).toFixed(2) + '%';
-                });
+                            // Collect data chunks from the stream
+                            stream.on('data', chunk => {
+                                chunks.push(chunk);
+                            });
 
-                torrent.on('done', function () {
-                    console.log("Torrent download complete.");
-                    document.getElementById('status').textContent = 'Download complete!';
-                });
+                            // When the stream ends, combine the chunks and display the image
+                            stream.on('end', () => {
+                                const blob = new Blob(chunks, { type: 'image/jpeg' }); // Adjust type for png/jpeg
+                                const url = URL.createObjectURL(blob);
 
-                // Render the image once it's fully downloaded
-                file.getBlobURL(function (err, url) {
-                    if (err) {
-                        console.error("Error getting Blob URL:", err);
-                        document.getElementById('status').textContent = 'Error downloading image!';
-                        return;
-                    }
-                    console.log("Blob URL created:", url);
-                    document.getElementById('gremlinImage').src = url;
-                    document.getElementById('gremlinImage').style.display = 'block';
-                    document.getElementById('status').textContent = 'Image loaded successfully!';
+                                // Create an image element and set the Blob URL as the source
+                                const img = document.createElement('img');
+                                img.src = url;
+                                img.alt = file.name;
+
+                                // Embed the image in the page
+                                imageContainer.innerHTML = '';  // Clear previous images
+                                imageContainer.appendChild(img);
+
+                                output.innerHTML = `Image <strong>${file.name}</strong> downloaded and displayed successfully!`;
+                            });
+                        } else {
+                            output.innerHTML += `<br>File <strong>${file.name}</strong> is not an image.`;
+                        }
+                    });
                 });
             } else {
-                console.error("No PNG file found in the torrent.");
-                document.getElementById('status').textContent = 'No image found in the torrent!';
+                alert('Please enter a valid magnet link.');
             }
-        });
-
-        // Error handling
-        client.on('error', function (err) {
-            console.error("An error occurred with the WebTorrent client:", err);
-            document.getElementById('status').textContent = 'An error occurred: ' + err.message;
-        });
-
-        client.on('warning', function (err) {
-            console.warn("A warning occurred:", err);
-            document.getElementById('status').textContent = 'Warning: ' + err.message;
-        });
-
-        client.on('torrent', function (torrent) {
-            console.log("Torrent event triggered:", torrent);
-        });
-
-        client.on('noPeers', function (announceType) {
-            console.warn("No peers found for announce type:", announceType);
-        });
-
-        client.on('wire', function (wire, addr) {
-            console.log("Connected to peer:", addr);
-        });
-
-        client.on('dhtAnnounce', function () {
-            console.log("DHT announce event triggered.");
         });
     </script>
 </body>
