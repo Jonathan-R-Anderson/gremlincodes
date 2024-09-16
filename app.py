@@ -4,13 +4,12 @@ import subprocess
 import logging
 import threading
 import time
-from shared import app
-from blueprints.routes import blueprint
-from werkzeug.utils import secure_filename
 import json
 import urllib
+from werkzeug.utils import secure_filename
 
-app.register_blueprint(blueprint)
+# Initialize Flask app
+app = Flask(__name__)
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
@@ -19,6 +18,7 @@ logging.basicConfig(level=logging.DEBUG)
 FILE_DIR = 'static'
 TORRENT_DIR = 'torrents'
 TRACKER_PORT = 5000
+SEED_FILE = 'seeded_files.json'
 
 os.makedirs(FILE_DIR, exist_ok=True)
 os.makedirs(TORRENT_DIR, exist_ok=True)
@@ -67,12 +67,11 @@ def seed_file(file_path, tracker_list, target_peer_count=5):
             # Store the magnet URL for the file
             seeded_files[file_path] = line.split("Magnet:")[1].strip()
         elif "Peers:" in line:
-            # Example of WebTorrent output for peers: "Peers: 2/50"
             peer_info = line.split("Peers:")[1].split("/")[0].strip()
             connected_peers = int(peer_info)
             logging.info(f"Connected peers: {connected_peers}")
         
-        # If the target peer count is reached, stop seeding
+        # Stop seeding if the target peer count is reached
         if connected_peers >= target_peer_count:
             logging.info(f"Target peer count {target_peer_count} reached. Stopping seeding.")
             seed_process.terminate()
@@ -82,6 +81,21 @@ def seed_file(file_path, tracker_list, target_peer_count=5):
     
     if seed_process.returncode != 0:
         logging.error(f"Error during seeding: {stderr}")
+
+def load_seeded_files():
+    """Load previously seeded files from the JSON file and resume seeding."""
+    if os.path.exists(SEED_FILE):
+        with open(SEED_FILE, 'r') as f:
+            seeded = json.load(f)
+            logging.info(f"Loaded previously seeded files: {seeded}")
+            for file_path, magnet_url in seeded.items():
+                tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
+                threading.Thread(target=seed_file, args=(file_path, tracker_list)).start()
+
+def save_seeded_files():
+    """Save the current seeded files to a JSON file."""
+    with open(SEED_FILE, 'w') as f:
+        json.dump(seeded_files, f)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -101,7 +115,6 @@ def upload_file():
         logging.info(f"File saved to {file_path}")
 
         try:
-            # Use 127.0.0.1 for local development instead of localhost
             server_url = f"http://127.0.0.1:5000/static/{filename}"
             logging.info(f"Web seed URL: {server_url}")
 
@@ -113,14 +126,15 @@ def upload_file():
             seed_thread.start()
 
             # Poll the shared dictionary until the magnet URL is available
-            max_wait_time = 10  # Max wait time in seconds
+            max_wait_time = 10
             wait_time = 0
             while file_path not in seeded_files and wait_time < max_wait_time:
-                time.sleep(0.5)  # Sleep for 500ms
+                time.sleep(0.5)
                 wait_time += 0.5
 
             if file_path in seeded_files:
                 magnet_url = seeded_files[file_path]
+                save_seeded_files()  # Save seeded files after seeding starts
                 logging.info(f"Magnet URL generated: {magnet_url}")
                 return jsonify({"magnet_url": magnet_url, "web_seed": server_url}), 200
             else:
@@ -139,4 +153,5 @@ def serve_static(filename):
 
 if __name__ == "__main__":
     logging.info("Starting webseed server")
+    load_seeded_files()  # Resume seeding on server startup
     app.run(host="0.0.0.0", port=TRACKER_PORT, debug=True)
