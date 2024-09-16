@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 import json
 import urllib
 from shared import app
-from blueprints import blueprint
+from blueprints.routes import blueprint
 
 
 app.register_blueprint(blueprint)
