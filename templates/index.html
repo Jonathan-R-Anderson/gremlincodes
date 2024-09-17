@@ -513,7 +513,7 @@
             return converter.makeHtml(text);
         }
 
-        // Download and display image
+
         function downloadImage(magnetURI, threadContainer) {
             const output = document.createElement('p');
             output.innerText = 'Downloading image...';
@@ -536,27 +536,24 @@
                             output.innerText = `Image downloaded: ${file.name}`;
 
                             // Start seeding the image after download
-                            seedFile(file);
+                            file.getBlob((err, blob) => {
+                                if (err) {
+                                    console.error('Error converting file to Blob:', err);
+                                    return;
+                                }
+                                seedFile(blob); // Seed the blob after it's downloaded
+                            });
                         });
                     }
                 });
             });
         }
 
-        function seedFile(file) {
-            const reader = new FileReader();
-
-            // Convert file into Blob and start seeding
-            reader.onload = function (event) {
-                const blob = new Blob([event.target.result]);
-
-                // Seed the file
-                client.seed(blob, torrent => {
-                    console.log('Client is seeding', torrent.magnetURI);
-                });
-            };
-
-            reader.readAsArrayBuffer(file);
+        function seedFile(blob) {
+            // Seed the file using the WebTorrent client
+            client.seed(blob, torrent => {
+                console.log('Client is seeding:', torrent.magnetURI);
+            });
         }
 
 
