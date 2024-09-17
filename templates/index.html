@@ -323,21 +323,23 @@
         console.log("Organizing threads...");
 
         threads.forEach(thread => {
-            if (thread && thread.parentThreadId === "0") {
-                // Root thread (no parent)
-                threadMap[thread.id] = {
-                    thread: thread,
-                    replies: []
-                };
-            } else if (thread) {
-                // Reply to a parent thread
-                if (!threadMap[thread.parentThreadId]) {
-                    threadMap[thread.parentThreadId] = {
-                        thread: null,
+            if (thread) {
+                if (thread.parentThreadId === "0") {
+                    // Root thread (no parent)
+                    threadMap[thread.id] = {
+                        thread: thread,
                         replies: []
                     };
+                } else {
+                    // Reply to a parent thread
+                    if (!threadMap[thread.parentThreadId]) {
+                        threadMap[thread.parentThreadId] = {
+                            thread: null,
+                            replies: []
+                        };
+                    }
+                    threadMap[thread.parentThreadId].replies.push(thread);
                 }
-                threadMap[thread.parentThreadId].replies.push(thread);
             }
         });
 
@@ -349,8 +351,16 @@
         const contentDiv = document.getElementById('infiniteScrollContent');
         contentDiv.innerHTML = ''; // Clear previous content
 
+        // Filter out entries that do not have a root thread (where thread is null)
+        const validThreads = Object.values(threadMap).filter(({ thread }) => thread !== null);
+
+        if (validThreads.length === 0) {
+            console.log("No valid root threads to display.");
+            return;
+        }
+
         // Sort root threads based on latest activity (thread creation or reply)
-        const sortedThreads = Object.values(threadMap).filter(({ thread }) => thread !== null).sort((a, b) => {
+        const sortedThreads = validThreads.sort((a, b) => {
             const latestA = getLastActivityTimestamp(a);
             const latestB = getLastActivityTimestamp(b);
             return latestB - latestA; // Sort in descending order
@@ -360,9 +370,7 @@
 
         // Display each root thread with its replies
         sortedThreads.forEach(({ thread, replies }) => {
-            if (thread) {
-                displayThreadWithReplies(thread, replies);
-            }
+            displayThreadWithReplies(thread, replies);
         });
     }
 
