@@ -216,889 +216,241 @@
         import WebTorrent from 'https://esm.sh/webtorrent';
     </script>
 
-    <script>
-        let web3;
-        let gremlinThreadContract;
-        let gremlinAdminContract;
-        let currentAccount = null;
-        let loadedThreads = 0;  // Track the number of loaded threads
-        const batchSize = 5;    // Number of posts to load per batch
-        const client = new WebTorrent(); // WebTorrent client for image handling
-        let allThreads = []; // Store all loaded threads for filtering
+<script>
+    let web3;
+    let gremlinThreadContract;
+    let gremlinAdminContract;
+    let currentAccount = null;
+    let loadedThreads = 0;
+    const batchSize = 5;
+    const client = new WebTorrent();
+    let allThreads = []; // Store all loaded threads for filtering
+    let threadMap = {};  // Map for root threads and replies
 
-        // Assuming these will be injected
-        const _gremlinThreadABI = {{ gremlinThreadABI | safe }};  
-        const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  
-        const _gremlinAdminABI = {{ gremlinAdminABI | safe }};  
-        const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";  
+    // Assuming these will be injected
+    const _gremlinThreadABI = {{ gremlinThreadABI | safe }};  
+    const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  
+    const _gremlinAdminABI = {{ gremlinAdminABI | safe }};  
+    const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";  
 
-        // Log when the window loads
-        window.onload = async function() {
-            console.log("Window loaded.");
+    // Log when the window loads
+    window.onload = async function() {
+        console.log("Window loaded.");
 
-            if (typeof window.ethereum !== 'undefined') {
-                console.log("MetaMask detected.");
-                web3 = new Web3(window.ethereum);
+        if (typeof window.ethereum !== 'undefined') {
+            console.log("MetaMask detected.");
+            web3 = new Web3(window.ethereum);
 
-                try {
-                    console.log("Requesting MetaMask accounts...");
-                    await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-                    const accounts = await web3.eth.getAccounts();
-                    
-                    if (accounts.length == 0)
-                    {
-                        document.getElementById('connectWalletIcon').style.display = 'block';
-                    }
-                    else
-                    {
-                        currentAccount = accounts[0];
-                        document.getElementById('connectWalletIcon').style.display = 'none';
-                        document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
-                        gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
-                        gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
-
-                        console.log("Gremlin contracts initialized successfully.");
-
-                        // Check if the connected account is the admin
-                        console.log("Checking admin status...");
-                        await checkIfAdmin(currentAccount);
-
-                        // Initialize the DApp (load threads, etc.)
-                        console.log("Initializing DApp...");
-                        
-                        console.log("Initializing Gremlin contracts...");
-                        initializeDApp();     
-                    }
-
-                } catch (error) {
-                    console.error('MetaMask access error:', error);
-                    document.getElementById("status").innerText = 'Could not access MetaMask. Please ensure you have authorized access.';
-                }
-            } else {
-                console.log("MetaMask is not installed.");
-                document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
-            }
-        };
-
-        let threadMap = {}; // Store replies under their parent thread
-
-
-        // Listen for new thread events to dynamically update the display
-        gremlinThreadContract.events.ThreadCreated({}, (error, event) => {
-            if (!error) {
-                const newThread = event.returnValues;
-
-                if (newThread.parentThreadId === "0") {
-                    // New root thread
-                    displayThreadWithReplies(newThread, threadMap);
-                } else {
-                    // New reply, add to its parent thread's replies
-                    if (!threadMap[newThread.parentThreadId]) {
-                        threadMap[newThread.parentThreadId] = [];
-                    }
-                    threadMap[newThread.parentThreadId].push(newThread);
-
-                    // Re-display the parent thread with updated replies
-                    const parentThread = allThreads.find(t => t.id === newThread.parentThreadId);
-                    displayThreadWithReplies(parentThread, threadMap);
-                }
-            } else {
-                console.error("Error listening to ThreadCreated event:", error);
-            }
-        });
-
-
-
-        function displayUserLists() {
-            const userWhitelistDisplay = document.getElementById('userWhitelistDisplay');
-            const userBlacklistDisplay = document.getElementById('userBlacklistDisplay');
-
-            userWhitelistDisplay.innerHTML = '';
-            userBlacklistDisplay.innerHTML = '';
-
-            userWhitelist.forEach(tag => {
-                const li = document.createElement('li');
-                li.innerHTML = `${tag} <button onclick="removeUserWhitelist('${tag}')">Remove</button>`;
-                userWhitelistDisplay.appendChild(li);
-            });
-
-            userBlacklist.forEach(tag => {
-                const li = document.createElement('li');
-                li.innerHTML = `${tag} <button onclick="removeUserBlacklist('${tag}')">Remove</button>`;
-                userBlacklistDisplay.appendChild(li);
-            });
-        }
-
-        async function loadAndDisplayThreads() {
             try {
-                // Fetch all threads from the contract
-                const allThreads = await gremlinThreadContract.methods.getAllThreads().call();
-                
-                // Organize threads into root threads and replies
-                const threadMap = {}; // Map to store replies under their parent thread
-                const rootThreads = []; // List to store root threads
-
-                allThreads.forEach(thread => {
-                    if (thread.parentThreadId === "0") {
-                        // This is a root thread, add it to the rootThreads list
-                        rootThreads.push(thread);
-                    } else {
-                        // This is a reply, group it under its parent thread
-                        if (!threadMap[thread.parentThreadId]) {
-                            threadMap[thread.parentThreadId] = [];
-                        }
-                        threadMap[thread.parentThreadId].push(thread);
-                    }
-                });
-
-                // Now display root threads and their replies
-                rootThreads.forEach(thread => {
-                    displayThreadWithReplies(thread, threadMap);
-                });
-
-            } catch (error) {
-                console.error("Error loading threads:", error);
-            }
-        }
-
-
-        function displayThreadWithReplies(thread, threadMap, depth = 0) {
-            // Create the thread container
-            const threadContainer = document.createElement('div');
-            threadContainer.className = 'thread-container';
-            threadContainer.style.marginLeft = `${depth * 20}px`; // Indentation for replies based on depth
-
-            // Add thread title, subject, content, etc.
-            const title = document.createElement('h3');
-            title.innerText = `Title: ${thread.name}`;
-            threadContainer.appendChild(title);
-
-            const subject = document.createElement('p');
-            subject.innerText = `Subject: ${thread.subject}`;
-            threadContainer.appendChild(subject);
-
-            const content = document.createElement('div');
-            content.innerHTML = renderMarkdown(thread.content);
-            threadContainer.appendChild(content);
-
-            const tagsContainer = document.createElement('div');
-            tagsContainer.className = 'tags';
-            thread.tags.forEach(tag => {
-                const tagElement = document.createElement('span');
-                tagElement.className = 'tag';
-                tagElement.innerText = tag;
-                tagsContainer.appendChild(tagElement);
-            });
-            threadContainer.appendChild(tagsContainer);
-
-            document.getElementById('infiniteScrollContent').appendChild(threadContainer);
-
-            // If this thread has replies, display them recursively
-            if (threadMap[thread.id]) {
-                threadMap[thread.id].forEach(reply => {
-                    displayThreadWithReplies(reply, threadMap, depth + 1); // Increase depth for replies
-                });
-            }
-        }
-
-
-
-        // Function to connect to MetaMask when the icon is clicked
-        async function connectMetaMask() {
-            try {
+                console.log("Requesting MetaMask accounts...");
                 await window.ethereum.request({ method: 'eth_requestAccounts' });
+
                 const accounts = await web3.eth.getAccounts();
-                if (accounts.length > 0) {
+                
+                if (accounts.length == 0) {
+                    document.getElementById('connectWalletIcon').style.display = 'block';
+                } else {
                     currentAccount = accounts[0];
                     document.getElementById('connectWalletIcon').style.display = 'none';
                     document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
-                    
-                    await fetchTagLists();
-                    console.log("Whitelist and blacklist loaded for visitors.");
+                    gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
+                    gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
 
-                    initializeDApp();
+                    console.log("Gremlin contracts initialized successfully.");
+
+                    // Check if the connected account is the admin
+                    console.log("Checking admin status...");
+                    await checkIfAdmin(currentAccount);
+
+                    // Initialize the DApp (load threads, etc.)
+                    console.log("Initializing DApp...");
+                    loadAndDisplayThreads();
                 }
+
             } catch (error) {
-                console.error('Error connecting to MetaMask:', error);
+                console.error('MetaMask access error:', error);
+                document.getElementById("status").innerText = 'Could not access MetaMask. Please ensure you have authorized access.';
             }
+        } else {
+            console.log("MetaMask is not installed.");
+            document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
         }
+    };
 
-        // Admin Panel Check
-        async function checkIfAdmin(account) {
-            try {
-                const admin = await gremlinAdminContract.methods.owner().call();
-                if (admin.toLowerCase() === account.toLowerCase()) {
-                    document.getElementById('adminPanel').style.display = 'block';
-                }
-            } catch (error) {
-                console.error("Non-admin account:", error);
-            }
+    // Function to fetch and organize threads
+    async function loadAndDisplayThreads() {
+        try {
+            const allFetchedThreads = await gremlinThreadContract.methods.getAllThreads().call();
+            allThreads = allFetchedThreads;
+
+            // Organize threads into root threads and replies
+            organizeThreads(allThreads);
+
+            // Sort and display threads based on recent activity
+            displaySortedThreads();
+        } catch (error) {
+            console.error("Error loading threads:", error);
         }
+    }
 
+    // Organize threads: root threads and replies under parent
+    function organizeThreads(threads) {
+        threadMap = {}; // Clear existing threadMap
 
-        let whitelist = [];  // Temporary whitelist storage for visitors
-        let blacklist = [];  // Temporary blacklist storage for visitors
-
-        // Fetch the latest whitelist and blacklist (simulated smart contract call or backend API call)
-        async function fetchTagLists() {
-            whitelist = await gremlinAdminContract.methods.getWhitelist().call();
-            blacklist = await gremlinAdminContract.methods.getBlacklist().call();
-            console.log("Fetched whitelist:", whitelist);
-            console.log("Fetched blacklist:", blacklist);
-
-            // Apply the whitelist/blacklist rules to the threads/posts
-            filterPosts();
-        }
-
-
-        // Extend renderMarkdown to detect languages in code blocks
-        function renderMarkdown(text) {
-            const converter = new showdown.Converter();
-            let html = converter.makeHtml(text);
-
-            // Modify regex to extract language class, e.g., ```python
-            html = html.replace(/<pre><code class="language-(\w+)">([\s\S]*?)<\/code><\/pre>/g, (match, lang, codeContent) => {
-                return `<pre><code>${codeContent}</code></pre>
-                        <button class="run-code-btn" onclick="runCodeInLanguage(\`${encodeURIComponent(codeContent)}\`, '${lang}', this)">Run ${lang} Code</button>
-                        <pre class="code-output" style="background-color: #f9f9f9; padding: 10px; border: 1px solid #ccc;"></pre>`;
-            });
-
-            return html;
-        }
-
-        async function runCodeInLanguage(code, language, button) {
-            const decodedCode = decodeURIComponent(code);
-            const outputContainer = button.nextElementSibling;
-            outputContainer.innerText = ''; // Clear previous output
-
-            if (language === 'javascript') {
-                runJavaScriptCode(decodedCode, outputContainer);
-            } else if (language === 'python') {
-                await runPythonCode(decodedCode, outputContainer);
-            } else {
-                outputContainer.innerText = `Unsupported language: ${language}`;
-            }
-        }
-
-        let pyodideReady = false;
-
-        async function loadPyodide() {
-            if (!pyodideReady) {
-                window.pyodide = await loadPyodide({
-                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.21.3/full/"
-                });
-                pyodideReady = true;
-            }
-        }
-
-
-        // Function to run JavaScript using JS-Interpreter
-        function runJavaScriptCode(code, outputContainer) {
-            try {
-                const myInterpreter = new Interpreter(code, (interpreter, globalObject) => {
-                    interpreter.setProperty(globalObject, 'console', interpreter.createObject({
-                        log: interpreter.createNativeFunction((text) => {
-                            outputContainer.innerText += `${text}\n`;
-                        })
-                    }));
-                });
-                
-                // Step through the code asynchronously
-                function nextStep() {
-                    if (myInterpreter.step()) {
-                        setTimeout(nextStep, 10);
-                    }
-                }
-                nextStep();
-            } catch (error) {
-                outputContainer.innerText = `JavaScript Error: ${error.message}`;
-            }
-        }
-
-        // Function to run Python using Pyodide
-        async function runPythonCode(code, outputContainer) {
-            try {
-                await loadPyodide(); // Load Pyodide if it’s not already loaded
-                let pyodide = window.pyodide; // Access the loaded Pyodide instance
-
-                // Execute Python code and capture the output
-                let output = pyodide.runPython(code);
-                outputContainer.innerText = output;
-            } catch (error) {
-                outputContainer.innerText = `Python Error: ${error.message}`;
-            }
-        }
-
-
-        // Initialize DApp
-        async function initializeDApp() {
-            console.log("DApp initialization started.");
-
-            try {
-                await loadMorePosts();
-                console.log("Initial batch of posts loaded.");
-
-                window.onscroll = async function() {
-                    if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
-                        console.log("Reached bottom of page, loading more posts...");
-                        await loadMorePosts();
-                    }
+        threads.forEach(thread => {
+            if (thread.parentThreadId === "0") {
+                // Root thread (no parent)
+                threadMap[thread.id] = {
+                    thread: thread,
+                    replies: []
                 };
-                console.log("Scroll listener added successfully.");
-            } catch (error) {
-                console.error("Error initializing DApp:", error);
-            }
-        }
-
-        // Submit a new post
-        async function submitPost() {
-            const title = document.getElementById('newPostTitle').value;
-            const email = document.getElementById('newPostEmail').value || "test@example.com";
-            const content = document.getElementById('newPostContent').value;
-            const tags = document.getElementById('newPostTags').value.split(',').map(tag => tag.trim());
-            const imageFile = document.getElementById('imageUpload').files[0];
-            const ethAddress = currentAccount; // Use connected Ethereum address
-
-            try {
-                // Assuming the file is uploaded via WebTorrent
-                const magnetUrl = await uploadToServer(imageFile);
-
-                const isReply = document.getElementById('replyContext').style.display !== 'none';
-                let subject = "New Thread";
-                if (isReply) {
-                    subject = `Reply to: ${document.getElementById('replyThreadTitle').innerText}`;
-                }
-
-                // Request Ethereum accounts to submit the transaction
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                const account = accounts[0];
-
-                // Estimate the gas required for the transaction
-                const gasEstimate = await gremlinThreadContract.methods.createThread(
-                    title, subject, email, magnetUrl, tags, content, ethAddress
-                ).estimateGas({ from: account });
-
-                // Send the transaction to create the new thread or reply
-                await gremlinThreadContract.methods.createThread(
-                    title, subject, email, magnetUrl, tags, content, ethAddress
-                ).send({ from: account, gas: gasEstimate });
-
-                // Collapse the overlay after successful submission
-                closeOverlay();
-
-                // Reload posts after submitting the new post/reply
-                await loadMorePosts();
-            } catch (error) {
-                console.error('Error submitting post:', error);
-            }
-        }
-
-
-        // Load and organize threads and replies
-        async function loadAndDisplayThreads() {
-            try {
-                const allThreads = await gremlinThreadContract.methods.getAllThreads().call();
-                
-                // Organize threads into root threads and replies
-                organizeThreads(allThreads);
-
-                // Sort and display threads based on recent activity
-                displaySortedThreads();
-            } catch (error) {
-                console.error("Error loading threads:", error);
-            }
-        }
-
-        // Organize threads into a map of parent threads and their replies
-        function organizeThreads(threads) {
-            threads.forEach(thread => {
-                if (thread.parentThreadId === "0") {
-                    // Root thread (parent thread)
-                    threadMap[thread.id] = {
-                        thread: thread,
+            } else {
+                // Reply to a parent thread
+                if (!threadMap[thread.parentThreadId]) {
+                    threadMap[thread.parentThreadId] = {
+                        thread: null,
                         replies: []
                     };
-                } else {
-                    // Reply to a parent thread
-                    if (!threadMap[thread.parentThreadId]) {
-                        threadMap[thread.parentThreadId] = {
-                            thread: null,
-                            replies: []
-                        };
-                    }
-                    threadMap[thread.parentThreadId].replies.push(thread);
                 }
-            });
-        }
-
-        // Sort threads by their latest activity (either thread or its replies)
-        function displaySortedThreads() {
-            const contentDiv = document.getElementById('infiniteScrollContent');
-            contentDiv.innerHTML = ''; // Clear previous content
-
-            const sortedThreads = Object.values(threadMap).sort((a, b) => {
-                const latestA = getLastActivityTimestamp(a);
-                const latestB = getLastActivityTimestamp(b);
-                return latestB - latestA; // Sort by descending timestamps
-            });
-
-            // Display each thread with its replies
-            sortedThreads.forEach(({ thread, replies }) => {
-                if (thread) {
-                    displayThreadWithReplies(thread, replies);
-                }
-            });
-        }
-
-        // Get the most recent activity timestamp (either thread creation or latest reply)
-        function getLastActivityTimestamp({ thread, replies }) {
-            if (replies.length > 0) {
-                return Math.max(thread.timestamp, replies[replies.length - 1].timestamp);
+                threadMap[thread.parentThreadId].replies.push(thread);
             }
-            return thread.timestamp;
-        }
+        });
+    }
 
-        // Display thread and its replies with a toggle
-        function displayThreadWithReplies(thread, replies) {
-            const threadContainer = document.createElement('div');
-            threadContainer.className = 'thread-container';
+    // Sort and display threads by their latest activity (either thread or reply)
+    function displaySortedThreads() {
+        const contentDiv = document.getElementById('infiniteScrollContent');
+        contentDiv.innerHTML = ''; // Clear previous content
 
-            const title = document.createElement('h3');
-            title.innerText = `Title: ${thread.name}`;
-            threadContainer.appendChild(title);
+        // Sort root threads based on latest activity (thread creation or reply)
+        const sortedThreads = Object.values(threadMap).sort((a, b) => {
+            const latestA = getLastActivityTimestamp(a);
+            const latestB = getLastActivityTimestamp(b);
+            return latestB - latestA; // Sort in descending order
+        });
 
-            const subject = document.createElement('p');
-            subject.innerText = `Subject: ${thread.subject}`;
-            threadContainer.appendChild(subject);
-
-            const content = document.createElement('div');
-            content.innerHTML = renderMarkdown(thread.content);
-            threadContainer.appendChild(content);
-
-            // Toggle replies button
-            const toggleRepliesBtn = document.createElement('button');
-            toggleRepliesBtn.innerText = "Show Replies";
-            toggleRepliesBtn.className = "toggle-replies-btn";
-            threadContainer.appendChild(toggleRepliesBtn);
-
-            const repliesContainer = document.createElement('div');
-            repliesContainer.className = 'replies-container';
-            repliesContainer.style.display = 'none'; // Hide replies initially
-            threadContainer.appendChild(repliesContainer);
-
-            // Display each reply under the thread
-            replies.forEach(reply => displayReply(reply, repliesContainer));
-
-            // Toggle replies visibility on button click
-            toggleRepliesBtn.onclick = () => {
-                const isHidden = repliesContainer.style.display === 'none';
-                repliesContainer.style.display = isHidden ? 'block' : 'none';
-                toggleRepliesBtn.innerText = isHidden ? 'Hide Replies' : 'Show Replies';
-            };
-
-            document.getElementById('infiniteScrollContent').appendChild(threadContainer);
-        }
-
-        // Display a single reply
-        function displayReply(reply, repliesContainer) {
-            const replyContainer = document.createElement('div');
-            replyContainer.className = 'reply-container';
-
-            const replyContent = document.createElement('p');
-            replyContent.innerText = `Reply: ${reply.content}`;
-            replyContainer.appendChild(replyContent);
-
-            repliesContainer.appendChild(replyContainer);
-        }
-
-
-
-        // Modify the uploadToServer function to allow duplicate torrents
-        async function uploadToServer(file) {
-            return new Promise((resolve, reject) => {
-                const existingTorrent = client.get(file);
-
-                if (existingTorrent) {
-                    console.log('Destroying existing torrent:', existingTorrent.infoHash);
-                    // Destroy the existing torrent before adding a new one
-                    existingTorrent.destroy((err) => {
-                        if (err) {
-                            console.error('Error destroying existing torrent:', err);
-                            return reject(err);
-                        }
-
-                        // Now that the existing torrent is destroyed, we can safely add a new one
-                        client.seed(file, (torrent) => {
-                            console.log('New file seeded, magnet URI:', torrent.magnetURI);
-                            resolve(torrent.magnetURI);
-                        });
-                    });
-                } else {
-                    // If no existing torrent, just seed the file as usual
-                    client.seed(file, (torrent) => {
-                        console.log('File seeded, magnet URI:', torrent.magnetURI);
-                        resolve(torrent.magnetURI);
-                    });
-                }
-            });
-        }
-
-
-
-
-        // Load More Posts
-        async function loadMorePosts() {
-            console.log("Loading more posts...");
-            try {
-                const threadCount = await gremlinThreadContract.methods.threadCount().call();
-                console.log(`Total threads available: ${threadCount}`);
-                const totalThreads = Number(threadCount);
-
-                const threadsToLoad = Math.min(batchSize, totalThreads - loadedThreads);
-                console.log(`Loading ${threadsToLoad} threads...`);
-
-                for (let i = loadedThreads; i < loadedThreads + threadsToLoad; i++) {
-                    const thread = await gremlinThreadContract.methods.getThread(i + 1).call();
-                    console.log(`Loaded thread ${i + 1}:`, thread);
-                    allThreads.push(thread);
-                    displayThread(thread);
-                }
-
-                loadedThreads += threadsToLoad;
-
-                if (loadedThreads >= totalThreads) {
-                    console.log("All threads loaded.");
-                }
-            } catch (error) {
-                console.error("Error loading posts:", error);
+        // Display each root thread with its replies
+        sortedThreads.forEach(({ thread, replies }) => {
+            if (thread) {
+                displayThreadWithReplies(thread, replies);
             }
+        });
+    }
+
+    // Get the most recent activity timestamp for a thread and its replies
+    function getLastActivityTimestamp({ thread, replies }) {
+        if (replies.length > 0) {
+            return Math.max(thread.timestamp, replies[replies.length - 1].timestamp);
         }
+        return thread.timestamp;
+    }
 
-        // Display a Thread
-        function displayThread(thread, index) {
-            const threadContainer = document.createElement('div');
-            threadContainer.className = 'thread-container';
+    // Display a root thread and its replies, with toggle for replies
+    function displayThreadWithReplies(thread, replies) {
+        const threadContainer = document.createElement('div');
+        threadContainer.className = 'thread-container';
 
-            const title = document.createElement('h3');
-            title.innerText = `Title: ${thread.name}`;
-            threadContainer.appendChild(title);
+        // Thread title and subject
+        const title = document.createElement('h3');
+        title.innerText = `Title: ${thread.name}`;
+        threadContainer.appendChild(title);
 
-            const subject = document.createElement('p');
-            subject.innerText = `Subject: ${thread.subject}`;
-            threadContainer.appendChild(subject);
+        const subject = document.createElement('p');
+        subject.innerText = `Subject: ${thread.subject}`;
+        threadContainer.appendChild(subject);
 
-            const email = document.createElement('p');
-            email.innerText = `Email: ${thread.email}`;
-            threadContainer.appendChild(email);
+        // Thread content
+        const content = document.createElement('div');
+        content.innerHTML = renderMarkdown(thread.content);
+        threadContainer.appendChild(content);
 
-            const ethAddress = document.createElement('p');
-            ethAddress.innerText = `Ethereum Address: ${thread.ethAddress}`;
-            threadContainer.appendChild(ethAddress);
+        // Tags for the thread
+        const tagsContainer = document.createElement('div');
+        tagsContainer.className = 'tags';
+        thread.tags.forEach(tag => {
+            const tagElement = document.createElement('span');
+            tagElement.className = 'tag';
+            tagElement.innerText = tag;
+            tagsContainer.appendChild(tagElement);
+        });
+        threadContainer.appendChild(tagsContainer);
 
-            const content = document.createElement('div');
-            content.innerHTML = renderMarkdown(thread.content);
-            threadContainer.appendChild(content);
+        // Replies toggle button
+        const toggleRepliesBtn = document.createElement('button');
+        toggleRepliesBtn.innerText = "Show Replies";
+        threadContainer.appendChild(toggleRepliesBtn);
 
-            const tagsContainer = document.createElement('div');
-            tagsContainer.className = 'tags';
-            thread.tags.forEach(tag => {
-                const tagElement = document.createElement('span');
-                tagElement.className = 'tag';
-                tagElement.innerText = tag;
-                tagElement.onclick = () => addTagToSearch(tag);
-                tagsContainer.appendChild(tagElement);
-            });
-            threadContainer.appendChild(tagsContainer);
+        // Replies container, initially hidden
+        const repliesContainer = document.createElement('div');
+        repliesContainer.className = 'replies-container';
+        repliesContainer.style.display = 'none'; // Hide replies initially
+        threadContainer.appendChild(repliesContainer);
 
-            const repliesContainer = document.createElement('div');
-            repliesContainer.className = 'replies-container';
-            threadContainer.appendChild(repliesContainer);
+        // Display each reply under the thread
+        replies.forEach(reply => displayReply(reply, repliesContainer));
 
-            // Fetch and display replies under the thread
-            fetchAndDisplayLatestReplies(thread, repliesContainer);
+        // Toggle replies visibility
+        toggleRepliesBtn.onclick = () => {
+            const isHidden = repliesContainer.style.display === 'none';
+            repliesContainer.style.display = isHidden ? 'block' : 'none';
+            toggleRepliesBtn.innerText = isHidden ? 'Hide Replies' : 'Show Replies';
+        };
 
-            const replyButton = document.createElement('button');
-            replyButton.innerText = 'Reply';
-            replyButton.onclick = () => openReplyOverlay(thread.name, index); // Trigger reply overlay with thread context
-            threadContainer.appendChild(replyButton);
+        document.getElementById('infiniteScrollContent').appendChild(threadContainer);
+    }
 
-            if (thread.magnetUrl) {
-                downloadImage(thread.magnetUrl, threadContainer);
+    // Display a single reply under a thread
+    function displayReply(reply, repliesContainer) {
+        const replyContainer = document.createElement('div');
+        replyContainer.className = 'reply-container';
+
+        const replyContent = document.createElement('p');
+        replyContent.innerText = `Reply: ${reply.content}`;
+        replyContainer.appendChild(replyContent);
+
+        repliesContainer.appendChild(replyContainer);
+    }
+
+    // Fetch the threads initially when the page loads
+    window.onload = function() {
+        loadAndDisplayThreads();
+    };
+
+    // Function to connect to MetaMask when the icon is clicked
+    async function connectMetaMask() {
+        try {
+            await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const accounts = await web3.eth.getAccounts();
+            if (accounts.length > 0) {
+                currentAccount = accounts[0];
+                document.getElementById('connectWalletIcon').style.display = 'none';
+                document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
+                
+                loadAndDisplayThreads();
             }
-
-            document.getElementById('infiniteScrollContent').appendChild(threadContainer);
+        } catch (error) {
+            console.error('Error connecting to MetaMask:', error);
         }
+    }
 
+    // Render Markdown using Showdown
+    function renderMarkdown(text) {
+        const converter = new showdown.Converter();
+        return converter.makeHtml(text);
+    }
 
-        // Function to fetch and display the latest replies for a thread
-        async function fetchAndDisplayLatestReplies(thread, repliesContainer) {
-            try {
-                const repliesCount = await gremlinThreadContract.methods.getRepliesCount(thread.id).call();
-                const totalReplies = Number(repliesCount);
-
-                if (totalReplies === 0) {
-                    const noRepliesMessage = document.createElement('p');
-                    noRepliesMessage.innerText = "No replies yet.";
-                    repliesContainer.appendChild(noRepliesMessage);
-                    return;
-                }
-
-                for (let i = 0; i < totalReplies; i++) {
-                    const reply = await gremlinThreadContract.methods.getReply(thread.id, i).call();
-                    displayReply(reply, repliesContainer); // Display replies under the thread
-                }
-            } catch (error) {
-                console.error('Error fetching replies:', error);
+    // Admin Panel Check (if the user is an admin)
+    async function checkIfAdmin(account) {
+        try {
+            const admin = await gremlinAdminContract.methods.owner().call();
+            if (admin.toLowerCase() === account.toLowerCase()) {
+                document.getElementById('adminPanel').style.display = 'block';
             }
+        } catch (error) {
+            console.error("Non-admin account:", error);
         }
+    }
+</script>
 
-        // Function to render Markdown using Showdown
-        function renderMarkdown(text) {
-            const converter = new showdown.Converter();
-            return converter.makeHtml(text);
-        }
-
-
-        function downloadImage(magnetURI, threadContainer) {
-            const output = document.createElement('p');
-            output.innerText = 'Downloading image...';
-            threadContainer.appendChild(output);
-
-            client.add(magnetURI, torrent => {
-                torrent.files.forEach(file => {
-                    if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
-                        file.getBlobURL((err, url) => {
-                            if (err) {
-                                output.innerText = 'Error downloading image.';
-                                return console.error(err);
-                            }
-
-                            const img = document.createElement('img');
-                            img.src = url;
-                            img.alt = file.name;
-                            threadContainer.appendChild(img);
-
-                            output.innerText = `Image downloaded: ${file.name}`;
-
-                            // Start seeding the image after download
-                            file.getBlob((err, blob) => {
-                                if (err) {
-                                    console.error('Error converting file to Blob:', err);
-                                    return;
-                                }
-                                seedFile(blob); // Seed the blob after it's downloaded
-                            });
-                        });
-                    }
-                });
-            });
-        }
-
-        // Function to fetch and display the latest 3 replies for a thread
-        async function fetchAndDisplayLatestReplies(thread, repliesContainer) {
-            try {
-                // Assuming the contract has a method to get replies for a thread
-                const repliesCount = await gremlinThreadContract.methods.getRepliesCount(thread.id).call();
-                const totalReplies = Number(repliesCount);
-
-                // If there are less than 3 replies, show all replies
-                const repliesToShow = Math.min(3, totalReplies);
-
-                if (repliesToShow === 0) {
-                    const noRepliesMessage = document.createElement('p');
-                    noRepliesMessage.innerText = "No replies yet.";
-                    repliesContainer.appendChild(noRepliesMessage);
-                    return;
-                }
-
-                for (let i = totalReplies - repliesToShow; i < totalReplies; i++) {
-                    const reply = await gremlinThreadContract.methods.getReply(thread.id, i).call();
-                    displayReply(reply, repliesContainer);
-                }
-            } catch (error) {
-                console.error('Error fetching replies:', error);
-            }
-        }
-
-        // Function to display a single reply
-        function displayReply(reply, repliesContainer) {
-            const replyContainer = document.createElement('div');
-            replyContainer.className = 'reply-container';
-
-            const replyContent = document.createElement('p');
-            replyContent.innerText = `Reply: ${reply.content}`;
-            replyContainer.appendChild(replyContent);
-
-            repliesContainer.appendChild(replyContainer);
-        }
-
-
-
-        function seedFile(blob) {
-            // Seed the file using the WebTorrent client
-            client.seed(blob, torrent => {
-                console.log('Client is seeding:', torrent.magnetURI);
-            });
-        }
-
-
-        // Add tag to the search field and filter posts
-        function addTagToSearch(tag) {
-            const searchBar = document.getElementById('searchBar');
-            const currentTags = searchBar.value.split(',').map(t => t.trim()).filter(t => t);
-            if (!currentTags.includes(tag)) {
-                currentTags.push(tag);
-                searchBar.value = currentTags.join(', ');
-                filterPosts();
-            }
-        }
-
-
-        // Initialize user-specific whitelist and blacklist from localStorage or as empty arrays
-        let userWhitelist = JSON.parse(localStorage.getItem('userWhitelist')) || [];
-        let userBlacklist = JSON.parse(localStorage.getItem('userBlacklist')) || [];
-
-        // Function to update user-specific whitelist/blacklist in localStorage
-        function updateUserLists() {
-            localStorage.setItem('userWhitelist', JSON.stringify(userWhitelist));
-            localStorage.setItem('userBlacklist', JSON.stringify(userBlacklist));
-        }
-
-        // Function to add/remove tags from user's whitelist
-        function addUserWhitelist(tag) {
-            if (!userWhitelist.includes(tag)) {
-                userWhitelist.push(tag);
-                updateUserLists();
-                filterPosts();
-            }
-        }
-
-        function removeUserWhitelist(tag) {
-            userWhitelist = userWhitelist.filter(t => t !== tag);
-            updateUserLists();
-            filterPosts();
-        }
-
-        function addUserBlacklist(tag) {
-            if (!userBlacklist.includes(tag)) {
-                userBlacklist.push(tag);
-                updateUserLists();
-                filterPosts();
-            }
-        }
-
-        function removeUserBlacklist(tag) {
-            userBlacklist = userBlacklist.filter(t => t !== tag);
-            updateUserLists();
-            filterPosts();
-        }
-
-
-        // Modify the filterPosts function to hide/show posts based on the whitelist/blacklist
-        function filterPosts() {
-            const contentDiv = document.getElementById('infiniteScrollContent');
-            contentDiv.innerHTML = ''; // Clear the current posts
-
-            allThreads.forEach(thread => {
-                const threadTags = thread.tags.map(tag => tag.toLowerCase());
-                let showThread = true; // Default to showing the thread
-
-                // 1. Apply admin blacklist first: Hide post if it contains any tag from the admin's blacklist
-                if (blacklist.some(tag => threadTags.includes(tag))) {
-                    showThread = false;
-                }
-
-                // 2. Apply admin whitelist (if admin has set a whitelist): Only show post if it contains all tags from the admin's whitelist
-                if (whitelist.length > 0 && !whitelist.every(tag => threadTags.includes(tag))) {
-                    showThread = false;
-                }
-
-                // 3. Apply user-specific blacklist: Hide post if it contains any tag from the user's blacklist
-                if (userBlacklist.some(tag => threadTags.includes(tag))) {
-                    showThread = false;
-                }
-
-                // 4. Apply user-specific whitelist: Only show post if it contains all tags from the user's whitelist
-                if (userWhitelist.length > 0 && !userWhitelist.every(tag => threadTags.includes(tag))) {
-                    showThread = false;
-                }
-
-                if (showThread) {
-                    displayThread(thread); // Only display posts that comply with both admin and user rules
-                }
-            });
-        }
-
-
-
-
-        // Show overlay for post creation
-        function showOverlay() {
-            document.getElementById('overlay').style.height = "100%";
-        }
-
-        function openReplyOverlay(threadTitle, threadIndex) {
-            document.getElementById('replyContext').style.display = 'block'; // Show the reply context
-            document.getElementById('replyThreadTitle').innerText = threadTitle; // Set the thread being replied to
-            document.getElementById('overlayTitle').innerText = 'Reply to Thread'; // Update overlay title to indicate a reply
-            document.getElementById('overlay').style.height = '100%'; // Open the overlay
-        }
-
-        function closeOverlay() {
-            document.getElementById('newPostTitle').value = '';
-            document.getElementById('newPostContent').value = '';
-            document.getElementById('newPostTags').value = '';
-            document.getElementById('newPostEmail').value = '';
-            document.getElementById('imageUpload').value = '';
-            document.getElementById('replyContext').style.display = 'none'; // Hide the reply context on close
-            document.getElementById('overlayTitle').innerText = 'Create a New Post'; // Reset the title
-            document.getElementById('overlay').style.height = '0%'; // Close the overlay
-        }
-
-
-        // Add tag to the search field and filter posts
-        function addTagToSearchOnEnter(event) {
-            if (event.key === 'Enter') {
-                const tagInput = document.getElementById('searchBar');
-                const tag = tagInput.value.trim().toLowerCase();
-                if (tag) {
-                    const searchTags = document.getElementById('searchTagsDisplay');
-                    const tagElement = document.createElement('span');
-                    tagElement.className = 'tag';
-                    tagElement.style.display = 'inline-block';
-                    tagElement.style.marginRight = '5px';
-                    tagElement.style.padding = '5px 10px';
-                    tagElement.style.backgroundColor = '#007bff';
-                    tagElement.style.color = '#fff';
-                    tagElement.style.borderRadius = '5px';
-                    tagElement.style.cursor = 'pointer';
-
-                    // Set the tag name and an 'X' to remove it
-                    tagElement.innerHTML = `${tag} <span style="margin-left: 5px; color: #fff; cursor: pointer;" onclick="removeTagFromSearch('${tag}')">X</span>`;
-                    searchTags.appendChild(tagElement);
-                    
-                    tagInput.value = ''; // Clear the input field
-                    filterPosts(); // Re-filter the posts
-                }
-            }
-        }
-
-        // Remove tag from the search
-        function removeTagFromSearch(tag) {
-            const searchTagsDisplay = document.getElementById('searchTagsDisplay');
-            const tags = searchTagsDisplay.getElementsByTagName('span');
-            
-            for (let i = 0; i < tags.length; i++) {
-                if (tags[i].textContent.includes(tag)) {
-                    searchTagsDisplay.removeChild(tags[i]);
-                    break;
-                }
-            }
-
-            filterPosts(); // Re-filter posts after removing a tag
-        }
-
-    </script>
 </body>
 </html>
