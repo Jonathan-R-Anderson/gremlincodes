@@ -308,13 +308,13 @@
         threadMap = {}; // Clear existing threadMap
 
         threads.forEach(thread => {
-            if (thread.parentThreadId === "0") {
+            if (thread && thread.parentThreadId === "0") {
                 // Root thread (no parent)
                 threadMap[thread.id] = {
                     thread: thread,
                     replies: []
                 };
-            } else {
+            } else if (thread) {
                 // Reply to a parent thread
                 if (!threadMap[thread.parentThreadId]) {
                     threadMap[thread.parentThreadId] = {
@@ -333,7 +333,7 @@
         contentDiv.innerHTML = ''; // Clear previous content
 
         // Sort root threads based on latest activity (thread creation or reply)
-        const sortedThreads = Object.values(threadMap).sort((a, b) => {
+        const sortedThreads = Object.values(threadMap).filter(({ thread }) => thread !== null).sort((a, b) => {
             const latestA = getLastActivityTimestamp(a);
             const latestB = getLastActivityTimestamp(b);
             return latestB - latestA; // Sort in descending order
@@ -349,10 +349,13 @@
 
     // Get the most recent activity timestamp for a thread and its replies
     function getLastActivityTimestamp({ thread, replies }) {
-        if (replies.length > 0) {
-            return Math.max(thread.timestamp, replies[replies.length - 1].timestamp);
-        }
-        return thread.timestamp;
+        if (!thread) return 0;  // Return 0 if the thread is null
+        
+        const latestReplyTimestamp = replies.length > 0
+            ? Math.max(...replies.map(reply => reply ? reply.timestamp : 0))
+            : 0;
+        
+        return Math.max(thread.timestamp, latestReplyTimestamp);
     }
 
     // Display a root thread and its replies, with toggle for replies
@@ -411,6 +414,8 @@
 
     // Display a single reply under a thread
     function displayReply(reply, repliesContainer) {
+        if (!reply) return; // Prevent null replies from being displayed
+        
         const replyContainer = document.createElement('div');
         replyContainer.className = 'reply-container';
 
