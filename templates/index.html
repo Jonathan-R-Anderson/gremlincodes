@@ -193,26 +193,35 @@
         const _gremlinAdminABI = {{ gremlinAdminABI | safe }};  // Inject GremlinAdmin ABI
         const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";  // Inject GremlinAdmin Address
 
-        window.onload = async function () {
+        window.onload = async function() {
             if (typeof window.ethereum !== 'undefined') {
-                const web3 = new Web3(window.ethereum);
+                web3 = new Web3(window.ethereum);
 
                 try {
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const accounts = await web3.eth.getAccounts();
+                    currentAccount = accounts[0];
+                    document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
 
-                    gremlinThreadContract = new web3.eth.Contract(
-                        {{ gremlinThreadABI | safe }},
-                        '{{ gremlinThreadAddress }}'
-                    );
-                    await loadMorePosts();
+                    // Initialize Gremlin contracts
+                    gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
+                    gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
+
+                    // Check if the connected account is the admin
+                    await checkIfAdmin(currentAccount);
+
+                    // Initialize the DApp (load threads, etc.)
+                    initializeDApp();
+
                 } catch (error) {
-                    alert('Could not access MetaMask. Please ensure MetaMask is installed and you have authorized access.');
-                    console.log(error);
+                    console.error('MetaMask access error:', error);
+                    document.getElementById("status").innerText = 'Could not access MetaMask. Please ensure you have authorized access.';
                 }
             } else {
-                alert('MetaMask is not installed. Please install MetaMask to use this application.');
+                document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
             }
         };
+
 
         // Connect to MetaMask
         document.getElementById("connectMetaMask").onclick = async function() {
@@ -246,6 +255,7 @@
             try {
                 const admin = await gremlinAdminContract.methods.owner().call();
                 console.log(`Admin Address: ${admin}, Current Account: ${account}`);
+                
                 // Ensure both addresses are compared in lowercase to avoid case-sensitive issues
                 if (admin.toLowerCase() === account.toLowerCase()) {
                     document.getElementById('adminPanel').style.display = 'block';  // Show admin panel
@@ -257,6 +267,7 @@
                 console.error('Error checking admin status:', error);
             }
         }
+
 
         // Delete a post by ID (Admin function)
         async function deletePostById() {
