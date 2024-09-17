@@ -92,6 +92,25 @@
             border: 1px solid #ccc;
             background-color: #f1f1f1;
         }
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;  /* Fullscreen when open */
+            background-color: rgba(0, 0, 0, 0.9);
+            overflow-y: hidden;
+            transition: 0.5s;
+            z-index: 9999;
+        }
+
+        #overlayContent {
+            position: relative;
+            top: 25%;
+            width: 80%;
+            margin: auto;
+            color: white;
+        }
 
     </style>
 </head>
@@ -795,15 +814,23 @@
         // Show overlay for post creation
         function showOverlay() {
             document.getElementById('overlay').style.height = "100%";
+
+            // Add event listener for closing when clicking outside the overlay content
+            document.getElementById('overlay').addEventListener('click', closeOverlayOnClick);
         }
 
-        function openReplyOverlay(threadTitle, threadIndex) {
-            document.getElementById('replyContext').style.display = 'block'; // Show the reply context
-            document.getElementById('replyThreadTitle').innerText = threadTitle; // Set the thread being replied to
-            document.getElementById('overlayTitle').innerText = 'Reply to Thread'; // Update overlay title to indicate a reply
-            document.getElementById('overlay').style.height = '100%'; // Open the overlay
+        // Function to detect if click was outside the content box and close overlay
+        function closeOverlayOnClick(event) {
+            const overlayContent = document.getElementById('overlayContent');
+            const isClickInside = overlayContent.contains(event.target);
+
+            // If the click is outside the overlay content, close the overlay
+            if (!isClickInside) {
+                closeOverlay();
+            }
         }
 
+        // Close overlay and remove the event listener
         function closeOverlay() {
             document.getElementById('newPostTitle').value = '';
             document.getElementById('newPostContent').value = '';
@@ -813,6 +840,9 @@
             document.getElementById('replyContext').style.display = 'none'; // Hide the reply context on close
             document.getElementById('overlayTitle').innerText = 'Create a New Post'; // Reset the title
             document.getElementById('overlay').style.height = '0%'; // Close the overlay
+
+            // Remove the event listener after closing the overlay
+            document.getElementById('overlay').removeEventListener('click', closeOverlayOnClick);
         }
 
 
