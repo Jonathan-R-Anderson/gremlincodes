@@ -90,7 +90,7 @@
     <div class="navbar">ManiwaniBoard</div>
 
     <div class="search-box">
-        <input type="text" id="searchBar" placeholder="Enter tags..." oninput="filterPosts()" />
+        <input type="text" id="searchBar" placeholder="Enter tags or user address..." oninput="filterPosts()" />
     </div>
 
     <button id="showOverlayBtn" onclick="showOverlay()">Create Post</button>
@@ -99,10 +99,13 @@
     <div id="adminPanel">
         <h2>Admin Panel</h2>
         <div class="admin-controls">
-            <button onclick="deletePostById()">Delete Post by ID</button>
-            <input type="text" id="postIdToDelete" placeholder="Enter post ID" />
+            <input type="text" id="addressToManage" placeholder="Enter user address" />
+            <button onclick="blacklistUser()">Blacklist User</button>
+            <button onclick="whitelistUser()">Whitelist User</button>
+            <input type="text" id="tagToManage" placeholder="Enter tag" />
+            <button onclick="blacklistTag()">Blacklist Tag</button>
+            <button onclick="whitelistTag()">Whitelist Tag</button>
         </div>
-        <!-- Add more admin controls as needed -->
     </div>
 
     <div id="overlay">
@@ -154,6 +157,10 @@
         const batchSize = 5;    // Number of posts to load per batch
         const client = new WebTorrent(); // WebTorrent client for image handling
         let allThreads = []; // Store all loaded threads for filtering
+        let blacklistedUsers = new Set(); // Track blacklisted users
+        let whitelistedUsers = new Set(); // Track whitelisted users
+        let blacklistedTags = new Set(); // Track blacklisted tags
+        let whitelistedTags = new Set(); // Track whitelisted tags
 
         const _gremlinThreadABI = {{ gremlinThreadABI | safe }};  // Inject GremlinThread ABI
         const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  // Inject GremlinThread Address
@@ -203,102 +210,73 @@
             try {
                 const admin = await gremlinAdminContract.methods.owner().call();
                 if (admin.toLowerCase() === account.toLowerCase()) {
-                    document.getElementById('adminPanel').style.display = 'block';  // Show admin panel
-                    console.log('Admin detected: Admin panel displayed.');
+                    document.getElementById('adminPanel').style.display = 'block'; // Show the admin panel if user is the owner
                 }
             } catch (error) {
                 console.error('Error checking admin status:', error);
             }
         }
 
-        // Delete a post by ID (Admin function)
-        async function deletePostById() {
-            const postId = document.getElementById('postIdToDelete').value;
-            if (postId) {
-                try {
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    const account = accounts[0];
-                    const gasEstimate = await gremlinThreadContract.methods.deleteThread(postId).estimateGas({ from: account });
-
-                    await gremlinThreadContract.methods.deleteThread(postId).send({ from: account, gas: gasEstimate });
-                    console.log(`Post with ID ${postId} deleted successfully.`);
-                } catch (error) {
-                    console.error('Error deleting post:', error);
-                }
-            } else {
-                alert("Please enter a valid post ID.");
+        // Admin functionality to blacklist a user
+        function blacklistUser() {
+            const address = document.getElementById('addressToManage').value;
+            if (address) {
+                blacklistedUsers.add(address.toLowerCase());
+                alert(`User ${address} has been blacklisted.`);
             }
         }
 
-        // Initialize DApp after connecting MetaMask
-        async function initializeDApp() {
-            await loadMorePosts();
-            window.onscroll = async function() {
-                if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
-                    await loadMorePosts();
-                }
-            };
-        }
-
-        // Submit a new post
-        async function submitPost() {
-            const title = document.getElementById('newPostTitle').value;
-            const email = document.getElementById('newPostEmail').value || "test@example.com";
-            const content = document.getElementById('newPostContent').value;
-            const tags = document.getElementById('newPostTags').value.split(',').map(tag => tag.trim());
-            const imageFile = document.getElementById('imageUpload').files[0];
-
-            try {
-                const magnetUrl = await uploadToServer(imageFile);
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                const account = accounts[0];
-                const gasEstimate = await gremlinThreadContract.methods.createThread(
-                    title, "Test Subject", email, magnetUrl, tags, content, 0
-                ).estimateGas({ from: account });
-
-                await gremlinThreadContract.methods.createThread(
-                    title, "Test Subject", email, magnetUrl, tags, content, 0
-                ).send({ from: account, gas: gasEstimate });
-
-                closeOverlay(); // Collapse overlay after submission
-                await loadMorePosts();
-            } catch (error) {
-                console.error('Error submitting post:', error);
+        // Admin functionality to whitelist a user
+        function whitelistUser() {
+            const address = document.getElementById('addressToManage').value;
+            if (address) {
+                blacklistedUsers.delete(address.toLowerCase());
+                whitelistedUsers.add(address.toLowerCase());
+                alert(`User ${address} has been whitelisted.`);
             }
         }
 
-        // Upload file to WebTorrent and return magnet URL
-        async function uploadToServer(file) {
-            return new Promise((resolve, reject) => {
-                client.seed(file, (torrent) => {
-                    console.log('File seeded, magnet URI:', torrent.magnetURI);
-                    resolve(torrent.magnetURI);
-                });
-            });
+        // Admin functionality to blacklist a tag
+        function blacklistTag() {
+            const tag = document.getElementById('tagToManage').value;
+            if (tag) {
+                blacklistedTags.add(tag.toLowerCase());
+                alert(`Tag "${tag}" has been blacklisted.`);
+            }
         }
 
-        // Load more posts from the contract
-        async function loadMorePosts() {
-            try {
-                const threadCount = await gremlinThreadContract.methods.threadCount().call();
-                const totalThreads = Number(threadCount);
+        // Admin functionality to whitelist a tag
+        function whitelistTag() {
+            const tag = document.getElementById('tagToManage').value;
+            if (tag) {
+                blacklistedTags.delete(tag.toLowerCase());
+                whitelistedTags.add(tag.toLowerCase());
+                alert(`Tag "${tag}" has been whitelisted.`);
+            }
+        }
 
-                const threadsToLoad = Math.min(batchSize, totalThreads - loadedThreads);
+        // Filter posts based on the tags in the search bar
+        function filterPosts() {
+            const searchInput = document.getElementById('searchBar').value.trim().toLowerCase();
+            const contentDiv = document.getElementById('infiniteScrollContent');
+            contentDiv.innerHTML = ''; // Clear the current posts
 
-                for (let i = loadedThreads; i < loadedThreads + threadsToLoad; i++) {
-                    const thread = await gremlinThreadContract.methods.getThread(i + 1).call();
-                    allThreads.push(thread);
+            allThreads.forEach(thread => {
+                const userAddress = thread.user.toLowerCase();
+                const threadTags = thread.tags.map(tag => tag.toLowerCase());
+
+                const isUserBlacklisted = blacklistedUsers.has(userAddress);
+                const isTagBlacklisted = threadTags.some(tag => blacklistedTags.has(tag));
+
+                if (isUserBlacklisted || isTagBlacklisted) {
+                    return; // Skip posts by blacklisted users or with blacklisted tags
+                }
+
+                // If the search input matches the user address or any of the tags, display the thread
+                if (userAddress.includes(searchInput) || threadTags.some(tag => tag.includes(searchInput))) {
                     displayThread(thread);
                 }
-
-                loadedThreads += threadsToLoad;
-
-                if (loadedThreads >= totalThreads) {
-                    console.log('All threads loaded.');
-                }
-            } catch (error) {
-                console.error('Error loading posts:', error);
-            }
+            });
         }
 
         // Display a thread in the DOM
@@ -317,6 +295,10 @@
             const email = document.createElement('p');
             email.innerText = `Email: ${thread.email}`;
             threadContainer.appendChild(email);
+
+            const userAddress = document.createElement('p');
+            userAddress.innerText = `Posted by: ${thread.user}`;
+            threadContainer.appendChild(userAddress);
 
             const content = document.createElement('div');
             content.innerHTML = renderMarkdown(thread.content);  // Render the content with Markdown formatting
@@ -382,20 +364,6 @@
                 searchBar.value = currentTags.join(', ');
                 filterPosts();
             }
-        }
-
-        // Filter posts based on the tags in the search bar
-        function filterPosts() {
-            const searchTags = document.getElementById('searchBar').value.split(',').map(tag => tag.trim().toLowerCase()).filter(tag => tag);
-            const contentDiv = document.getElementById('infiniteScrollContent');
-            contentDiv.innerHTML = ''; // Clear the current posts
-
-            allThreads.forEach(thread => {
-                const threadTags = thread.tags.map(tag => tag.toLowerCase());
-                if (searchTags.every(tag => threadTags.includes(tag))) {
-                    displayThread(thread);
-                }
-            });
         }
 
         function showOverlay() {
