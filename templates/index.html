@@ -6,6 +6,7 @@
     <title>Gremlin Threads DApp</title>
     <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script> <!-- Include Showdown -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -69,6 +70,11 @@
             margin: 10px auto;
             padding: 10px 20px;
         }
+        #instructions {
+            font-size: 0.9em;
+            color: #ccc;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -94,6 +100,17 @@
             <!-- Input for Post Content -->
             <textarea id="newPostContent" placeholder="Content" style="width: 100%; padding: 10px; height: 100px;"></textarea>
     
+            <!-- Instructions for Formatting -->
+            <div id="instructions">
+                You can format your post like this:
+                <ul>
+                    <li><code>*italic*</code> for <em>italic</em></li>
+                    <li><code>**bold**</code> for <strong>bold</strong></li>
+                    <li><code>***bold italic***</code> for <strong><em>bold italic</em></strong></li>
+                    <li><code>```code block```</code> for <code>code block</code></li>
+                </ul>
+            </div>
+    
             <!-- Input for Tags -->
             <input type="text" id="newPostTags" placeholder="Tags (comma-separated)" style="width: 100%; padding: 10px;" />
     
@@ -106,13 +123,11 @@
             <!-- Submit Button -->
             <button id="submitPostBtn" onclick="submitPost()">Submit Post</button>
     
-            <!-- Cancel Button (Moved here) -->
+            <!-- Cancel Button -->
             <button id="closeOverlayBtn" onclick="closeOverlay()">Cancel</button>
         </div>
     </div>
     
-    
-
     <div id="infiniteScrollContent"></div>
 
     <script>
@@ -252,8 +267,8 @@
             email.innerText = `Email: ${thread.email}`;
             threadContainer.appendChild(email);
 
-            const content = document.createElement('p');
-            content.innerText = `Content: ${thread.content}`;
+            const content = document.createElement('div');
+            content.innerHTML = renderMarkdown(thread.content);  // Render the content with Markdown formatting
             threadContainer.appendChild(content);
 
             // Add tags display and click functionality
@@ -273,6 +288,12 @@
             }
 
             document.getElementById('infiniteScrollContent').appendChild(threadContainer);
+        }
+
+        // Function to render Markdown using Showdown
+        function renderMarkdown(text) {
+            const converter = new showdown.Converter();
+            return converter.makeHtml(text);
         }
 
         function downloadImage(magnetURI, threadContainer) {
