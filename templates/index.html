@@ -96,11 +96,19 @@
     </style>
 </head>
 <body>
-    <h1>Gremlin Threads DApp</h1>
+    <h1>Gremlin.Codes</h1>
+    <!-- MetaMask Icon -->
+    <div id="connectWalletIcon" style="display: none;">
+        <img src="https://cdn.iconscout.com/icon/free/png-256/metamask-2728406-2261817.png" 
+            alt="Connect MetaMask" 
+            style="width: 50px; height: 50px; cursor: pointer;" 
+            onclick="connectMetaMask()" />
+    </div>
+
     <div id="status">Loading...</div>
     <button id="connectMetaMask">Connect MetaMask</button>
 
-    <div class="navbar">Gremlin Threads DApp/div>
+    <div class="navbar">Gremlin.Codes DApp/div>
 
     <!-- Add the radio buttons for filtering in the search-box section -->
     <div class="search-box">
@@ -229,24 +237,31 @@
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
 
                     const accounts = await web3.eth.getAccounts();
-                    currentAccount = accounts[0];
-                    console.log(`Connected account: ${currentAccount}`);
-                    document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
+                    
+                    if (accounts.length == 0)
+                    {
+                        document.getElementById('connectWalletIcon').style.display = 'block';
+                    }
+                    else
+                    {
+                        currentAccount = accounts[0];
+                        document.getElementById('connectWalletIcon').style.display = 'none';
+                        document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
+                        gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
+                        gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
 
-                    // Initialize Gremlin contracts
-                    console.log("Initializing Gremlin contracts...");
-                    gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
-                    gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
+                        console.log("Gremlin contracts initialized successfully.");
 
-                    console.log("Gremlin contracts initialized successfully.");
+                        // Check if the connected account is the admin
+                        console.log("Checking admin status...");
+                        await checkIfAdmin(currentAccount);
 
-                    // Check if the connected account is the admin
-                    console.log("Checking admin status...");
-                    await checkIfAdmin(currentAccount);
-
-                    // Initialize the DApp (load threads, etc.)
-                    console.log("Initializing DApp...");
-                    initializeDApp();
+                        // Initialize the DApp (load threads, etc.)
+                        console.log("Initializing DApp...");
+                        
+                        console.log("Initializing Gremlin contracts...");
+                        initializeDApp();     
+                    }
 
                 } catch (error) {
                     console.error('MetaMask access error:', error);
@@ -257,6 +272,22 @@
                 document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
             }
         };
+
+        // Function to connect to MetaMask when the icon is clicked
+        async function connectMetaMask() {
+            try {
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const accounts = await web3.eth.getAccounts();
+                if (accounts.length > 0) {
+                    currentAccount = accounts[0];
+                    document.getElementById('connectWalletIcon').style.display = 'none';
+                    document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
+                    initializeDApp();
+                }
+            } catch (error) {
+                console.error('Error connecting to MetaMask:', error);
+            }
+        }
 
         // Admin Panel Check
         async function checkIfAdmin(account) {
