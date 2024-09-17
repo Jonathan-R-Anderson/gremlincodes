@@ -116,12 +116,21 @@
         
         <!-- Whitelist and Blacklist Radio Buttons -->
         <div>
-            <input type="radio" id="whitelist" name="filterMode" value="whitelist" checked>
-            <label for="whitelist">Whitelist</label>
-            
-            <input type="radio" id="blacklist" name="filterMode" value="blacklist">
-            <label for="blacklist">Blacklist</label>
+            <h3>User Whitelist/Blacklist</h3>
+            <div>
+                <input type="text" id="userTagInput" placeholder="Enter tag..." />
+                <button onclick="addUserWhitelist(document.getElementById('userTagInput').value)">Add to Whitelist</button>
+                <button onclick="addUserBlacklist(document.getElementById('userTagInput').value)">Add to Blacklist</button>
+            </div>
+            <div>
+                <h4>Current User Whitelist:</h4>
+                <ul id="userWhitelistDisplay"></ul>
+                
+                <h4>Current User Blacklist:</h4>
+                <ul id="userBlacklistDisplay"></ul>
+            </div>
         </div>
+        
         
         <!-- Display selected search tags -->
         <div id="searchTagsDisplay" style="margin-top: 10px;"></div>
@@ -273,6 +282,26 @@
             }
         };
 
+        function displayUserLists() {
+            const userWhitelistDisplay = document.getElementById('userWhitelistDisplay');
+            const userBlacklistDisplay = document.getElementById('userBlacklistDisplay');
+
+            userWhitelistDisplay.innerHTML = '';
+            userBlacklistDisplay.innerHTML = '';
+
+            userWhitelist.forEach(tag => {
+                const li = document.createElement('li');
+                li.innerHTML = `${tag} <button onclick="removeUserWhitelist('${tag}')">Remove</button>`;
+                userWhitelistDisplay.appendChild(li);
+            });
+
+            userBlacklist.forEach(tag => {
+                const li = document.createElement('li');
+                li.innerHTML = `${tag} <button onclick="removeUserBlacklist('${tag}')">Remove</button>`;
+                userBlacklistDisplay.appendChild(li);
+            });
+        }
+
         // Function to connect to MetaMask when the icon is clicked
         async function connectMetaMask() {
             try {
@@ -282,6 +311,10 @@
                     currentAccount = accounts[0];
                     document.getElementById('connectWalletIcon').style.display = 'none';
                     document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
+                    
+                    await fetchTagLists();
+                    console.log("Whitelist and blacklist loaded for visitors.");
+
                     initializeDApp();
                 }
             } catch (error) {
@@ -305,6 +338,22 @@
                 console.error("Error checking admin status:", error);
             }
         }
+
+
+        let whitelist = [];  // Temporary whitelist storage for visitors
+        let blacklist = [];  // Temporary blacklist storage for visitors
+
+        // Fetch the latest whitelist and blacklist (simulated smart contract call or backend API call)
+        async function fetchTagLists() {
+            whitelist = await gremlinAdminContract.methods.getWhitelist().call();
+            blacklist = await gremlinAdminContract.methods.getBlacklist().call();
+            console.log("Fetched whitelist:", whitelist);
+            console.log("Fetched blacklist:", blacklist);
+
+            // Apply the whitelist/blacklist rules to the threads/posts
+            filterPosts();
+        }
+
 
         // Extend renderMarkdown to detect languages in code blocks
         function renderMarkdown(text) {
@@ -674,41 +723,84 @@
             }
         }
 
-        // Filter posts based on the selected radio button (Whitelist or Blacklist) and tags
-        function filterPosts() {
-            const searchTagsDisplay = document.getElementById('searchTagsDisplay');
-            const tags = searchTagsDisplay.getElementsByTagName('span');
-            const searchTags = [];
 
-            // Collect all tags from the displayed search tags
-            for (let i = 0; i < tags.length; i++) {
-                searchTags.push(tags[i].textContent.replace(' X', '').toLowerCase());
+        // Initialize user-specific whitelist and blacklist from localStorage or as empty arrays
+        let userWhitelist = JSON.parse(localStorage.getItem('userWhitelist')) || [];
+        let userBlacklist = JSON.parse(localStorage.getItem('userBlacklist')) || [];
+
+        // Function to update user-specific whitelist/blacklist in localStorage
+        function updateUserLists() {
+            localStorage.setItem('userWhitelist', JSON.stringify(userWhitelist));
+            localStorage.setItem('userBlacklist', JSON.stringify(userBlacklist));
+        }
+
+        // Function to add/remove tags from user's whitelist
+        function addUserWhitelist(tag) {
+            if (!userWhitelist.includes(tag)) {
+                userWhitelist.push(tag);
+                updateUserLists();
+                filterPosts();
             }
+        }
 
+        function removeUserWhitelist(tag) {
+            userWhitelist = userWhitelist.filter(t => t !== tag);
+            updateUserLists();
+            filterPosts();
+        }
+
+        function addUserBlacklist(tag) {
+            if (!userBlacklist.includes(tag)) {
+                userBlacklist.push(tag);
+                updateUserLists();
+                filterPosts();
+            }
+        }
+
+        function removeUserBlacklist(tag) {
+            userBlacklist = userBlacklist.filter(t => t !== tag);
+            updateUserLists();
+            filterPosts();
+        }
+
+
+        // Modify the filterPosts function to hide/show posts based on the whitelist/blacklist
+        function filterPosts() {
             const contentDiv = document.getElementById('infiniteScrollContent');
             contentDiv.innerHTML = ''; // Clear the current posts
 
-            // Get the selected filter mode (Whitelist or Blacklist)
-            const filterMode = document.querySelector('input[name="filterMode"]:checked').value;
-
-            // Filter the threads based on the selected filter mode
             allThreads.forEach(thread => {
                 const threadTags = thread.tags.map(tag => tag.toLowerCase());
-                let showThread = false;
+                let showThread = true; // Default to showing the thread
 
-                if (filterMode === 'whitelist') {
-                    // Whitelist: Only show if all search tags are in the thread's tags
-                    showThread = searchTags.every(tag => threadTags.includes(tag));
-                } else if (filterMode === 'blacklist') {
-                    // Blacklist: Hide if any search tag is in the thread's tags
-                    showThread = !searchTags.some(tag => threadTags.includes(tag));
+                // 1. Apply admin blacklist first: Hide post if it contains any tag from the admin's blacklist
+                if (blacklist.some(tag => threadTags.includes(tag))) {
+                    showThread = false;
+                }
+
+                // 2. Apply admin whitelist (if admin has set a whitelist): Only show post if it contains all tags from the admin's whitelist
+                if (whitelist.length > 0 && !whitelist.every(tag => threadTags.includes(tag))) {
+                    showThread = false;
+                }
+
+                // 3. Apply user-specific blacklist: Hide post if it contains any tag from the user's blacklist
+                if (userBlacklist.some(tag => threadTags.includes(tag))) {
+                    showThread = false;
+                }
+
+                // 4. Apply user-specific whitelist: Only show post if it contains all tags from the user's whitelist
+                if (userWhitelist.length > 0 && !userWhitelist.every(tag => threadTags.includes(tag))) {
+                    showThread = false;
                 }
 
                 if (showThread) {
-                    displayThread(thread);
+                    displayThread(thread); // Only display posts that comply with both admin and user rules
                 }
             });
         }
+
+
+
 
         // Show overlay for post creation
         function showOverlay() {
