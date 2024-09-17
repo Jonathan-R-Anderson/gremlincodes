@@ -232,7 +232,6 @@
     const _gremlinAdminABI = {{ gremlinAdminABI | safe }};  
     const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";  
 
-    // Log when the window loads
     window.onload = async function() {
         console.log("Window loaded.");
 
@@ -277,14 +276,12 @@
         }
     };
 
-    // Function to initialize the contract instances
     function initializeContracts() {
         gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
         gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
         console.log("Contract instances created.");
     }
 
-    // Function to fetch and organize threads
     async function loadAndDisplayThreads() {
         try {
             if (!gremlinThreadContract || !gremlinThreadContract.methods) {
@@ -293,11 +290,9 @@
 
             console.log("Fetching all threads from the contract...");
 
-            // Fetch all threads from the contract
             const allFetchedThreads = await gremlinThreadContract.methods.getAllThreads().call();
             console.log("Threads fetched from contract:", allFetchedThreads);
 
-            // If no threads are returned, log an error
             if (!allFetchedThreads || allFetchedThreads.length === 0) {
                 console.log("No threads found.");
                 document.getElementById("status").innerText = "No threads found.";
@@ -317,28 +312,29 @@
         }
     }
 
-    // Organize threads: root threads and replies under parent
     function organizeThreads(threads) {
-        threadMap = {}; // Clear existing threadMap
+        threadMap = {};
         console.log("Organizing threads...");
 
         threads.forEach(thread => {
             if (thread) {
-                if (thread.parentThreadId === "0") {
-                    // Root thread (no parent)
+                const parentThreadId = thread.parentThreadId;
+
+                if (parentThreadId === "0" || parentThreadId === 0) {
+                    // Root thread
                     threadMap[thread.id] = {
                         thread: thread,
                         replies: []
                     };
                 } else {
                     // Reply to a parent thread
-                    if (!threadMap[thread.parentThreadId]) {
-                        threadMap[thread.parentThreadId] = {
+                    if (!threadMap[parentThreadId]) {
+                        threadMap[parentThreadId] = {
                             thread: null,
                             replies: []
                         };
                     }
-                    threadMap[thread.parentThreadId].replies.push(thread);
+                    threadMap[parentThreadId].replies.push(thread);
                 }
             }
         });
@@ -346,12 +342,11 @@
         console.log("Threads organized into threadMap:", threadMap);
     }
 
-    // Sort and display threads by their latest activity (either thread or reply)
     function displaySortedThreads() {
         const contentDiv = document.getElementById('infiniteScrollContent');
-        contentDiv.innerHTML = ''; // Clear previous content
+        contentDiv.innerHTML = '';
 
-        // Filter out entries that do not have a root thread (where thread is null)
+        // Filter out entries without valid root threads
         const validThreads = Object.values(threadMap).filter(({ thread }) => thread !== null);
 
         if (validThreads.length === 0) {
@@ -359,38 +354,34 @@
             return;
         }
 
-        // Sort root threads based on latest activity (thread creation or reply)
+        // Sort threads by latest activity (thread creation or reply)
         const sortedThreads = validThreads.sort((a, b) => {
             const latestA = getLastActivityTimestamp(a);
             const latestB = getLastActivityTimestamp(b);
-            return latestB - latestA; // Sort in descending order
+            return latestB - latestA;
         });
 
         console.log("Displaying sorted threads...");
 
-        // Display each root thread with its replies
         sortedThreads.forEach(({ thread, replies }) => {
             displayThreadWithReplies(thread, replies);
         });
     }
 
-    // Get the most recent activity timestamp for a thread and its replies
     function getLastActivityTimestamp({ thread, replies }) {
-        if (!thread) return 0;  // Return 0 if the thread is null
-        
+        if (!thread) return 0;
+
         const latestReplyTimestamp = replies.length > 0
             ? Math.max(...replies.map(reply => reply ? reply.timestamp : 0))
             : 0;
-        
+
         return Math.max(thread.timestamp, latestReplyTimestamp);
     }
 
-    // Display a root thread and its replies, with toggle for replies
     function displayThreadWithReplies(thread, replies) {
         const threadContainer = document.createElement('div');
         threadContainer.className = 'thread-container';
 
-        // Thread title and subject
         const title = document.createElement('h3');
         title.innerText = `Title: ${thread.name}`;
         threadContainer.appendChild(title);
@@ -399,12 +390,10 @@
         subject.innerText = `Subject: ${thread.subject}`;
         threadContainer.appendChild(subject);
 
-        // Thread content
         const content = document.createElement('div');
         content.innerHTML = renderMarkdown(thread.content);
         threadContainer.appendChild(content);
 
-        // Tags for the thread
         const tagsContainer = document.createElement('div');
         tagsContainer.className = 'tags';
         thread.tags.forEach(tag => {
@@ -415,21 +404,17 @@
         });
         threadContainer.appendChild(tagsContainer);
 
-        // Replies toggle button
         const toggleRepliesBtn = document.createElement('button');
         toggleRepliesBtn.innerText = "Show Replies";
         threadContainer.appendChild(toggleRepliesBtn);
 
-        // Replies container, initially hidden
         const repliesContainer = document.createElement('div');
         repliesContainer.className = 'replies-container';
-        repliesContainer.style.display = 'none'; // Hide replies initially
+        repliesContainer.style.display = 'none';
         threadContainer.appendChild(repliesContainer);
 
-        // Display each reply under the thread
         replies.forEach(reply => displayReply(reply, repliesContainer));
 
-        // Toggle replies visibility
         toggleRepliesBtn.onclick = () => {
             const isHidden = repliesContainer.style.display === 'none';
             repliesContainer.style.display = isHidden ? 'block' : 'none';
@@ -439,10 +424,9 @@
         document.getElementById('infiniteScrollContent').appendChild(threadContainer);
     }
 
-    // Display a single reply under a thread
     function displayReply(reply, repliesContainer) {
-        if (!reply) return; // Prevent null replies from being displayed
-        
+        if (!reply) return;
+
         const replyContainer = document.createElement('div');
         replyContainer.className = 'reply-container';
 
@@ -453,13 +437,11 @@
         repliesContainer.appendChild(replyContainer);
     }
 
-    // Render Markdown using Showdown
     function renderMarkdown(text) {
         const converter = new showdown.Converter();
         return converter.makeHtml(text);
     }
 
-    // Admin Panel Check (if the user is an admin)
     async function checkIfAdmin(account) {
         try {
             const admin = await gremlinAdminContract.methods.owner().call();
