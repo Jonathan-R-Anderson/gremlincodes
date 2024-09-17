@@ -287,13 +287,31 @@
 
         // Initialize DApp after connecting MetaMask
         async function initializeDApp() {
-            await loadMorePosts();
-            window.onscroll = async function() {
-                if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
-                    await loadMorePosts();
-                }
-            };
+            console.log("Initializing DApp...");
+
+            try {
+                // Attempt to load more posts initially
+                console.log("Loading initial batch of posts...");
+                await loadMorePosts();
+                console.log("Initial batch of posts loaded successfully.");
+
+                // Set up the scroll event listener for infinite scroll
+                window.onscroll = async function() {
+                    if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
+                        console.log("Reached bottom of page, loading more posts...");
+                        await loadMorePosts();
+                        console.log("Additional posts loaded.");
+                    }
+                };
+
+                console.log("Scroll listener added successfully.");
+            } catch (error) {
+                console.error("Error during DApp initialization:", error);
+            }
+
+            console.log("DApp initialization completed.");
         }
+
 
         // Submit a new post
         async function submitPost() {
