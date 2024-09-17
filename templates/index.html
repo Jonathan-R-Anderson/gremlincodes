@@ -318,9 +318,10 @@
 
         threads.forEach(thread => {
             if (thread) {
-                const parentThreadId = thread.parentThreadId;
+                // Handle BigInt (because blockchain data might use BigInt)
+                const parentThreadId = thread.parentThreadId.toString();
 
-                if (parentThreadId === "0" || parentThreadId === 0) {
+                if (parentThreadId === "0") {
                     // Root thread
                     threadMap[thread.id] = {
                         thread: thread,
@@ -351,6 +352,7 @@
 
         if (validThreads.length === 0) {
             console.log("No valid root threads to display.");
+            document.getElementById("status").innerText = "No valid root threads found.";
             return;
         }
 
@@ -372,10 +374,10 @@
         if (!thread) return 0;
 
         const latestReplyTimestamp = replies.length > 0
-            ? Math.max(...replies.map(reply => reply ? reply.timestamp : 0))
+            ? Math.max(...replies.map(reply => reply ? Number(reply.timestamp) : 0))
             : 0;
 
-        return Math.max(thread.timestamp, latestReplyTimestamp);
+        return Math.max(Number(thread.timestamp), latestReplyTimestamp);
     }
 
     function displayThreadWithReplies(thread, replies) {
