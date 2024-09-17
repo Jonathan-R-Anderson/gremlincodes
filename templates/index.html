@@ -187,12 +187,13 @@
         const client = new WebTorrent(); // WebTorrent client for image handling
         let allThreads = []; // Store all loaded threads for filtering
 
-        const _gremlinThreadABI = {{ gremlinThreadABI | safe }};  // Inject GremlinThread ABI
-        const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  // Inject GremlinThread Address
+        // Assuming these will be injected
+        const _gremlinThreadABI = {{ gremlinThreadABI | safe }};  
+        const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  
+        const _gremlinAdminABI = {{ gremlinAdminABI | safe }};  
+        const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";  
 
-        const _gremlinAdminABI = {{ gremlinAdminABI | safe }};  // Inject GremlinAdmin ABI
-        const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";  // Inject GremlinAdmin Address
-
+        // Log when the window loads
         window.onload = async function() {
             console.log("Window loaded.");
 
@@ -211,22 +212,13 @@
 
                     // Initialize Gremlin contracts
                     console.log("Initializing Gremlin contracts...");
-                    if (_gremlinThreadABI && _gremlinThreadAddress) {
-                        gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
-                        console.log("Gremlin Thread Contract initialized.");
-                    } else {
-                        console.error("Gremlin Thread ABI or Address is missing.");
-                    }
+                    gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
+                    gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
 
-                    if (_gremlinAdminABI && _gremlinAdminAddress) {
-                        gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
-                        console.log("Gremlin Admin Contract initialized.");
-                    } else {
-                        console.error("Gremlin Admin ABI or Address is missing.");
-                    }
+                    console.log("Gremlin contracts initialized successfully.");
 
                     // Check if the connected account is the admin
-                    console.log("Checking if the current account is the admin...");
+                    console.log("Checking admin status...");
                     await checkIfAdmin(currentAccount);
 
                     // Initialize the DApp (load threads, etc.)
@@ -243,144 +235,57 @@
             }
         };
 
-
-        // Connect to MetaMask
-        document.getElementById("connectMetaMask").onclick = async function() {
-            if (typeof window.ethereum !== 'undefined') {
-                try {
-                    // MetaMask or another provider is available
-                    const web3 = new Web3(window.ethereum);
-
-                    // Request account access if needed
-                    await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-                    // Access accounts or other web3 features
-                    const accounts = await web3.eth.getAccounts();
-                    console.log('Connected account:', accounts[0]);
-                    document.getElementById("status").innerText = `Connected account: ${accounts[0]}`;
-                } catch (error) {
-                    console.error('MetaMask access error:', error);
-                }
-            } else {
-                // MetaMask is not installed or not available
-                alert('MetaMask is not installed. Please install MetaMask to use this DApp.');
-                document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask.';
-            }
-        };
-
-
-        // Check if the connected account is the admin
+        // Admin Panel Check
         async function checkIfAdmin(account) {
             try {
                 const admin = await gremlinAdminContract.methods.owner().call();
                 console.log(`Admin Address: ${admin}, Current Account: ${account}`);
-                
-                // Ensure both addresses are compared in lowercase to avoid case-sensitive issues
+
                 if (admin.toLowerCase() === account.toLowerCase()) {
-                    document.getElementById('adminPanel').style.display = 'block';  // Show admin panel
-                    console.log('Admin detected: Admin panel displayed.');
+                    document.getElementById('adminPanel').style.display = 'block';
+                    console.log("Admin account detected.");
                 } else {
-                    console.log('Non-admin user detected.');
+                    console.log("Non-admin account.");
                 }
             } catch (error) {
-                console.error('Error checking admin status:', error);
+                console.error("Error checking admin status:", error);
             }
         }
 
-        // Delete a post by ID (Admin function)
-        async function deletePostById() {
-            const postId = document.getElementById('postIdToDelete').value;
-            if (postId) {
-                try {
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    const account = accounts[0];
-                    const gasEstimate = await gremlinThreadContract.methods.deleteThread(postId).estimateGas({ from: account });
-
-                    await gremlinThreadContract.methods.deleteThread(postId).send({ from: account, gas: gasEstimate });
-                    console.log(`Post with ID ${postId} deleted successfully.`);
-                } catch (error) {
-                    console.error('Error deleting post:', error);
-                }
-            } else {
-                alert("Please enter a valid post ID.");
-            }
-        }
-
-        // Initialize DApp after connecting MetaMask
+        // Initialize DApp
         async function initializeDApp() {
-            console.log("Initializing DApp...");
+            console.log("DApp initialization started.");
 
             try {
-                // Attempt to load more posts initially
-                console.log("Loading initial batch of posts...");
                 await loadMorePosts();
-                console.log("Initial batch of posts loaded successfully.");
+                console.log("Initial batch of posts loaded.");
 
-                // Set up the scroll event listener for infinite scroll
                 window.onscroll = async function() {
                     if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
                         console.log("Reached bottom of page, loading more posts...");
                         await loadMorePosts();
-                        console.log("Additional posts loaded.");
                     }
                 };
-
                 console.log("Scroll listener added successfully.");
             } catch (error) {
-                console.error("Error during DApp initialization:", error);
-            }
-
-            console.log("DApp initialization completed.");
-        }
-
-
-        // Submit a new post
-        async function submitPost() {
-            const title = document.getElementById('newPostTitle').value;
-            const email = document.getElementById('newPostEmail').value || "test@example.com";
-            const content = document.getElementById('newPostContent').value;
-            const tags = document.getElementById('newPostTags').value.split(',').map(tag => tag.trim());
-            const imageFile = document.getElementById('imageUpload').files[0];
-
-            try {
-                const magnetUrl = await uploadToServer(imageFile);
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                const account = accounts[0];
-                const gasEstimate = await gremlinThreadContract.methods.createThread(
-                    title, "Test Subject", email, magnetUrl, tags, content, 0
-                ).estimateGas({ from: account });
-
-                await gremlinThreadContract.methods.createThread(
-                    title, "Test Subject", email, magnetUrl, tags, content, 0
-                ).send({ from: account, gas: gasEstimate });
-
-                closeOverlay(); // Collapse overlay after submission
-                await loadMorePosts();
-            } catch (error) {
-                console.error('Error submitting post:', error);
+                console.error("Error initializing DApp:", error);
             }
         }
 
-        // Upload file to WebTorrent and return magnet URL
-        async function uploadToServer(file) {
-            return new Promise((resolve, reject) => {
-                client.seed(file, (torrent) => {
-                    console.log('File seeded, magnet URI:', torrent.magnetURI);
-                    resolve(torrent.magnetURI);
-                });
-            });
-        }
-
-        // Load more posts from the contract
+        // Load More Posts
         async function loadMorePosts() {
+            console.log("Loading more posts...");
             try {
                 const threadCount = await gremlinThreadContract.methods.threadCount().call();
+                console.log(`Total threads available: ${threadCount}`);
                 const totalThreads = Number(threadCount);
 
                 const threadsToLoad = Math.min(batchSize, totalThreads - loadedThreads);
+                console.log(`Loading ${threadsToLoad} threads...`);
 
                 for (let i = loadedThreads; i < loadedThreads + threadsToLoad; i++) {
                     const thread = await gremlinThreadContract.methods.getThread(i + 1).call();
+                    console.log(`Loaded thread ${i + 1}:`, thread);
                     allThreads.push(thread);
                     displayThread(thread);
                 }
@@ -388,14 +293,14 @@
                 loadedThreads += threadsToLoad;
 
                 if (loadedThreads >= totalThreads) {
-                    console.log('All threads loaded.');
+                    console.log("All threads loaded.");
                 }
             } catch (error) {
-                console.error('Error loading posts:', error);
+                console.error("Error loading posts:", error);
             }
         }
 
-        // Display a thread in the DOM
+        // Display a Thread
         function displayThread(thread) {
             const threadContainer = document.createElement('div');
             threadContainer.className = 'thread-container';
@@ -413,10 +318,9 @@
             threadContainer.appendChild(email);
 
             const content = document.createElement('div');
-            content.innerHTML = renderMarkdown(thread.content);  // Render the content with Markdown formatting
+            content.innerHTML = renderMarkdown(thread.content);
             threadContainer.appendChild(content);
 
-            // Add tags display and click functionality
             const tagsContainer = document.createElement('div');
             tagsContainer.className = 'tags';
             thread.tags.forEach(tag => {
@@ -441,6 +345,7 @@
             return converter.makeHtml(text);
         }
 
+        // Download and display image
         function downloadImage(magnetURI, threadContainer) {
             const output = document.createElement('p');
             output.innerText = 'Downloading image...';
@@ -478,7 +383,7 @@
             }
         }
 
-        // Filter posts based on the tags in the search bar
+        // Filter posts based on tags
         function filterPosts() {
             const searchTags = document.getElementById('searchBar').value.split(',').map(tag => tag.trim().toLowerCase()).filter(tag => tag);
             const contentDiv = document.getElementById('infiniteScrollContent');
@@ -492,155 +397,20 @@
             });
         }
 
+        // Show overlay for post creation
         function showOverlay() {
             document.getElementById('overlay').style.height = "100%";
         }
 
+        // Close overlay and reset form
         function closeOverlay() {
-            // Reset the form fields before closing the overlay
             document.getElementById('newPostTitle').value = '';
             document.getElementById('newPostContent').value = '';
             document.getElementById('newPostTags').value = '';
             document.getElementById('newPostEmail').value = '';
             document.getElementById('imageUpload').value = '';
-
-            // Collapse the overlay
             document.getElementById('overlay').style.height = "0%";
         }
-
-
-    // Function to add a tag to the blacklist
-    async function addTagToBlacklist() {
-        const tag = document.getElementById('tagToManage').value;
-        if (tag) {
-            await fetch('/admin/blacklist/tag', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'blacklist', tag })
-            });
-            alert(`Tag "${tag}" blacklisted`);
-        }
-    }
-
-    // Function to add a tag to the whitelist
-    async function addTagToWhitelist() {
-        const tag = document.getElementById('tagToManage').value;
-        if (tag) {
-            await fetch('/admin/whitelist/tag', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'whitelist', tag })
-            });
-            alert(`Tag "${tag}" whitelisted`);
-        }
-    }
-
-    // Function to add a magnet URL to the blacklist
-    async function addMagnetToBlacklist() {
-        const magnet = document.getElementById('magnetToManage').value;
-        if (magnet) {
-            await fetch('/admin/blacklist/magnet', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'blacklist', magnet })
-            });
-            alert(`Magnet URL "${magnet}" blacklisted`);
-        }
-    }
-
-    // Function to add a magnet URL to the whitelist
-    async function addMagnetToWhitelist() {
-        const magnet = document.getElementById('magnetToManage').value;
-        if (magnet) {
-            await fetch('/admin/whitelist/magnet', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'whitelist', magnet })
-            });
-            alert(`Magnet URL "${magnet}" whitelisted`);
-        }
-    }
-
-    // Function to add a user to the blacklist
-    async function addUserToBlacklist() {
-        const user = document.getElementById('userToManage').value;
-        if (user) {
-            await fetch('/admin/blacklist/user', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'blacklist', user })
-            });
-            alert(`User "${user}" blacklisted`);
-        }
-    }
-
-    // Function to add a user to the whitelist
-    async function addUserToWhitelist() {
-        const user = document.getElementById('userToManage').value;
-        if (user) {
-            await fetch('/admin/whitelist/user', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'whitelist', user })
-            });
-            alert(`User "${user}" whitelisted`);
-        }
-    }
-
-    // Fetch and display the current blacklist and whitelist (tags, magnet URLs, users)
-// Fetch and display the current blacklist and whitelist (tags, magnet URLs, users)
-    async function fetchBlacklistWhitelist() {
-        try {
-            // Fetch the blacklist and whitelist data from the server
-            const blacklistRes = await fetch('/admin/blacklist');
-            const whitelistRes = await fetch('/admin/whitelist');
-
-            // Ensure the response is in JSON format
-            const blacklistData = await blacklistRes.json();
-            const whitelistData = await whitelistRes.json();
-
-            const blacklist = Array.isArray(blacklistData) ? blacklistData : blacklistData.blacklist;
-            const whitelist = Array.isArray(whitelistData) ? whitelistData : whitelistData.whitelist;
-
-            const blacklistDisplay = document.getElementById('blacklistDisplay');
-            const whitelistDisplay = document.getElementById('whitelistDisplay');
-
-            // Clear the current lists
-            blacklistDisplay.innerHTML = '';
-            whitelistDisplay.innerHTML = '';
-
-            // Display blacklist items
-            if (Array.isArray(blacklist)) {
-                blacklist.forEach(item => {
-                    const li = document.createElement('li');
-                    li.innerText = item;
-                    blacklistDisplay.appendChild(li);
-                });
-            } else {
-                console.error('Blacklist is not an array:', blacklist);
-            }
-
-            // Display whitelist items
-            if (Array.isArray(whitelist)) {
-                whitelist.forEach(item => {
-                    const li = document.createElement('li');
-                    li.innerText = item;
-                    whitelistDisplay.appendChild(li);
-                });
-            } else {
-                console.error('Whitelist is not an array:', whitelist);
-            }
-        } catch (error) {
-            console.error('Error fetching blacklist or whitelist:', error);
-            document.getElementById('status').innerText = 'Error loading blacklist/whitelist. Check console for details.';
-        }
-    }
-
-
-    // Load current blacklists and whitelists on page load
-    window.onload = async function() {
-        await fetchBlacklistWhitelist();
-    }
     </script>
 </body>
 </html>
