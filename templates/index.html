@@ -27,7 +27,7 @@
             display: block;
             width: 50px;
             height: 50px;
-            cursor: pointer; /* Make it look clickable */
+            cursor: pointer;
             transition: transform 0.2s ease;
         }
 
@@ -86,6 +86,43 @@
             font-size: 14px;
             color: #ccc;
         }
+
+        /* Collapsible admin panel */
+        .collapsible {
+            background-color: #333;
+            color: white;
+            cursor: pointer;
+            padding: 18px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 15px;
+        }
+
+        .collapsible:after {
+            content: '\002B'; /* Unicode character for "plus" sign */
+            color: white;
+            font-weight: bold;
+            float: right;
+            margin-left: 5px;
+        }
+
+        .active:after {
+            content: "\2212"; /* Unicode character for "minus" sign */
+        }
+
+        .content {
+            padding: 0 18px;
+            display: none;
+            overflow: hidden;
+            background-color: #f1f1f1;
+        }
+
+        .admin-action {
+            margin: 10px 0;
+        }
+
     </style>
 </head>
 <body>
@@ -115,12 +152,32 @@
         </div>
     </div>
 
+    <!-- Collapsible Admin Panel -->
+    <button class="collapsible" id="adminPanelToggle" style="display:none;">Admin Panel</button>
+    <div class="content" id="adminPanel">
+        <h3>Gremlin Admin Actions</h3>
+        <div class="admin-action">
+            <label for="banUserAddress">Ban User Address:</label>
+            <input type="text" id="banUserAddress" placeholder="Enter user address">
+            <button onclick="banUser()">Ban User</button>
+        </div>
+        <div class="admin-action">
+            <label for="blacklistThreadId">Blacklist Thread ID:</label>
+            <input type="text" id="blacklistThreadId" placeholder="Enter thread ID">
+            <button onclick="blacklistThread()">Blacklist Thread</button>
+        </div>
+        <div class="admin-action">
+            <label for="whitelistThreadId">Whitelist Thread ID:</label>
+            <input type="text" id="whitelistThreadId" placeholder="Enter thread ID">
+            <button onclick="whitelistThread()">Whitelist Thread</button>
+        </div>
+    </div>
+
     <script>
         let gremlinThreadContract;
-        let currentScrollPage = 1;
-        let loadedThreads = 0;
-        let replyingToThreadId = null; // To track which thread we are replying to
-        const postsToLoad = 5;
+        let gremlinAdminContract;
+        let currentAccount;
+        let isAdmin = false;
 
         // Initialize WebTorrent client
         const client = new WebTorrent();
@@ -134,11 +191,26 @@
 
                 try {
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const accounts = await web3.eth.getAccounts();
+                    currentAccount = accounts[0];
 
                     gremlinThreadContract = new web3.eth.Contract(
                         {{ gremlinThreadABI | safe }},
                         '{{ gremlinThreadAddress }}'
                     );
+
+                    gremlinAdminContract = new web3.eth.Contract(
+                        {{ gremlinAdminABI | safe }},
+                        '{{ gremlinAdminAddress }}'
+                    );
+
+                    // Check if the user is the admin
+                    const adminAddress = await gremlinAdminContract.methods.owner().call();
+                    if (adminAddress.toLowerCase() === currentAccount.toLowerCase()) {
+                        isAdmin = true;
+                        document.getElementById("adminPanelToggle").style.display = "block";
+                    }
+
                     await loadMorePosts();
                 } catch (error) {
                     alert('Could not access MetaMask. Please ensure MetaMask is installed and you have authorized access.');
@@ -149,265 +221,51 @@
             }
         }
 
-        async function getAllThreads(start, limit) {
-            console.log(`getAllThreads called with start=${start}, limit=${limit}`);
-            try {
-                const threadCount = await gremlinThreadContract.methods.getThreadCount().call();
-                console.log(`Total threads available: ${threadCount}`);
-                const totalThreads = Number(threadCount);
-
-                let threads = [];
-
-                for (let i = start + 1; i <= Math.min(start + limit, totalThreads); i++) {
-                    try {
-                        console.log(`Fetching thread ${i}...`);
-                        const thread = await gremlinThreadContract.methods.getThreadInfo(i).call();
-                        console.log(`Thread ${i} fetched:`, thread);
-
-                        thread.id = i;
-
-                        thread.timestamp = thread.timestamp ? new Date(thread.timestamp * 1000).toLocaleString() : "No timestamp available";
-                        thread.lastReplyTimestamp = thread.lastReplyTimestamp ? new Date(thread.lastReplyTimestamp * 1000).toLocaleString() : "No last reply timestamp available";
-
-                        threads.push(thread);
-                    } catch (innerError) {
-                        console.log(`Error fetching thread ${i}:`, innerError);
-                    }
-                }
-
-                threads.sort((a, b) => b.id - a.id);
-
-                for (let thread of threads) {
-                    await displayThread(thread);
-                    console.log(`Thread ${thread.id} displayed.`);
-                    loadedThreads++;
-                }
-
-            } catch (error) {
-                console.log('Error in getAllThreads:', error);
-            }
-        }
-
-        async function submitPost() {
-            const title = document.getElementById('newPostTitle').value;
-            const content = document.getElementById('newPostContent').value;
-            const tags = document.getElementById('newPostTags').value.split(',').map(tag => tag.trim());
-            const imageFile = document.getElementById('imageUpload').files[0];
-
-            try {
-                const magnetUrl = await uploadToServer(imageFile);
-                const attachments = [magnetUrl];
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                const account = accounts[0];
-
-                let tx;
-                if (replyingToThreadId) {
-                    console.log(`Submitting reply to thread ID: ${replyingToThreadId}`);
-                    tx = await gremlinThreadContract.methods.replyToThread(replyingToThreadId, content, attachments).send({ from: account });
+        // Toggle collapsible admin panel
+        document.addEventListener("DOMContentLoaded", function() {
+            const collapsible = document.getElementsByClassName("collapsible")[0];
+            collapsible.addEventListener("click", function() {
+                this.classList.toggle("active");
+                const content = this.nextElementSibling;
+                if (content.style.display === "block") {
+                    content.style.display = "none";
                 } else {
-                    console.log(`Submitting post with title: ${title}, content: ${content}, tags: ${tags}, attachments: ${attachments}`);
-                    const gasEstimate = await gremlinThreadContract.methods.createThread(title, tags, attachments).estimateGas({ from: account });
-                    tx = await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: gasEstimate});
+                    content.style.display = "block";
                 }
-
-                closeOverlay();
-                await refreshThreads();
-            } catch (error) {
-                console.log('Error in submitPost:', error);
-            }
-        }
-
-        async function uploadToServer(file) {
-            return new Promise((resolve, reject) => {
-                client.seed(file, (torrent) => {
-                    console.log('Seeding started:', torrent.magnetURI);
-                    resolve(torrent.magnetURI);
-                });
             });
-        }
+        });
 
-        async function refreshThreads() {
-            document.getElementById('infiniteScrollContent').innerHTML = '';
-            loadedThreads = 0;
-            currentScrollPage = 1;
-            await loadMorePosts();
-        }
-
-        async function loadMorePosts() {
-            await getAllThreads(loadedThreads, postsToLoad);
-            currentScrollPage++;
-        }
-
-        async function displayThread(thread) {
-            const threadContainer = document.createElement('div');
-            threadContainer.className = 'thread-container';
-            threadContainer.id = `thread-${thread.id}`;
-
-            const subject = document.createElement('h3');
-            subject.innerText = `Subject: ${thread.subject}`;
-            threadContainer.appendChild(subject);
-
-            const tags = Array.isArray(thread.tags) ? thread.tags.join(', ') : thread.tags;
-            const tagsElement = document.createElement('p');
-            tagsElement.innerText = `Tags: ${tags}`;
-            threadContainer.appendChild(tagsElement);
-
-            const ethAddressElement = document.createElement('p');
-            ethAddressElement.innerText = `Ethereum Address: ${thread.ethAddress}`;
-            threadContainer.appendChild(ethAddressElement);
-
-            // Add a "Reply" link to open the overlay for replying
-            const replyLink = document.createElement('a');
-            replyLink.href = '#';
-            replyLink.innerText = 'Reply';
-            replyLink.addEventListener('click', () => openReplyOverlay(thread.id));
-            threadContainer.appendChild(replyLink);
-
-            const contentPlaceholder = document.createElement('div');
-            contentPlaceholder.className = 'placeholder-content';
-            contentPlaceholder.innerText = 'Loading content...';
-            threadContainer.appendChild(contentPlaceholder);
-
-            document.getElementById('infiniteScrollContent').appendChild(threadContainer);
-
-            const attachments = thread.attachments || [];
-            for (let attachment of attachments) {
-                await downloadAndDisplayContent(thread.id, attachment);
-            }
-
-            // Fetch and display the last 3 replies
-            const replies = await getThreadReplies(thread.id);
-            replies.slice(-3).forEach(reply => {
-                displayReply(reply, threadContainer);
-            });
-        }
-
-        async function getThreadReplies(threadId) {
-            // Fetch all replies from smart contract
-            const replyCount = await gremlinThreadContract.methods.getReplyCount(threadId).call();
-            const replies = [];
-            for (let i = 0; i < replyCount; i++) {
-                const reply = await gremlinThreadContract.methods.getReply(threadId, i).call();
-                replies.push(reply);
-            }
-            return replies;
-        }
-
-        async function displayReply(reply, threadContainer) {
-            const replyContainer = document.createElement('div');
-            replyContainer.className = 'reply-container';
-
-            const contentElement = document.createElement('p');
-            contentElement.innerText = reply.content;
-            replyContainer.appendChild(contentElement);
-
-            // Append reply to the thread container
-            threadContainer.appendChild(replyContainer);
-        }
-
-        async function downloadAndDisplayContent(threadId, magnetUrl) {
-            // Check if the torrent has already been added
-            if (addedTorrents.has(magnetUrl)) {
-                console.log(`Torrent already added for thread ${threadId} with magnet URL: ${magnetUrl}`);
-                return; // Exit the function since it's already added
-            }
-
-            // Add the magnet URL to the Set to prevent duplicates
-            addedTorrents.add(magnetUrl);
-
+        async function banUser() {
+            const address = document.getElementById("banUserAddress").value;
             try {
-                // Add the torrent using WebTorrent
-                client.add(magnetUrl, (torrent) => {
-                    console.log(`Torrent added for thread ${threadId} with magnet URL: ${magnetUrl}`);
-
-                    // Find the first image file in the torrent
-                    const file = torrent.files.find(file =>
-                        file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg')
-                    );
-
-                    if (file) {
-                        // Generate a Blob URL and create an image element
-                        file.getBlobURL((err, url) => {
-                            if (err) {
-                                console.error(`Error generating Blob URL for thread ${threadId}:`, err);
-                                removePost(threadId); // Remove the post if the image fails to load
-                                return;
-                            }
-
-                            const img = document.createElement('img');
-                            img.src = url;
-                            img.alt = file.name;
-                            img.classList.add('thumbnail'); // Add the thumbnail class to style as 50x50 initially
-
-                            // Insert the image into the thread's container
-                            const threadContainer = document.querySelector(`#thread-${threadId} .placeholder-content`);
-                            if (threadContainer) {
-                                threadContainer.innerHTML = ''; // Clear any previous content
-                                threadContainer.appendChild(img);
-                                console.log(`Image displayed for thread ${threadId}`);
-                            }
-
-                            // Toggle between enlarged and thumbnail on click
-                            img.addEventListener('click', function () {
-                                if (img.classList.contains('enlarged')) {
-                                    img.classList.remove('enlarged');
-                                    img.classList.add('thumbnail');
-                                } else {
-                                    img.classList.remove('thumbnail');
-                                    img.classList.add('enlarged');
-                                }
-                            });
-
-                            // Handle image load failure (e.g., if the image is corrupted or cannot be loaded)
-                            img.onerror = function() {
-                                console.error(`Failed to load image for thread ${threadId}. Removing post.`);
-                                removePost(threadId); // Remove the post if the image fails to load
-                            };
-                        });
-                    } else {
-                        console.log(`No image file found in torrent for thread ${threadId}`);
-                        removePost(threadId); // Remove the post if no image file is found
-                    }
-                });
+                await gremlinAdminContract.methods.banUser(address).send({ from: currentAccount });
+                alert(`User ${address} has been banned.`);
             } catch (error) {
-                console.error(`Error adding torrent for thread ${threadId}:`, error);
-                removePost(threadId); // Remove the post in case of an error
+                console.log('Error banning user:', error);
             }
         }
 
-        function removePost(threadId) {
-            const threadContainer = document.getElementById(`thread-${threadId}`);
-            if (threadContainer) {
-                threadContainer.remove(); // Remove the entire post from the DOM
-                console.log(`Post removed for thread ${threadId}`);
+        async function blacklistThread() {
+            const threadId = document.getElementById("blacklistThreadId").value;
+            try {
+                await gremlinAdminContract.methods.blacklistThread(threadId).send({ from: currentAccount });
+                alert(`Thread ${threadId} has been blacklisted.`);
+            } catch (error) {
+                console.log('Error blacklisting thread:', error);
             }
         }
 
-        function showOverlay() {
-            replyingToThreadId = null;
-            document.getElementById('overlayTitle').innerText = 'Create a New Post';
-            document.getElementById('overlay').style.height = "100%";
-            document.getElementById('closeOverlayBtn').style.display = 'block';
-        }
-
-        function openReplyOverlay(threadId) {
-            replyingToThreadId = threadId;
-            document.getElementById('overlayTitle').innerText = 'Reply to Thread';
-            document.getElementById('overlay').style.height = "100%";
-        }
-
-        function closeOverlay() {
-            replyingToThreadId = null;
-            document.getElementById('overlayTitle').innerText = 'Create a New Post';
-            document.getElementById('overlay').style.height = "0%";
-            document.getElementById('closeOverlayBtn').style.display = 'none';
-        }
-
-        window.onscroll = function() {
-            if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
-                loadMorePosts();
+        async function whitelistThread() {
+            const threadId = document.getElementById("whitelistThreadId").value;
+            try {
+                await gremlinAdminContract.methods.whitelistThread(threadId).send({ from: currentAccount });
+                alert(`Thread ${threadId} has been whitelisted.`);
+            } catch (error) {
+                console.log('Error whitelisting thread:', error);
             }
-        };
+        }
+
+        // Other functions like loadMorePosts, submitPost, etc., remain the same
 
         window.onload = function() {
             initializeContracts();

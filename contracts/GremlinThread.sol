@@ -1,135 +1,121 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";  // Import standard ERC721 interface
-
-contract GremlinThread is Ownable {
-    using Counters for Counters.Counter;
-    Counters.Counter private _threadIdCounter;
-
-    IERC721 public gctnToken;
-    string public domain;
-
-    // Structure to store thread details
+contract GremlinThread {
+    
     struct Thread {
-        uint256 id;                  // Unique ID for the thread
-        address ethAddress;          // Ethereum address of the thread creator
-        string subject;              // Subject of the thread
-        string[] tags;               // Tags associated with the thread
-        string[] attachments;        // Attachments associated with the thread
-        string threadDomain;         // Domain the thread is associated with (renamed from `domain` to `threadDomain` to avoid shadowing)
-        bool isBlacklisted;          // Boolean flag to indicate if the thread is blacklisted
+        uint256 id;
+        string name;
+        string subject;
+        string email;
+        string magnetUrl;
+        string[] tags;
+        string content;
+        uint256 parentThreadId;
+        address sender;
+        uint256 timestamp;
+        bool whitelisted;
+        bool blacklisted;
     }
 
-    mapping(uint256 => Thread) public threads;         // Mapping from thread ID to Thread structure
-    mapping(address => uint256[]) public userThreads;  // Mapping from user address to array of thread IDs
-    mapping(string => uint256[]) public threadsByTag;  // Mapping from tag name to array of thread IDs
+    uint256 public threadCount = 0;
+    mapping(uint256 => Thread) public threads;
+    mapping(address => bool) public bannedAddresses;
 
-    event ThreadCreated(
-        uint256 id,
-        address ethAddress,
-        string subject,
-        string[] tags,
-        string[] attachments,
-        string threadDomain
-    );
+    // Admin address
+    address public admin;
 
-    event ThreadBlacklisted(uint256 threadId);
-    event Debug(string message);  // Debug event to log messages
-    event ThreadCounterUpdated(uint256 newCount);  // Event to log the thread counter
+    // Events
+    event ThreadCreated(uint256 id, uint256 parentThreadId, string subject, string email);
+    event ThreadWhitelisted(uint256 id);
+    event ThreadBlacklisted(uint256 id);
 
-    constructor(address tokenAddress, string memory _domain) {
-        gctnToken = IERC721(tokenAddress);
-        domain = _domain;
-        emit Debug("Contract initialized");
-    }
-
-    modifier onlyTokenHolder(uint256 tokenAmount) {
-        require(gctnToken.balanceOf(msg.sender) >= tokenAmount, "Insufficient GCTN tokens");
-        emit Debug("Token holder validated");
+    // Modifier to ensure the sender is not banned
+    modifier notBanned() {
+        require(!bannedAddresses[msg.sender], "Sender is banned");
         _;
     }
 
-    // Function to create a new thread
+    // Modifier to restrict actions to admin only
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "Only admin can perform this action");
+        _;
+    }
+
+    // Constructor to set the contract admin
+    constructor() {
+        admin = msg.sender;  // Contract deployer becomes the admin
+    }
+
+    // Create a new thread or a reply (if parentThreadId != 0, it's a reply)
     function createThread(
-        string memory subject,
-        string[] memory tags,
-        string[] memory attachments
-    ) public onlyTokenHolder(1) {
-        emit Debug("createThread called");
-        _createThread(subject, tags, attachments, msg.sender);
-    }
+        string memory _name,
+        string memory _subject,
+        string memory _email,
+        string memory _magnetUrl,
+        string[] memory _tags,
+        string memory _content,
+        uint256 _parentThreadId
+    ) public notBanned {
+        threadCount++;
 
-    // Internal function to handle thread creation
-    function _createThread(
-        string memory subject,
-        string[] memory tags,
-        string[] memory attachments,
-        address ethAddress
-    ) internal {
-        _threadIdCounter.increment();
-        uint256 newThreadId = _threadIdCounter.current();
-        emit ThreadCounterUpdated(newThreadId);  // Log the new thread ID
-
-        threads[newThreadId] = Thread({
-            id: newThreadId,
-            ethAddress: ethAddress,
-            subject: subject,
-            tags: tags,
-            attachments: attachments,
-            threadDomain: domain,  // Use the contract's domain
-            isBlacklisted: false
-        });
-
-        userThreads[ethAddress].push(newThreadId);
-
-        for (uint256 i = 0; i < tags.length; i++) {
-            threadsByTag[tags[i]].push(newThreadId);
-        }
-
-        emit ThreadCreated(newThreadId, ethAddress, subject, tags, attachments, domain);
-        emit Debug("Thread created successfully");
-    }
-
-    function getThreadCount() public view returns (uint256) {
-        uint256 count = _threadIdCounter.current();
-        emit Debug("getThreadCount called");
-        emit ThreadCounterUpdated(count);  // Log the current thread count
-        return count;
-    }
-
-    // Function to blacklist a thread
-    function blacklistThread(uint256 threadId) external onlyOwner {
-        Thread storage thread = threads[threadId];
-        require(thread.id != 0, "Thread does not exist");
-        thread.isBlacklisted = true;
-        emit ThreadBlacklisted(threadId);
-        emit Debug("Thread blacklisted");
-    }
-
-    // Function to get thread information
-    function getThreadInfo(uint256 threadId) external view returns (
-        uint256 id,
-        address ethAddress,
-        string memory subject,
-        string[] memory tags,
-        string[] memory attachments,
-        string memory threadDomain,
-        bool isBlacklisted
-    ) {
-        Thread storage thread = threads[threadId];
-        require(thread.id != 0, "Thread does not exist");
-        emit Debug("getThreadInfo called");
-        return (
-            thread.id,
-            thread.ethAddress,
-            thread.subject,
-            thread.tags,
-            thread.attachments,
-            thread.threadDomain,
-            thread.isBlacklisted
+        threads[threadCount] = Thread(
+            threadCount,
+            _name,
+            _subject,
+            _email,
+            _magnetUrl,
+            _tags,
+            _content,
+            _parentThreadId,
+            msg.sender,
+            block.timestamp,
+            true,  // Whitelisted by default
+            false  // Not blacklisted by default
         );
+
+        emit ThreadCreated(threadCount, _parentThreadId, _subject, _email);
+    }
+
+    // Fetch a thread by its ID
+    function getThread(uint256 _threadId) public view returns (Thread memory) {
+        return threads[_threadId];
+    }
+
+    // Fetch all threads (this can be gas expensive, consider adding pagination in future)
+    function getAllThreads() public view returns (Thread[] memory) {
+        Thread[] memory allThreads = new Thread[](threadCount);
+        for (uint256 i = 1; i <= threadCount; i++) {
+            allThreads[i - 1] = threads[i];
+        }
+        return allThreads;
+    }
+
+    // Whitelist a thread (by admin)
+    function whitelistThread(uint256 _threadId) public onlyAdmin {
+        threads[_threadId].whitelisted = true;
+        emit ThreadWhitelisted(_threadId);
+    }
+
+    // Blacklist a thread (by admin)
+    function blacklistThread(uint256 _threadId) public onlyAdmin {
+        threads[_threadId].blacklisted = true;
+        emit ThreadBlacklisted(_threadId);
+    }
+
+    // Ban an address (by admin)
+    function banAddress(address _addr) public onlyAdmin {
+        bannedAddresses[_addr] = true;
+    }
+
+    // Unban an address (by admin)
+    function unbanAddress(address _addr) public onlyAdmin {
+        bannedAddresses[_addr] = false;
+    }
+
+    // Transfer admin role
+    function transferAdmin(address newAdmin) public onlyAdmin {
+        require(newAdmin != address(0), "New admin cannot be the zero address");
+        admin = newAdmin;
     }
 }
