@@ -3,40 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gremlin Threads</title>
+    <title>Gremlin Threads DApp</title>
     <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
-
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #status {
+            margin-top: 20px;
+            color: #555;
+        }
         .thread-container {
             margin-bottom: 20px;
             padding: 10px;
             border: 1px solid #ccc;
             background-color: #f9f9f9;
         }
-
-        .reply-container {
-            margin-left: 20px;
-            padding: 10px;
-            border-left: 3px solid #ccc;
-            background-color: #f0f0f0;
-        }
-
-        img.thumbnail {
-            display: block;
-            width: 50px;
-            height: 50px;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-
-        img.enlarged {
-            width: auto;
-            height: auto;
-            max-width: 100%;
-            max-height: 100%;
-        }
-
         #overlay {
             position: fixed;
             top: 0;
@@ -48,7 +32,6 @@
             transition: 0.5s;
             z-index: 9999;
         }
-
         #overlayContent {
             position: relative;
             top: 25%;
@@ -56,79 +39,34 @@
             margin: auto;
             color: white;
         }
-
         .navbar {
             padding: 10px;
             background-color: #333;
             color: white;
         }
-
         .search-box {
             padding: 10px;
             margin: 10px 0;
         }
-
         #showOverlayBtn, #closeOverlayBtn {
             display: block;
             margin: 10px auto;
             padding: 10px 20px;
         }
-
-        .placeholder-content {
-            width: 100%;
-            height: 200px;
-            background-color: #eaeaea;
-            display: block;
-            text-align: center;
-            line-height: 200px;
-            font-size: 14px;
-            color: #ccc;
-        }
-
-        .collapsible {
-            background-color: #333;
-            color: white;
-            cursor: pointer;
-            padding: 18px;
-            width: 100%;
-            border: none;
-            text-align: left;
-            outline: none;
-            font-size: 15px;
-        }
-
-        .collapsible:after {
-            content: '\002B'; 
-            color: white;
-            font-weight: bold;
-            float: right;
-            margin-left: 5px;
-        }
-
-        .active:after {
-            content: "\2212"; 
-        }
-
-        .content {
-            padding: 0 18px;
-            display: none;
-            overflow: hidden;
-            background-color: #f1f1f1;
-        }
-
-        .admin-action {
-            margin: 10px 0;
-        }
     </style>
 </head>
 <body>
+    <h1>Gremlin Threads DApp</h1>
+    <div id="status">Loading...</div> <!-- Status element added -->
+    <button id="connectMetaMask">Connect MetaMask</button>
+    
     <div class="navbar">ManiwaniBoard</div>
 
     <div class="search-box">
-        <input type="text" id="searchBar" placeholder="Enter tags..." onkeyup="filterThreads()" />
+        <input type="text" id="searchBar" placeholder="Enter tags..." />
     </div>
 
-    <div class="container" id="infiniteScrollContent"></div>
+    <div id="infiniteScrollContent"></div>
 
     <button id="showOverlayBtn" onclick="showOverlay()">Create Post</button>
     <button id="closeOverlayBtn" onclick="closeOverlay()">Cancel</button>
@@ -144,33 +82,11 @@
         </div>
     </div>
 
-    <!-- Collapsible Admin Panel -->
-    <button class="collapsible" id="adminPanelToggle" style="display:none;">Admin Panel</button>
-    <div class="content" id="adminPanel">
-        <h3>Gremlin Admin Actions</h3>
-        <div class="admin-action">
-            <label for="banUserAddress">Ban User Address:</label>
-            <input type="text" id="banUserAddress" placeholder="Enter user address">
-            <button onclick="banUser()">Ban User</button>
-        </div>
-        <div class="admin-action">
-            <label for="blacklistThreadId">Blacklist Thread ID:</label>
-            <input type="text" id="blacklistThreadId" placeholder="Enter thread ID">
-            <button onclick="blacklistThread()">Blacklist Thread</button>
-        </div>
-        <div class="admin-action">
-            <label for="whitelistThreadId">Whitelist Thread ID:</label>
-            <input type="text" id="whitelistThreadId" placeholder="Enter thread ID">
-            <button onclick="whitelistThread()">Whitelist Thread</button>
-        </div>
-    </div>
-
     <script>
+        let web3;
         let gremlinThreadContract;
         let gremlinAdminContract;
-        let currentAccount;
-        let isAdmin = false;
-
+        let currentAccount = null;
         const gremlinThreadABI = {{ gremlinThreadABI | tojson }};  // Inject GremlinThread ABI
         const gremlinThreadAddress = "{{ gremlinThreadAddress }}";  // Inject GremlinThread Address
 
@@ -180,39 +96,47 @@
         // Initialize WebTorrent client
         const client = new WebTorrent();
 
-        async function initializeContracts() {
+        window.onload = async function () {
             if (typeof window.ethereum !== 'undefined') {
-                const web3 = new Web3(window.ethereum);
+                web3 = new Web3(window.ethereum);
+                document.getElementById("status").innerText = 'MetaMask detected, connect to continue.';
+            } else {
+                document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
+            }
+        };
 
+        // Connect to MetaMask
+        document.getElementById("connectMetaMask").onclick = async function() {
+            if (typeof window.ethereum !== 'undefined') {
                 try {
+                    // Request account access
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
                     const accounts = await web3.eth.getAccounts();
                     currentAccount = accounts[0];
                     document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
 
+                    // Initialize Gremlin contracts
                     gremlinThreadContract = new web3.eth.Contract(gremlinThreadABI, gremlinThreadAddress);
                     gremlinAdminContract = new web3.eth.Contract(gremlinAdminABI, gremlinAdminAddress);
 
-                    const adminAddress = await gremlinAdminContract.methods.owner().call();
-                    if (adminAddress.toLowerCase() === currentAccount.toLowerCase()) {
-                        isAdmin = true;
-                        document.getElementById("adminPanelToggle").style.display = "block";
-                    }
-
-                    await loadMorePosts();
+                    // Initialize the DApp (load threads, check admin status, etc.)
+                    initializeDApp();
                 } catch (error) {
-                    document.getElementById("status").innerText = 'Could not access MetaMask. Please ensure you have authorized access.';
                     console.error('MetaMask access error:', error);
+                    document.getElementById("status").innerText = 'Could not access MetaMask. Please ensure you have authorized access.';
                 }
             } else {
-                document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this application.';
+                document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
             }
+        };
+
+        // Initialize DApp after connecting MetaMask
+        async function initializeDApp() {
+            // Load existing threads, check if the connected account is admin, etc.
+            console.log('DApp initialized with account:', currentAccount);
         }
 
-        async function loadMorePosts() {
-            // Fetch posts from the GremlinThread contract and display them
-        }
-
+        // Submit a new post
         async function submitPost() {
             const title = document.getElementById('newPostTitle').value;
             const content = document.getElementById('newPostContent').value;
@@ -224,58 +148,35 @@
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 const account = accounts[0];
 
-                // Create a new thread
+                // Submit the thread to the GremlinThread contract
                 await gremlinThreadContract.methods.createThread(
-                    title, content, tags, magnetUrl
+                    title, tags, magnetUrl
                 ).send({ from: account });
 
                 closeOverlay();
                 await loadMorePosts();
             } catch (error) {
-                console.error('Error in submitPost:', error);
+                console.error('Error submitting post:', error);
             }
         }
 
+        // Upload file to WebTorrent and return magnet URL
         async function uploadToServer(file) {
             return new Promise((resolve, reject) => {
                 client.seed(file, (torrent) => {
+                    console.log('File seeded, magnet URI:', torrent.magnetURI);
                     resolve(torrent.magnetURI);
                 });
             });
         }
 
-        async function banUser() {
-            const address = document.getElementById("banUserAddress").value;
-            try {
-                await gremlinAdminContract.methods.banUser(address).send({ from: currentAccount });
-                alert(`User ${address} has been banned.`);
-            } catch (error) {
-                console.log('Error banning user:', error);
-            }
-        }
-
-        async function blacklistThread() {
-            const threadId = document.getElementById("blacklistThreadId").value;
-            try {
-                await gremlinAdminContract.methods.blacklistThread(threadId).send({ from: currentAccount });
-                alert(`Thread ${threadId} has been blacklisted.`);
-            } catch (error) {
-                console.log('Error blacklisting thread:', error);
-            }
-        }
-
-        async function whitelistThread() {
-            const threadId = document.getElementById("whitelistThreadId").value;
-            try {
-                await gremlinAdminContract.methods.whitelistThread(threadId).send({ from: currentAccount });
-                alert(`Thread ${threadId} has been whitelisted.`);
-            } catch (error) {
-                console.log('Error whitelisting thread:', error);
-            }
+        // Load more posts
+        async function loadMorePosts() {
+            // Load posts from the smart contract and display them
+            console.log('Loading more posts...');
         }
 
         function showOverlay() {
-            replyingToThreadId = null;
             document.getElementById('overlay').style.height = "100%";
         }
 
@@ -283,18 +184,6 @@
             document.getElementById('overlay').style.height = "0%";
         }
 
-        document.addEventListener("DOMContentLoaded", function() {
-            const collapsible = document.getElementsByClassName("collapsible")[0];
-            collapsible.addEventListener("click", function() {
-                this.classList.toggle("active");
-                const content = this.nextElementSibling;
-                content.style.display = content.style.display === "block" ? "none" : "block";
-            });
-        });
-
-        window.onload = function() {
-            initializeContracts();
-        };
     </script>
 </body>
 </html>
