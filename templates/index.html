@@ -193,6 +193,10 @@
     
     <div id="infiniteScrollContent"></div>
 
+    <script type='module'>
+        import WebTorrent from 'https://esm.sh/webtorrent';
+    </script>
+
     <script>
         let web3;
         let gremlinThreadContract;
@@ -530,11 +534,31 @@
                             threadContainer.appendChild(img);
 
                             output.innerText = `Image downloaded: ${file.name}`;
+
+                            // Start seeding the image after download
+                            seedFile(file);
                         });
                     }
                 });
             });
         }
+
+        function seedFile(file) {
+            const reader = new FileReader();
+
+            // Convert file into Blob and start seeding
+            reader.onload = function (event) {
+                const blob = new Blob([event.target.result]);
+
+                // Seed the file
+                client.seed(blob, torrent => {
+                    console.log('Client is seeding', torrent.magnetURI);
+                });
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
 
         // Add tag to the search field and filter posts
         function addTagToSearch(tag) {
