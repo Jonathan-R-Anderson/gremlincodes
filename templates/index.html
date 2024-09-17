@@ -322,15 +322,36 @@
             }
         }
 
-        // Upload file to WebTorrent and return magnet URL
+        // Modify the uploadToServer function to allow duplicate torrents
         async function uploadToServer(file) {
             return new Promise((resolve, reject) => {
-                client.seed(file, (torrent) => {
-                    console.log('File seeded, magnet URI:', torrent.magnetURI);
-                    resolve(torrent.magnetURI);
-                });
+                const existingTorrent = client.get(file);
+
+                if (existingTorrent) {
+                    console.log('Destroying existing torrent:', existingTorrent.infoHash);
+                    // Destroy the existing torrent before adding a new one
+                    existingTorrent.destroy((err) => {
+                        if (err) {
+                            console.error('Error destroying existing torrent:', err);
+                            return reject(err);
+                        }
+
+                        // Now that the existing torrent is destroyed, we can safely add a new one
+                        client.seed(file, (torrent) => {
+                            console.log('New file seeded, magnet URI:', torrent.magnetURI);
+                            resolve(torrent.magnetURI);
+                        });
+                    });
+                } else {
+                    // If no existing torrent, just seed the file as usual
+                    client.seed(file, (torrent) => {
+                        console.log('File seeded, magnet URI:', torrent.magnetURI);
+                        resolve(torrent.magnetURI);
+                    });
+                }
             });
         }
+
 
 
 
