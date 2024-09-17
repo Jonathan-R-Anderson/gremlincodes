@@ -194,23 +194,43 @@
         const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";  // Inject GremlinAdmin Address
 
         window.onload = async function() {
+            console.log("Window loaded.");
+
             if (typeof window.ethereum !== 'undefined') {
+                console.log("MetaMask detected.");
                 web3 = new Web3(window.ethereum);
 
                 try {
+                    console.log("Requesting MetaMask accounts...");
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
+
                     const accounts = await web3.eth.getAccounts();
                     currentAccount = accounts[0];
+                    console.log(`Connected account: ${currentAccount}`);
                     document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
 
                     // Initialize Gremlin contracts
-                    gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
-                    gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
+                    console.log("Initializing Gremlin contracts...");
+                    if (_gremlinThreadABI && _gremlinThreadAddress) {
+                        gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
+                        console.log("Gremlin Thread Contract initialized.");
+                    } else {
+                        console.error("Gremlin Thread ABI or Address is missing.");
+                    }
+
+                    if (_gremlinAdminABI && _gremlinAdminAddress) {
+                        gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
+                        console.log("Gremlin Admin Contract initialized.");
+                    } else {
+                        console.error("Gremlin Admin ABI or Address is missing.");
+                    }
 
                     // Check if the connected account is the admin
+                    console.log("Checking if the current account is the admin...");
                     await checkIfAdmin(currentAccount);
 
                     // Initialize the DApp (load threads, etc.)
+                    console.log("Initializing DApp...");
                     initializeDApp();
 
                 } catch (error) {
@@ -218,6 +238,7 @@
                     document.getElementById("status").innerText = 'Could not access MetaMask. Please ensure you have authorized access.';
                 }
             } else {
+                console.log("MetaMask is not installed.");
                 document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
             }
         };
