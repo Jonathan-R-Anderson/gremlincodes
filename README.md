@@ -1,6 +1,6 @@
 <h1 align="center">
   <br>
-  <a href="https://webtorrent.io"><img src="https://webtorrent.io/img/WebTorrent.png" alt="WebTorrent" width="200"></a>
+  <a href="https://gremlin.codes"><img src="https://github.com/therealjr/gremlincodes/main/gremlin.png" alt="Gremlin.Codes" width="200"></a>
   <br>
   Gremlin.Codes
   <br>
