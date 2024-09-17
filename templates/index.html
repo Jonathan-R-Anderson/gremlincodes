@@ -188,38 +188,23 @@
         async function initializeContracts() {
             if (typeof window.ethereum !== 'undefined') {
                 const web3 = new Web3(window.ethereum);
-
                 try {
+                    // Request account access
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
                     const accounts = await web3.eth.getAccounts();
-                    currentAccount = accounts[0];
-
-                    gremlinThreadContract = new web3.eth.Contract(
-                        {{ gremlinThreadABI | safe }},
-                        '{{ gremlinThreadAddress }}'
-                    );
-
-                    gremlinAdminContract = new web3.eth.Contract(
-                        {{ gremlinAdminABI | safe }},
-                        '{{ gremlinAdminAddress }}'
-                    );
-
-                    // Check if the user is the admin
-                    const adminAddress = await gremlinAdminContract.methods.owner().call();
-                    if (adminAddress.toLowerCase() === currentAccount.toLowerCase()) {
-                        isAdmin = true;
-                        document.getElementById("adminPanelToggle").style.display = "block";
-                    }
-
-                    await loadMorePosts();
+                    currentAccount = accounts[0];  // Store the connected account
+                    console.log('Connected account:', currentAccount);
+                    // Continue with initializing contracts
+                    await initializeContracts();
                 } catch (error) {
-                    alert('Could not access MetaMask. Please ensure MetaMask is installed and you have authorized access.');
-                    console.log(error);
+                    // Handle user rejection or error
+                    alert('Could not access MetaMask. Please ensure you have authorized access.');
+                    console.error('MetaMask access error:', error);
                 }
             } else {
                 alert('MetaMask is not installed. Please install MetaMask to use this application.');
             }
-        }
+
 
         // Toggle collapsible admin panel
         document.addEventListener("DOMContentLoaded", function() {
