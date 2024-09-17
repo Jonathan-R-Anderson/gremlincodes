@@ -3,42 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gremlin Threads</title>
+    <title>Gremlin Threads DApp</title>
     <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script> <!-- Include Showdown -->
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #status {
+            margin-top: 20px;
+            color: #555;
+        }
         .thread-container {
             margin-bottom: 20px;
             padding: 10px;
             border: 1px solid #ccc;
             background-color: #f9f9f9;
         }
-
-        .reply-container {
-            margin-left: 20px;
-            padding: 10px;
-            border-left: 3px solid #ccc;
-            background-color: #f0f0f0;
-        }
-
-        /* Initial small image size */
-        img.thumbnail {
-            display: block;
-            width: 50px;
-            height: 50px;
-            cursor: pointer; /* Make it look clickable */
-            transition: transform 0.2s ease;
-        }
-
-        /* Enlarged image */
-        img.enlarged {
-            width: auto;
-            height: auto;
+        .thread-container img {
             max-width: 100%;
-            max-height: 100%;
+            height: auto;
         }
-
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .tag {
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
         #overlay {
             position: fixed;
             top: 0;
@@ -50,7 +49,6 @@
             transition: 0.5s;
             z-index: 9999;
         }
-
         #overlayContent {
             position: relative;
             top: 25%;
@@ -58,360 +56,555 @@
             margin: auto;
             color: white;
         }
-
         .navbar {
             padding: 10px;
             background-color: #333;
             color: white;
         }
-
         .search-box {
             padding: 10px;
             margin: 10px 0;
         }
-
         #showOverlayBtn, #closeOverlayBtn {
             display: block;
             margin: 10px auto;
             padding: 10px 20px;
         }
-
-        .placeholder-content {
-            width: 100%;
-            height: 200px;
-            background-color: #eaeaea;
-            display: block;
-            text-align: center;
-            line-height: 200px;
-            font-size: 14px;
-            color: #ccc;
+        #adminPanel {
+            display: none;
+            background-color: #eee;
+            padding: 15px;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+        }
+        .admin-controls {
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
-    <div class="navbar">
-        ManiwaniBoard
-    </div>
+    <h1>Gremlin Threads DApp</h1>
+    <div id="status">Loading...</div>
+    <button id="connectMetaMask">Connect MetaMask</button>
+
+    <div class="navbar">ManiwaniBoard</div>
 
     <div class="search-box">
-        <input type="text" id="searchBar" placeholder="Enter tags..." onkeyup="filterThreads()" />
-    </div>
-
-    <div class="container" id="infiniteScrollContent">
-        <!-- Threads will be dynamically loaded here -->
+        <input type="text" id="searchBar" placeholder="Enter tags..." oninput="filterPosts()" />
     </div>
 
     <button id="showOverlayBtn" onclick="showOverlay()">Create Post</button>
-    <button id="closeOverlayBtn" onclick="closeOverlay()">Cancel</button>
+
+    <!-- Admin Panel -->
+    <div id="adminPanel">
+        <h2>Admin Panel</h2>
+    
+        <!-- Section to delete posts by ID -->
+        <div class="admin-controls">
+            <button onclick="deletePostById()">Delete Post by ID</button>
+            <input type="text" id="postIdToDelete" placeholder="Enter post ID" />
+        </div>
+    
+        <!-- Blacklist/Whitelist Management -->
+        <div class="admin-controls">
+            <h3>Manage Tags</h3>
+            <button onclick="addTagToBlacklist()">Blacklist Tag</button>
+            <button onclick="addTagToWhitelist()">Whitelist Tag</button>
+            <input type="text" id="tagToManage" placeholder="Enter tag to blacklist/whitelist" />
+        </div>
+    
+        <div class="admin-controls">
+            <h3>Manage Magnet URLs</h3>
+            <button onclick="addMagnetToBlacklist()">Blacklist Magnet URL</button>
+            <button onclick="addMagnetToWhitelist()">Whitelist Magnet URL</button>
+            <input type="text" id="magnetToManage" placeholder="Enter magnet URL to blacklist/whitelist" />
+        </div>
+    
+        <div class="admin-controls">
+            <h3>Manage User Addresses</h3>
+            <button onclick="addUserToBlacklist()">Blacklist User</button>
+            <button onclick="addUserToWhitelist()">Whitelist User</button>
+            <input type="text" id="userToManage" placeholder="Enter user address to blacklist/whitelist" />
+        </div>
+    
+        <!-- Display current blacklists and whitelists -->
+        <div class="admin-controls">
+            <h4>Current Blacklist</h4>
+            <ul id="blacklistDisplay"></ul>
+    
+            <h4>Current Whitelist</h4>
+            <ul id="whitelistDisplay"></ul>
+        </div>
+    </div>
 
     <div id="overlay">
         <div id="overlayContent">
             <h2 id="overlayTitle">Create a New Post</h2>
+    
+            <!-- Input for Post Title -->
             <input type="text" id="newPostTitle" placeholder="Title" style="width: 100%; padding: 10px;" />
+    
+            <!-- Input for Post Content -->
             <textarea id="newPostContent" placeholder="Content" style="width: 100%; padding: 10px; height: 100px;"></textarea>
+    
+            <!-- Instructions for Formatting -->
+            <div id="instructions">
+                You can format your post like this:
+                <ul>
+                    <li><code>*italic*</code> for <em>italic</em></li>
+                    <li><code>**bold**</code> for <strong>bold</strong></li>
+                    <li><code>***bold italic***</code> for <strong><em>bold italic</em></strong></li>
+                    <li><code>```code block```</code> for <code>code block</code></li>
+                </ul>
+            </div>
+    
+            <!-- Input for Tags -->
             <input type="text" id="newPostTags" placeholder="Tags (comma-separated)" style="width: 100%; padding: 10px;" />
+    
+            <!-- Input for Email -->
+            <input type="email" id="newPostEmail" placeholder="Your Email (optional)" style="width: 100%; padding: 10px;" />
+    
+            <!-- Input for File Upload -->
             <input type="file" id="imageUpload" accept="image/*" style="width: 100%; padding: 10px;" />
+    
+            <!-- Submit Button -->
             <button id="submitPostBtn" onclick="submitPost()">Submit Post</button>
+    
+            <!-- Cancel Button -->
+            <button id="closeOverlayBtn" onclick="closeOverlay()">Cancel</button>
         </div>
     </div>
+    
+    <div id="infiniteScrollContent"></div>
 
     <script>
+        let web3;
         let gremlinThreadContract;
-        let currentScrollPage = 1;
-        let loadedThreads = 0;
-        let replyingToThreadId = null; // To track which thread we are replying to
-        const postsToLoad = 5;
+        let gremlinAdminContract;
+        let currentAccount = null;
+        let loadedThreads = 0;  // Track the number of loaded threads
+        const batchSize = 5;    // Number of posts to load per batch
+        const client = new WebTorrent(); // WebTorrent client for image handling
+        let allThreads = []; // Store all loaded threads for filtering
 
-        // Initialize WebTorrent client
-        const client = new WebTorrent();
+        const _gremlinThreadABI = {{ gremlinThreadABI | safe }};  // Inject GremlinThread ABI
+        const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  // Inject GremlinThread Address
 
-        // Store a reference to the added torrents
-        const addedTorrents = new Set();
+        const _gremlinAdminABI = {{ gremlinAdminABI | safe }};  // Inject GremlinAdmin ABI
+        const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";  // Inject GremlinAdmin Address
 
-        async function initializeContracts() {
+        window.onload = async function() {
             if (typeof window.ethereum !== 'undefined') {
-                const web3 = new Web3(window.ethereum);
+                web3 = new Web3(window.ethereum);
 
                 try {
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const accounts = await web3.eth.getAccounts();
+                    currentAccount = accounts[0];
+                    document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
 
-                    gremlinThreadContract = new web3.eth.Contract(
-                        {{ gremlinThreadABI | safe }},
-                        '{{ gremlinThreadAddress }}'
-                    );
-                    await loadMorePosts();
+                    // Initialize Gremlin contracts
+                    gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
+                    gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
+
+                    // Check if the connected account is the admin
+                    await checkIfAdmin(currentAccount);
+
+                    // Initialize the DApp (load threads, etc.)
+                    initializeDApp();
+
                 } catch (error) {
-                    alert('Could not access MetaMask. Please ensure MetaMask is installed and you have authorized access.');
-                    console.log(error);
+                    console.error('MetaMask access error:', error);
+                    document.getElementById("status").innerText = 'Could not access MetaMask. Please ensure you have authorized access.';
                 }
             } else {
-                alert('MetaMask is not installed. Please install MetaMask to use this application.');
+                document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
             }
-        }
+        };
 
-        async function getAllThreads(start, limit) {
-            console.log(`getAllThreads called with start=${start}, limit=${limit}`);
+
+        // Connect to MetaMask
+        document.getElementById("connectMetaMask").onclick = async function() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    currentAccount = accounts[0];
+                    document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
+
+                    // Initialize Gremlin contracts
+                    gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
+                    gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
+
+                    // Check if the connected account is the admin
+                    await checkIfAdmin(currentAccount);
+
+                    // Initialize the DApp (load threads, etc.)
+                    initializeDApp();
+
+                } catch (error) {
+                    console.error('MetaMask access error:', error);
+                    document.getElementById("status").innerText = 'Could not access MetaMask. Please ensure you have authorized access.';
+                }
+            } else {
+                document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
+            }
+        };
+
+        // Check if the connected account is the admin
+        async function checkIfAdmin(account) {
             try {
-                const threadCount = await gremlinThreadContract.methods.getThreadCount().call();
-                console.log(`Total threads available: ${threadCount}`);
-                const totalThreads = Number(threadCount);
-
-                let threads = [];
-
-                for (let i = start + 1; i <= Math.min(start + limit, totalThreads); i++) {
-                    try {
-                        console.log(`Fetching thread ${i}...`);
-                        const thread = await gremlinThreadContract.methods.getThreadInfo(i).call();
-                        console.log(`Thread ${i} fetched:`, thread);
-
-                        thread.id = i;
-
-                        thread.timestamp = thread.timestamp ? new Date(thread.timestamp * 1000).toLocaleString() : "No timestamp available";
-                        thread.lastReplyTimestamp = thread.lastReplyTimestamp ? new Date(thread.lastReplyTimestamp * 1000).toLocaleString() : "No last reply timestamp available";
-
-                        threads.push(thread);
-                    } catch (innerError) {
-                        console.log(`Error fetching thread ${i}:`, innerError);
-                    }
+                const admin = await gremlinAdminContract.methods.owner().call();
+                console.log(`Admin Address: ${admin}, Current Account: ${account}`);
+                
+                // Ensure both addresses are compared in lowercase to avoid case-sensitive issues
+                if (admin.toLowerCase() === account.toLowerCase()) {
+                    document.getElementById('adminPanel').style.display = 'block';  // Show admin panel
+                    console.log('Admin detected: Admin panel displayed.');
+                } else {
+                    console.log('Non-admin user detected.');
                 }
-
-                threads.sort((a, b) => b.id - a.id);
-
-                for (let thread of threads) {
-                    await displayThread(thread);
-                    console.log(`Thread ${thread.id} displayed.`);
-                    loadedThreads++;
-                }
-
             } catch (error) {
-                console.log('Error in getAllThreads:', error);
+                console.error('Error checking admin status:', error);
             }
         }
 
+
+        // Delete a post by ID (Admin function)
+        async function deletePostById() {
+            const postId = document.getElementById('postIdToDelete').value;
+            if (postId) {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const account = accounts[0];
+                    const gasEstimate = await gremlinThreadContract.methods.deleteThread(postId).estimateGas({ from: account });
+
+                    await gremlinThreadContract.methods.deleteThread(postId).send({ from: account, gas: gasEstimate });
+                    console.log(`Post with ID ${postId} deleted successfully.`);
+                } catch (error) {
+                    console.error('Error deleting post:', error);
+                }
+            } else {
+                alert("Please enter a valid post ID.");
+            }
+        }
+
+        // Initialize DApp after connecting MetaMask
+        async function initializeDApp() {
+            await loadMorePosts();
+            window.onscroll = async function() {
+                if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
+                    await loadMorePosts();
+                }
+            };
+        }
+
+        // Submit a new post
         async function submitPost() {
             const title = document.getElementById('newPostTitle').value;
+            const email = document.getElementById('newPostEmail').value || "test@example.com";
             const content = document.getElementById('newPostContent').value;
             const tags = document.getElementById('newPostTags').value.split(',').map(tag => tag.trim());
             const imageFile = document.getElementById('imageUpload').files[0];
 
             try {
                 const magnetUrl = await uploadToServer(imageFile);
-                const attachments = [magnetUrl];
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 const account = accounts[0];
+                const gasEstimate = await gremlinThreadContract.methods.createThread(
+                    title, "Test Subject", email, magnetUrl, tags, content, 0
+                ).estimateGas({ from: account });
 
-                let tx;
-                if (replyingToThreadId) {
-                    console.log(`Submitting reply to thread ID: ${replyingToThreadId}`);
-                    tx = await gremlinThreadContract.methods.replyToThread(replyingToThreadId, content, attachments).send({ from: account });
-                } else {
-                    console.log(`Submitting post with title: ${title}, content: ${content}, tags: ${tags}, attachments: ${attachments}`);
-                    const gasEstimate = await gremlinThreadContract.methods.createThread(title, tags, attachments).estimateGas({ from: account });
-                    tx = await gremlinThreadContract.methods.createThread(title, tags, attachments).send({ from: account, gas: gasEstimate});
-                }
+                await gremlinThreadContract.methods.createThread(
+                    title, "Test Subject", email, magnetUrl, tags, content, 0
+                ).send({ from: account, gas: gasEstimate });
 
-                closeOverlay();
-                await refreshThreads();
+                closeOverlay(); // Collapse overlay after submission
+                await loadMorePosts();
             } catch (error) {
-                console.log('Error in submitPost:', error);
+                console.error('Error submitting post:', error);
             }
         }
 
+        // Upload file to WebTorrent and return magnet URL
         async function uploadToServer(file) {
             return new Promise((resolve, reject) => {
                 client.seed(file, (torrent) => {
-                    console.log('Seeding started:', torrent.magnetURI);
+                    console.log('File seeded, magnet URI:', torrent.magnetURI);
                     resolve(torrent.magnetURI);
                 });
             });
         }
 
-        async function refreshThreads() {
-            document.getElementById('infiniteScrollContent').innerHTML = '';
-            loadedThreads = 0;
-            currentScrollPage = 1;
-            await loadMorePosts();
-        }
-
+        // Load more posts from the contract
         async function loadMorePosts() {
-            await getAllThreads(loadedThreads, postsToLoad);
-            currentScrollPage++;
+            try {
+                const threadCount = await gremlinThreadContract.methods.threadCount().call();
+                const totalThreads = Number(threadCount);
+
+                const threadsToLoad = Math.min(batchSize, totalThreads - loadedThreads);
+
+                for (let i = loadedThreads; i < loadedThreads + threadsToLoad; i++) {
+                    const thread = await gremlinThreadContract.methods.getThread(i + 1).call();
+                    allThreads.push(thread);
+                    displayThread(thread);
+                }
+
+                loadedThreads += threadsToLoad;
+
+                if (loadedThreads >= totalThreads) {
+                    console.log('All threads loaded.');
+                }
+            } catch (error) {
+                console.error('Error loading posts:', error);
+            }
         }
 
-        async function displayThread(thread) {
+        // Display a thread in the DOM
+        function displayThread(thread) {
             const threadContainer = document.createElement('div');
             threadContainer.className = 'thread-container';
-            threadContainer.id = `thread-${thread.id}`;
 
-            const subject = document.createElement('h3');
+            const title = document.createElement('h3');
+            title.innerText = `Title: ${thread.name}`;
+            threadContainer.appendChild(title);
+
+            const subject = document.createElement('p');
             subject.innerText = `Subject: ${thread.subject}`;
             threadContainer.appendChild(subject);
 
-            const tags = Array.isArray(thread.tags) ? thread.tags.join(', ') : thread.tags;
-            const tagsElement = document.createElement('p');
-            tagsElement.innerText = `Tags: ${tags}`;
-            threadContainer.appendChild(tagsElement);
+            const email = document.createElement('p');
+            email.innerText = `Email: ${thread.email}`;
+            threadContainer.appendChild(email);
 
-            const ethAddressElement = document.createElement('p');
-            ethAddressElement.innerText = `Ethereum Address: ${thread.ethAddress}`;
-            threadContainer.appendChild(ethAddressElement);
+            const content = document.createElement('div');
+            content.innerHTML = renderMarkdown(thread.content);  // Render the content with Markdown formatting
+            threadContainer.appendChild(content);
 
-            // Add a "Reply" link to open the overlay for replying
-            const replyLink = document.createElement('a');
-            replyLink.href = '#';
-            replyLink.innerText = 'Reply';
-            replyLink.addEventListener('click', () => openReplyOverlay(thread.id));
-            threadContainer.appendChild(replyLink);
+            // Add tags display and click functionality
+            const tagsContainer = document.createElement('div');
+            tagsContainer.className = 'tags';
+            thread.tags.forEach(tag => {
+                const tagElement = document.createElement('span');
+                tagElement.className = 'tag';
+                tagElement.innerText = tag;
+                tagElement.onclick = () => addTagToSearch(tag);
+                tagsContainer.appendChild(tagElement);
+            });
+            threadContainer.appendChild(tagsContainer);
 
-            const contentPlaceholder = document.createElement('div');
-            contentPlaceholder.className = 'placeholder-content';
-            contentPlaceholder.innerText = 'Loading content...';
-            threadContainer.appendChild(contentPlaceholder);
+            if (thread.magnetUrl) {
+                downloadImage(thread.magnetUrl, threadContainer);
+            }
 
             document.getElementById('infiniteScrollContent').appendChild(threadContainer);
-
-            const attachments = thread.attachments || [];
-            for (let attachment of attachments) {
-                await downloadAndDisplayContent(thread.id, attachment);
-            }
-
-            // Fetch and display the last 3 replies
-            const replies = await getThreadReplies(thread.id);
-            replies.slice(-3).forEach(reply => {
-                displayReply(reply, threadContainer);
-            });
         }
 
-        async function getThreadReplies(threadId) {
-            // Fetch all replies from smart contract
-            const replyCount = await gremlinThreadContract.methods.getReplyCount(threadId).call();
-            const replies = [];
-            for (let i = 0; i < replyCount; i++) {
-                const reply = await gremlinThreadContract.methods.getReply(threadId, i).call();
-                replies.push(reply);
-            }
-            return replies;
+        // Function to render Markdown using Showdown
+        function renderMarkdown(text) {
+            const converter = new showdown.Converter();
+            return converter.makeHtml(text);
         }
 
-        async function displayReply(reply, threadContainer) {
-            const replyContainer = document.createElement('div');
-            replyContainer.className = 'reply-container';
+        function downloadImage(magnetURI, threadContainer) {
+            const output = document.createElement('p');
+            output.innerText = 'Downloading image...';
+            threadContainer.appendChild(output);
 
-            const contentElement = document.createElement('p');
-            contentElement.innerText = reply.content;
-            replyContainer.appendChild(contentElement);
-
-            // Append reply to the thread container
-            threadContainer.appendChild(replyContainer);
-        }
-
-        async function downloadAndDisplayContent(threadId, magnetUrl) {
-            // Check if the torrent has already been added
-            if (addedTorrents.has(magnetUrl)) {
-                console.log(`Torrent already added for thread ${threadId} with magnet URL: ${magnetUrl}`);
-                return; // Exit the function since it's already added
-            }
-
-            // Add the magnet URL to the Set to prevent duplicates
-            addedTorrents.add(magnetUrl);
-
-            try {
-                // Add the torrent using WebTorrent
-                client.add(magnetUrl, (torrent) => {
-                    console.log(`Torrent added for thread ${threadId} with magnet URL: ${magnetUrl}`);
-
-                    // Find the first image file in the torrent
-                    const file = torrent.files.find(file =>
-                        file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg')
-                    );
-
-                    if (file) {
-                        // Generate a Blob URL and create an image element
+            client.add(magnetURI, torrent => {
+                torrent.files.forEach(file => {
+                    if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
                         file.getBlobURL((err, url) => {
                             if (err) {
-                                console.error(`Error generating Blob URL for thread ${threadId}:`, err);
-                                removePost(threadId); // Remove the post if the image fails to load
-                                return;
+                                output.innerText = 'Error downloading image.';
+                                return console.error(err);
                             }
 
                             const img = document.createElement('img');
                             img.src = url;
                             img.alt = file.name;
-                            img.classList.add('thumbnail'); // Add the thumbnail class to style as 50x50 initially
+                            threadContainer.appendChild(img);
 
-                            // Insert the image into the thread's container
-                            const threadContainer = document.querySelector(`#thread-${threadId} .placeholder-content`);
-                            if (threadContainer) {
-                                threadContainer.innerHTML = ''; // Clear any previous content
-                                threadContainer.appendChild(img);
-                                console.log(`Image displayed for thread ${threadId}`);
-                            }
-
-                            // Toggle between enlarged and thumbnail on click
-                            img.addEventListener('click', function () {
-                                if (img.classList.contains('enlarged')) {
-                                    img.classList.remove('enlarged');
-                                    img.classList.add('thumbnail');
-                                } else {
-                                    img.classList.remove('thumbnail');
-                                    img.classList.add('enlarged');
-                                }
-                            });
-
-                            // Handle image load failure (e.g., if the image is corrupted or cannot be loaded)
-                            img.onerror = function() {
-                                console.error(`Failed to load image for thread ${threadId}. Removing post.`);
-                                removePost(threadId); // Remove the post if the image fails to load
-                            };
+                            output.innerText = `Image downloaded: ${file.name}`;
                         });
-                    } else {
-                        console.log(`No image file found in torrent for thread ${threadId}`);
-                        removePost(threadId); // Remove the post if no image file is found
                     }
                 });
-            } catch (error) {
-                console.error(`Error adding torrent for thread ${threadId}:`, error);
-                removePost(threadId); // Remove the post in case of an error
+            });
+        }
+
+        // Add tag to the search field and filter posts
+        function addTagToSearch(tag) {
+            const searchBar = document.getElementById('searchBar');
+            const currentTags = searchBar.value.split(',').map(t => t.trim()).filter(t => t);
+            if (!currentTags.includes(tag)) {
+                currentTags.push(tag);
+                searchBar.value = currentTags.join(', ');
+                filterPosts();
             }
         }
 
-        function removePost(threadId) {
-            const threadContainer = document.getElementById(`thread-${threadId}`);
-            if (threadContainer) {
-                threadContainer.remove(); // Remove the entire post from the DOM
-                console.log(`Post removed for thread ${threadId}`);
-            }
+        // Filter posts based on the tags in the search bar
+        function filterPosts() {
+            const searchTags = document.getElementById('searchBar').value.split(',').map(tag => tag.trim().toLowerCase()).filter(tag => tag);
+            const contentDiv = document.getElementById('infiniteScrollContent');
+            contentDiv.innerHTML = ''; // Clear the current posts
+
+            allThreads.forEach(thread => {
+                const threadTags = thread.tags.map(tag => tag.toLowerCase());
+                if (searchTags.every(tag => threadTags.includes(tag))) {
+                    displayThread(thread);
+                }
+            });
         }
 
         function showOverlay() {
-            replyingToThreadId = null;
-            document.getElementById('overlayTitle').innerText = 'Create a New Post';
-            document.getElementById('overlay').style.height = "100%";
-            document.getElementById('closeOverlayBtn').style.display = 'block';
-        }
-
-        function openReplyOverlay(threadId) {
-            replyingToThreadId = threadId;
-            document.getElementById('overlayTitle').innerText = 'Reply to Thread';
             document.getElementById('overlay').style.height = "100%";
         }
 
         function closeOverlay() {
-            replyingToThreadId = null;
-            document.getElementById('overlayTitle').innerText = 'Create a New Post';
+            // Reset the form fields before closing the overlay
+            document.getElementById('newPostTitle').value = '';
+            document.getElementById('newPostContent').value = '';
+            document.getElementById('newPostTags').value = '';
+            document.getElementById('newPostEmail').value = '';
+            document.getElementById('imageUpload').value = '';
+
+            // Collapse the overlay
             document.getElementById('overlay').style.height = "0%";
-            document.getElementById('closeOverlayBtn').style.display = 'none';
         }
 
-        window.onscroll = function() {
-            if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
-                loadMorePosts();
-            }
-        };
 
-        window.onload = function() {
-            initializeContracts();
-        };
+    // Function to add a tag to the blacklist
+    async function addTagToBlacklist() {
+        const tag = document.getElementById('tagToManage').value;
+        if (tag) {
+            await fetch('/admin/blacklist/tag', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'blacklist', tag })
+            });
+            alert(`Tag "${tag}" blacklisted`);
+        }
+    }
+
+    // Function to add a tag to the whitelist
+    async function addTagToWhitelist() {
+        const tag = document.getElementById('tagToManage').value;
+        if (tag) {
+            await fetch('/admin/whitelist/tag', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'whitelist', tag })
+            });
+            alert(`Tag "${tag}" whitelisted`);
+        }
+    }
+
+    // Function to add a magnet URL to the blacklist
+    async function addMagnetToBlacklist() {
+        const magnet = document.getElementById('magnetToManage').value;
+        if (magnet) {
+            await fetch('/admin/blacklist/magnet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'blacklist', magnet })
+            });
+            alert(`Magnet URL "${magnet}" blacklisted`);
+        }
+    }
+
+    // Function to add a magnet URL to the whitelist
+    async function addMagnetToWhitelist() {
+        const magnet = document.getElementById('magnetToManage').value;
+        if (magnet) {
+            await fetch('/admin/whitelist/magnet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'whitelist', magnet })
+            });
+            alert(`Magnet URL "${magnet}" whitelisted`);
+        }
+    }
+
+    // Function to add a user to the blacklist
+    async function addUserToBlacklist() {
+        const user = document.getElementById('userToManage').value;
+        if (user) {
+            await fetch('/admin/blacklist/user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'blacklist', user })
+            });
+            alert(`User "${user}" blacklisted`);
+        }
+    }
+
+    // Function to add a user to the whitelist
+    async function addUserToWhitelist() {
+        const user = document.getElementById('userToManage').value;
+        if (user) {
+            await fetch('/admin/whitelist/user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'whitelist', user })
+            });
+            alert(`User "${user}" whitelisted`);
+        }
+    }
+
+    // Fetch and display the current blacklist and whitelist (tags, magnet URLs, users)
+// Fetch and display the current blacklist and whitelist (tags, magnet URLs, users)
+    async function fetchBlacklistWhitelist() {
+        try {
+            // Fetch the blacklist and whitelist data from the server
+            const blacklistRes = await fetch('/admin/blacklist');
+            const whitelistRes = await fetch('/admin/whitelist');
+
+            // Ensure the response is in JSON format
+            const blacklistData = await blacklistRes.json();
+            const whitelistData = await whitelistRes.json();
+
+            const blacklist = Array.isArray(blacklistData) ? blacklistData : blacklistData.blacklist;
+            const whitelist = Array.isArray(whitelistData) ? whitelistData : whitelistData.whitelist;
+
+            const blacklistDisplay = document.getElementById('blacklistDisplay');
+            const whitelistDisplay = document.getElementById('whitelistDisplay');
+
+            // Clear the current lists
+            blacklistDisplay.innerHTML = '';
+            whitelistDisplay.innerHTML = '';
+
+            // Display blacklist items
+            if (Array.isArray(blacklist)) {
+                blacklist.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerText = item;
+                    blacklistDisplay.appendChild(li);
+                });
+            } else {
+                console.error('Blacklist is not an array:', blacklist);
+            }
+
+            // Display whitelist items
+            if (Array.isArray(whitelist)) {
+                whitelist.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerText = item;
+                    whitelistDisplay.appendChild(li);
+                });
+            } else {
+                console.error('Whitelist is not an array:', whitelist);
+            }
+        } catch (error) {
+            console.error('Error fetching blacklist or whitelist:', error);
+            document.getElementById('status').innerText = 'Error loading blacklist/whitelist. Check console for details.';
+        }
+    }
+
+
+    // Load current blacklists and whitelists on page load
+    window.onload = async function() {
+        await fetchBlacklistWhitelist();
+    }
     </script>
 </body>
 </html>
