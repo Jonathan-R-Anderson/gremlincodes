@@ -286,21 +286,23 @@
             if (!error) {
                 const newThread = event.returnValues;
                 if (newThread.parentThreadId === "0") {
-                    // New root thread
+                    // New root thread, display it
                     displayThreadWithReplies(newThread, threadMap);
                 } else {
-                    // New reply, add to the map and display
+                    // New reply, add to its parent thread
                     if (!threadMap[newThread.parentThreadId]) {
                         threadMap[newThread.parentThreadId] = [];
                     }
                     threadMap[newThread.parentThreadId].push(newThread);
-                    displayThreadWithReplies(newThread, threadMap, 1);
+                    // Re-display the parent thread with the new reply
+                    const parentThread = allThreads.find(t => t.id === newThread.parentThreadId);
+                    displayThreadWithReplies(parentThread, threadMap);
                 }
             } else {
                 console.error("Error listening to ThreadCreated event:", error);
             }
         });
-
+        
         function displayUserLists() {
             const userWhitelistDisplay = document.getElementById('userWhitelistDisplay');
             const userBlacklistDisplay = document.getElementById('userBlacklistDisplay');
@@ -320,6 +322,79 @@
                 userBlacklistDisplay.appendChild(li);
             });
         }
+
+        // Fetch threads and organize them by parent-child relationships
+        async function loadAndDisplayThreads() {
+            try {
+                // Fetch all threads from the contract
+                const allThreads = await gremlinThreadContract.methods.getAllThreads().call();
+                
+                // Create a map to group threads by their parentThreadId
+                const threadMap = {}; // Store threads by their ID
+                const rootThreads = []; // Store threads that have no parent (i.e., original threads)
+
+                // Separate threads into root threads and replies
+                allThreads.forEach(thread => {
+                    if (thread.parentThreadId === "0") {
+                        // Root thread, no parent
+                        rootThreads.push(thread);
+                    } else {
+                        // Reply thread, has a parent
+                        if (!threadMap[thread.parentThreadId]) {
+                            threadMap[thread.parentThreadId] = [];
+                        }
+                        threadMap[thread.parentThreadId].push(thread);
+                    }
+                });
+
+                // Display root threads first, then their replies
+                rootThreads.forEach(thread => {
+                    displayThreadWithReplies(thread, threadMap);
+                });
+
+            } catch (error) {
+                console.error("Error loading threads:", error);
+            }
+        }
+
+
+        // Function to display a thread and its replies recursively
+        function displayThreadWithReplies(thread, threadMap, depth = 0) {
+            const threadContainer = document.createElement('div');
+            threadContainer.className = 'thread-container';
+            threadContainer.style.marginLeft = `${depth * 20}px`; // Indent based on depth
+
+            const title = document.createElement('h3');
+            title.innerText = `Title: ${thread.name}`;
+            threadContainer.appendChild(title);
+
+            const subject = document.createElement('p');
+            subject.innerText = `Subject: ${thread.subject}`;
+            threadContainer.appendChild(subject);
+
+            const content = document.createElement('div');
+            content.innerHTML = renderMarkdown(thread.content);
+            threadContainer.appendChild(content);
+
+            const tagsContainer = document.createElement('div');
+            tagsContainer.className = 'tags';
+            thread.tags.forEach(tag => {
+                const tagElement = document.createElement('span');
+                tagElement.className = 'tag';
+                tagElement.innerText = tag;
+                tagsContainer.appendChild(tagElement);
+            });
+            threadContainer.appendChild(tagsContainer);
+
+            document.getElementById('infiniteScrollContent').appendChild(threadContainer);
+
+            // Check if there are replies to this thread
+            const replies = threadMap[thread.id];
+            if (replies) {
+                replies.forEach(reply => displayThreadWithReplies(reply, threadMap, depth + 1)); // Recursively display replies
+            }
+        }
+
 
         // Function to connect to MetaMask when the icon is clicked
         async function connectMetaMask() {
