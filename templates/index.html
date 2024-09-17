@@ -87,10 +87,10 @@
         let gremlinThreadContract;
         let gremlinAdminContract;
         let currentAccount = null;
-        const _gremlinThreadABI = {{ gremlinThreadABI | tojson }};  // Inject GremlinThread ABI
+        const _gremlinThreadABI = {{ gremlinThreadABI | safe }};  // Inject GremlinThread ABI
         const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  // Inject GremlinThread Address
 
-        const _gremlinAdminABI = {{ gremlinAdminABI | tojson }};  // Inject GremlinAdmin ABI
+        const _gremlinAdminABI = {{ gremlinAdminABI | safe }};  // Inject GremlinAdmin ABI
         const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";  // Inject GremlinAdmin Address
 
         // Initialize WebTorrent client
@@ -116,8 +116,8 @@
                     document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
 
                     // Initialize Gremlin contracts
-                    gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI | safe, _gremlinThreadAddress);
-                    gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI | safe, _gremlinAdminAddress);
+                    gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
+                    gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
 
                     // Initialize the DApp (load threads, check admin status, etc.)
                     initializeDApp();
