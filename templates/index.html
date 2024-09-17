@@ -98,11 +98,43 @@
     <!-- Admin Panel -->
     <div id="adminPanel">
         <h2>Admin Panel</h2>
+    
+        <!-- Section to delete posts by ID -->
         <div class="admin-controls">
             <button onclick="deletePostById()">Delete Post by ID</button>
             <input type="text" id="postIdToDelete" placeholder="Enter post ID" />
         </div>
-        <!-- Add more admin controls as needed -->
+    
+        <!-- Blacklist/Whitelist Management -->
+        <div class="admin-controls">
+            <h3>Manage Tags</h3>
+            <button onclick="addTagToBlacklist()">Blacklist Tag</button>
+            <button onclick="addTagToWhitelist()">Whitelist Tag</button>
+            <input type="text" id="tagToManage" placeholder="Enter tag to blacklist/whitelist" />
+        </div>
+    
+        <div class="admin-controls">
+            <h3>Manage Magnet URLs</h3>
+            <button onclick="addMagnetToBlacklist()">Blacklist Magnet URL</button>
+            <button onclick="addMagnetToWhitelist()">Whitelist Magnet URL</button>
+            <input type="text" id="magnetToManage" placeholder="Enter magnet URL to blacklist/whitelist" />
+        </div>
+    
+        <div class="admin-controls">
+            <h3>Manage User Addresses</h3>
+            <button onclick="addUserToBlacklist()">Blacklist User</button>
+            <button onclick="addUserToWhitelist()">Whitelist User</button>
+            <input type="text" id="userToManage" placeholder="Enter user address to blacklist/whitelist" />
+        </div>
+    
+        <!-- Display current blacklists and whitelists -->
+        <div class="admin-controls">
+            <h4>Current Blacklist</h4>
+            <ul id="blacklistDisplay"></ul>
+    
+            <h4>Current Whitelist</h4>
+            <ul id="whitelistDisplay"></ul>
+        </div>
     </div>
 
     <div id="overlay">
@@ -415,6 +447,116 @@
             // Collapse the overlay
             document.getElementById('overlay').style.height = "0%";
         }
+
+
+    // Function to add a tag to the blacklist
+    async function addTagToBlacklist() {
+        const tag = document.getElementById('tagToManage').value;
+        if (tag) {
+            await fetch('/admin/blacklist/tag', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'blacklist', tag })
+            });
+            alert(`Tag "${tag}" blacklisted`);
+        }
+    }
+
+    // Function to add a tag to the whitelist
+    async function addTagToWhitelist() {
+        const tag = document.getElementById('tagToManage').value;
+        if (tag) {
+            await fetch('/admin/whitelist/tag', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'whitelist', tag })
+            });
+            alert(`Tag "${tag}" whitelisted`);
+        }
+    }
+
+    // Function to add a magnet URL to the blacklist
+    async function addMagnetToBlacklist() {
+        const magnet = document.getElementById('magnetToManage').value;
+        if (magnet) {
+            await fetch('/admin/blacklist/magnet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'blacklist', magnet })
+            });
+            alert(`Magnet URL "${magnet}" blacklisted`);
+        }
+    }
+
+    // Function to add a magnet URL to the whitelist
+    async function addMagnetToWhitelist() {
+        const magnet = document.getElementById('magnetToManage').value;
+        if (magnet) {
+            await fetch('/admin/whitelist/magnet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'whitelist', magnet })
+            });
+            alert(`Magnet URL "${magnet}" whitelisted`);
+        }
+    }
+
+    // Function to add a user to the blacklist
+    async function addUserToBlacklist() {
+        const user = document.getElementById('userToManage').value;
+        if (user) {
+            await fetch('/admin/blacklist/user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'blacklist', user })
+            });
+            alert(`User "${user}" blacklisted`);
+        }
+    }
+
+    // Function to add a user to the whitelist
+    async function addUserToWhitelist() {
+        const user = document.getElementById('userToManage').value;
+        if (user) {
+            await fetch('/admin/whitelist/user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'whitelist', user })
+            });
+            alert(`User "${user}" whitelisted`);
+        }
+    }
+
+    // Fetch and display the current blacklist and whitelist (tags, magnet URLs, users)
+    async function fetchBlacklistWhitelist() {
+        const blacklistRes = await fetch('/admin/blacklist');
+        const whitelistRes = await fetch('/admin/whitelist');
+        const blacklist = await blacklistRes.json();
+        const whitelist = await whitelistRes.json();
+
+        const blacklistDisplay = document.getElementById('blacklistDisplay');
+        const whitelistDisplay = document.getElementById('whitelistDisplay');
+
+        blacklistDisplay.innerHTML = '';
+        whitelistDisplay.innerHTML = '';
+
+        blacklist.forEach(item => {
+            const li = document.createElement('li');
+            li.innerText = item;
+            blacklistDisplay.appendChild(li);
+        });
+
+        whitelist.forEach(item => {
+            const li = document.createElement('li');
+            li.innerText = item;
+            whitelistDisplay.appendChild(li);
+        });
+    }
+
+    // Load current blacklists and whitelists on page load
+    window.onload = async function() {
+        await fetchBlacklistWhitelist();
+    }
     </script>
 </body>
 </html>

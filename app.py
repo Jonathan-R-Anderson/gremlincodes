@@ -21,7 +21,8 @@ FILE_DIR = 'static'
 TORRENT_DIR = 'torrents'
 TRACKER_PORT = 5000
 SEED_FILE = 'seeded_files.json'
-
+BLACKLIST_FILE = 'blacklist.json'
+WHITELIST_FILE = 'whitelist.json'
 os.makedirs(FILE_DIR, exist_ok=True)
 os.makedirs(TORRENT_DIR, exist_ok=True)
 
@@ -39,6 +40,33 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 # Dictionary to store magnet URLs for seeding files
 seeded_files = {}
 
+# Initialize storage if not present
+def load_blacklist():
+    try:
+        with open(BLACKLIST_FILE, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"tags": [], "magnet_urls": [], "users": []}
+
+def load_whitelist():
+    try:
+        with open(WHITELIST_FILE, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"tags": [], "magnet_urls": [], "users": []}
+
+def save_blacklist(data):
+    with open(BLACKLIST_FILE, 'w') as f:
+        json.dump(data, f)
+
+def save_whitelist(data):
+    with open(WHITELIST_FILE, 'w') as f:
+        json.dump(data, f)
+
+
+# Initialize blacklist and whitelist
+blacklist = load_blacklist()
+whitelist = load_whitelist()
 
 def allowed_file(filename):
     """Check if the file has an allowed extension."""
@@ -158,6 +186,45 @@ def upload_file():
 def serve_static(filename):
     """Serve the uploaded image."""
     return send_from_directory(FILE_DIR, filename)
+
+
+# Route to add to blacklist
+@app.route('/admin/blacklist/<item_type>', methods=['POST'])
+def add_to_blacklist(item_type):
+    data = request.json
+    if item_type in ['tag', 'magnet', 'user']:
+        blacklist_key = f"{item_type}s"  # "tags", "magnet_urls", or "users"
+        item_value = data[item_type]
+        if item_value not in blacklist[blacklist_key]:
+            blacklist[blacklist_key].append(item_value)
+            save_blacklist(blacklist)
+            return jsonify({"message": f"{item_type.capitalize()} '{item_value}' added to blacklist"}), 200
+        return jsonify({"error": f"{item_type.capitalize()} already blacklisted"}), 400
+    return jsonify({"error": "Invalid blacklist type"}), 400
+
+# Route to add to whitelist
+@app.route('/admin/whitelist/<item_type>', methods=['POST'])
+def add_to_whitelist(item_type):
+    data = request.json
+    if item_type in ['tag', 'magnet', 'user']:
+        whitelist_key = f"{item_type}s"  # "tags", "magnet_urls", or "users"
+        item_value = data[item_type]
+        if item_value not in whitelist[whitelist_key]:
+            whitelist[whitelist_key].append(item_value)
+            save_whitelist(whitelist)
+            return jsonify({"message": f"{item_type.capitalize()} '{item_value}' added to whitelist"}), 200
+        return jsonify({"error": f"{item_type.capitalize()} already whitelisted"}), 400
+    return jsonify({"error": "Invalid whitelist type"}), 400
+
+# Route to get current blacklist
+@app.route('/admin/blacklist', methods=['GET'])
+def get_blacklist():
+    return jsonify(blacklist)
+
+# Route to get current whitelist
+@app.route('/admin/whitelist', methods=['GET'])
+def get_whitelist():
+    return jsonify(whitelist)
 
 
 if __name__ == "__main__":
