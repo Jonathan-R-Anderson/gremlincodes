@@ -87,11 +87,11 @@
         let gremlinThreadContract;
         let gremlinAdminContract;
         let currentAccount = null;
-        const gremlinThreadABI = {{ gremlinThreadABI | tojson }};  // Inject GremlinThread ABI
-        const gremlinThreadAddress = "{{ gremlinThreadAddress }}";  // Inject GremlinThread Address
+        const _gremlinThreadABI = {{ gremlinThreadABI | tojson }};  // Inject GremlinThread ABI
+        const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  // Inject GremlinThread Address
 
-        const gremlinAdminABI = {{ gremlinAdminABI | tojson }};  // Inject GremlinAdmin ABI
-        const gremlinAdminAddress = "{{ gremlinAdminAddress }}";  // Inject GremlinAdmin Address
+        const _gremlinAdminABI = {{ gremlinAdminABI | tojson }};  // Inject GremlinAdmin ABI
+        const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";  // Inject GremlinAdmin Address
 
         // Initialize WebTorrent client
         const client = new WebTorrent();
@@ -116,8 +116,8 @@
                     document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
 
                     // Initialize Gremlin contracts
-                    gremlinThreadContract = new web3.eth.Contract(gremlinThreadABI, gremlinThreadAddress);
-                    gremlinAdminContract = new web3.eth.Contract(gremlinAdminABI, gremlinAdminAddress);
+                    gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
+                    gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
 
                     // Initialize the DApp (load threads, check admin status, etc.)
                     initializeDApp();
