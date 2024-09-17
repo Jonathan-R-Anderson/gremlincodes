@@ -35,7 +35,7 @@ gremlinThreadAddress = '0x7aA9305b453Cd5Ad1C6dDcaEbb14Af9febB83199'
 gremlinAdminAddress = '0x69B0C4FDAC564C8DC5Eb64e9cAFe691f4af6BF94'
 
 # Contract ABIs
-gremlinThreadABI = [json.loads(
+gremlinThreadABI = [json.dumps(
     {
       "inputs": [],
       "stateMutability": "nonpayable",
@@ -284,7 +284,7 @@ gremlinThreadABI = [json.loads(
     })
 ]
 
-gremlinAdminABI = [json.loads(
+gremlinAdminABI = [json.dumps(
     {
       "inputs": [
         {
