@@ -82,21 +82,35 @@
         <input type="text" id="searchBar" placeholder="Enter tags..." oninput="filterPosts()" />
     </div>
 
-    <div id="infiniteScrollContent"></div>
-
     <button id="showOverlayBtn" onclick="showOverlay()">Create Post</button>
     <button id="closeOverlayBtn" onclick="closeOverlay()">Cancel</button>
 
     <div id="overlay">
         <div id="overlayContent">
             <h2 id="overlayTitle">Create a New Post</h2>
+    
+            <!-- Input for Post Title -->
             <input type="text" id="newPostTitle" placeholder="Title" style="width: 100%; padding: 10px;" />
+    
+            <!-- Input for Post Content -->
             <textarea id="newPostContent" placeholder="Content" style="width: 100%; padding: 10px; height: 100px;"></textarea>
+    
+            <!-- Input for Tags -->
             <input type="text" id="newPostTags" placeholder="Tags (comma-separated)" style="width: 100%; padding: 10px;" />
+    
+            <!-- Input for Email -->
+            <input type="email" id="newPostEmail" placeholder="Your Email (optional)" style="width: 100%; padding: 10px;" />
+    
+            <!-- Input for File Upload -->
             <input type="file" id="imageUpload" accept="image/*" style="width: 100%; padding: 10px;" />
+    
+            <!-- Submit Button -->
             <button id="submitPostBtn" onclick="submitPost()">Submit Post</button>
         </div>
     </div>
+    
+
+    <div id="infiniteScrollContent"></div>
 
     <script>
         let web3;
@@ -127,7 +141,6 @@
         document.getElementById("connectMetaMask").onclick = async function() {
             if (typeof window.ethereum !== 'undefined') {
                 try {
-                    // Request account access
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
                     const accounts = await web3.eth.getAccounts();
                     currentAccount = accounts[0];
@@ -150,10 +163,7 @@
 
         // Initialize DApp after connecting MetaMask
         async function initializeDApp() {
-            // Load initial batch of threads
             await loadMorePosts();
-            
-            // Set up infinite scrolling
             window.onscroll = async function() {
                 if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
                     await loadMorePosts();
@@ -164,8 +174,7 @@
         // Submit a new post
         async function submitPost() {
             const title = document.getElementById('newPostTitle').value;
-            const subject = "Test Subject";  // For now, use static values until you adjust the form
-            const email = "test@example.com";  // Also using a static value for email
+            const email = document.getElementById('newPostEmail').value || "test@example.com";
             const content = document.getElementById('newPostContent').value;
             const tags = document.getElementById('newPostTags').value.split(',').map(tag => tag.trim());
             const imageFile = document.getElementById('imageUpload').files[0];
@@ -174,19 +183,15 @@
                 const magnetUrl = await uploadToServer(imageFile);
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 const account = accounts[0];
+                const gasEstimate = await gremlinThreadContract.methods.createThread(
+                    title, "Test Subject", email, magnetUrl, tags, content, 0
+                ).estimateGas({ from: account });
 
-                // Submit the thread to the GremlinThread contract
                 await gremlinThreadContract.methods.createThread(
-                    title,        // Name
-                    subject,      // Subject
-                    email,        // Email
-                    magnetUrl,    // Magnet URL of the file
-                    tags,         // Tags as array of strings
-                    content,      // Content
-                    0             // Parent thread ID (use 0 for a new post)
-                ).send({ from: account, gas: 3000000 });
+                    title, "Test Subject", email, magnetUrl, tags, content, 0
+                ).send({ from: account, gas: gasEstimate });
 
-                closeOverlay();
+                closeOverlay(); // Collapse overlay after submission
                 await loadMorePosts();
             } catch (error) {
                 console.error('Error submitting post:', error);
@@ -260,7 +265,6 @@
             });
             threadContainer.appendChild(tagsContainer);
 
-            // If there's a magnet URL for the image, download and display it
             if (thread.magnetUrl) {
                 downloadImage(thread.magnetUrl, threadContainer);
             }
@@ -268,7 +272,6 @@
             document.getElementById('infiniteScrollContent').appendChild(threadContainer);
         }
 
-        // Download and display the image using WebTorrent
         function downloadImage(magnetURI, threadContainer) {
             const output = document.createElement('p');
             output.innerText = 'Downloading image...';
@@ -325,9 +328,16 @@
         }
 
         function closeOverlay() {
+            // Reset the form fields before closing the overlay
+            document.getElementById('newPostTitle').value = '';
+            document.getElementById('newPostContent').value = '';
+            document.getElementById('newPostTags').value = '';
+            document.getElementById('newPostEmail').value = '';
+            document.getElementById('imageUpload').value = '';
+
+            // Collapse the overlay
             document.getElementById('overlay').style.height = "0%";
         }
-
     </script>
 </body>
 </html>
