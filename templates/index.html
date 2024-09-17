@@ -286,6 +286,54 @@
             }
         }
 
+        // Submit a new post
+        async function submitPost() {
+            const title = document.getElementById('newPostTitle').value;
+            const email = document.getElementById('newPostEmail').value || "test@example.com";
+            const content = document.getElementById('newPostContent').value;
+            const tags = document.getElementById('newPostTags').value.split(',').map(tag => tag.trim());
+            const imageFile = document.getElementById('imageUpload').files[0];
+
+            try {
+                // Assuming the file is uploaded via WebTorrent
+                const magnetUrl = await uploadToServer(imageFile);
+
+                // Request Ethereum accounts to submit the transaction
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const account = accounts[0];
+
+                // Estimate the gas required for the transaction
+                const gasEstimate = await gremlinThreadContract.methods.createThread(
+                    title, "Test Subject", email, magnetUrl, tags, content, 0
+                ).estimateGas({ from: account });
+
+                // Send the transaction to create the new thread
+                await gremlinThreadContract.methods.createThread(
+                    title, "Test Subject", email, magnetUrl, tags, content, 0
+                ).send({ from: account, gas: gasEstimate });
+
+                // Collapse the overlay after successful submission
+                closeOverlay();
+
+                // Reload posts after submitting the new post
+                await loadMorePosts();
+            } catch (error) {
+                console.error('Error submitting post:', error);
+            }
+        }
+
+        // Upload file to WebTorrent and return magnet URL
+        async function uploadToServer(file) {
+            return new Promise((resolve, reject) => {
+                client.seed(file, (torrent) => {
+                    console.log('File seeded, magnet URI:', torrent.magnetURI);
+                    resolve(torrent.magnetURI);
+                });
+            });
+        }
+
+
+
         // Load More Posts
         async function loadMorePosts() {
             console.log("Loading more posts...");
