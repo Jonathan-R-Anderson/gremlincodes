@@ -87,6 +87,9 @@
         let gremlinThreadContract;
         let gremlinAdminContract;
         let currentAccount = null;
+        let loadedThreads = 0;  // Track the number of loaded threads
+        const batchSize = 5;    // Number of posts to load per batch
+
         const _gremlinThreadABI = {{ gremlinThreadABI | safe }};  // Inject GremlinThread ABI
         const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  // Inject GremlinThread Address
 
@@ -132,8 +135,15 @@
 
         // Initialize DApp after connecting MetaMask
         async function initializeDApp() {
-            // Load existing threads, check if the connected account is admin, etc.
-            console.log('DApp initialized with account:', currentAccount);
+            // Load initial batch of threads
+            await loadMorePosts();
+            
+            // Set up infinite scrolling
+            window.onscroll = async function() {
+                if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
+                    await loadMorePosts();
+                }
+            };
         }
 
         // Submit a new post
@@ -178,10 +188,51 @@
             });
         }
 
-        // Load more posts
+        // Load more posts from the contract
         async function loadMorePosts() {
-            // Load posts from the smart contract and display them
-            console.log('Loading more posts...');
+            try {
+                const threadCount = await gremlinThreadContract.methods.threadCount().call();
+                const totalThreads = Number(threadCount);
+
+                const threadsToLoad = Math.min(batchSize, totalThreads - loadedThreads);
+
+                for (let i = loadedThreads; i < loadedThreads + threadsToLoad; i++) {
+                    const thread = await gremlinThreadContract.methods.getThread(i + 1).call();
+                    displayThread(thread);
+                }
+
+                loadedThreads += threadsToLoad;
+
+                if (loadedThreads >= totalThreads) {
+                    console.log('All threads loaded.');
+                }
+            } catch (error) {
+                console.error('Error loading posts:', error);
+            }
+        }
+
+        // Display a thread in the DOM
+        function displayThread(thread) {
+            const threadContainer = document.createElement('div');
+            threadContainer.className = 'thread-container';
+
+            const title = document.createElement('h3');
+            title.innerText = `Title: ${thread.name}`;
+            threadContainer.appendChild(title);
+
+            const subject = document.createElement('p');
+            subject.innerText = `Subject: ${thread.subject}`;
+            threadContainer.appendChild(subject);
+
+            const email = document.createElement('p');
+            email.innerText = `Email: ${thread.email}`;
+            threadContainer.appendChild(email);
+
+            const content = document.createElement('p');
+            content.innerText = `Content: ${thread.content}`;
+            threadContainer.appendChild(content);
+
+            document.getElementById('infiniteScrollContent').appendChild(threadContainer);
         }
 
         function showOverlay() {
