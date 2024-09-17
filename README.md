@@ -11,83 +11,20 @@
 
 <p align="center">
   <a href="https://discord.gg/cnXkm4Z"><img src="https://img.shields.io/discord/612575111718895616" alt="discord"></a>
-  <a href="https://github.com/webtorrent/webtorrent/actions"><img src="https://img.shields.io/github/actions/workflow/status/webtorrent/webtorrent/ci.yml?branch=master" alt="ci"></a>
-  <a href="https://www.npmjs.com/package/webtorrent"><img src="https://img.shields.io/npm/v/webtorrent.svg" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/webtorrent"><img src="https://img.shields.io/npm/dm/webtorrent.svg" alt="npm downloads"></a>
-  <a href="https://standardjs.com"><img src="https://img.shields.io/badge/code_style-standard-brightgreen.svg" alt="Standard - JavaScript Style Guide"></a>
 </p>
 
-<h5 align="center">
-  Sponsored by&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://socket.dev"><img src="https://webtorrent.io/img/supporters/socket.png" alt="Socket - JavaScript open source supply chain security" height=35 valign="middle"></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.wormhole.app/?utm_medium=sponsorship&utm_source=webtorrent&utm_campaign=feross"><img src="https://webtorrent.io/img/supporters/wormhole.png" alt="Wormhole" height=30 valign="middle"></a>
-</h5>
+
 <br>
 
-**WebTorrent** is a streaming torrent client for **node.js** and the **browser**. YEP,
-THAT'S RIGHT. THE BROWSER. It's written completely in JavaScript – the language of the web
-– so the same code works in both runtimes.
+**Gremlin.Codes** is a **forum** and **streaming service** for the **browser**. 
 
-In node.js, this module is a simple torrent client, using TCP and UDP to talk to
-other torrent clients.
-
-In the browser, WebTorrent uses **WebRTC** (data channels) for peer-to-peer transport.
-It can be used **without** browser plugins, extensions, or installations. It's Just
-JavaScript&trade;. Note: WebTorrent does **not** support UDP/TCP peers in browser.
-
-Simply include the
-[`webtorrent.min.js`](https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js) script
-on your page to start fetching files over WebRTC using the BitTorrent protocol, or
-`import WebTorrent from 'webtorrent'` with [browserify](http://browserify.org/) or [webpack](https://webpack.js.org/). See [demo apps
-](#who-is-using-webtorrent-today) and [code examples](#usage) below.
-
-[![jsdelivr download count](https://data.jsdelivr.com/v1/package/npm/webtorrent/badge)](https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js)
-
-To make BitTorrent work over WebRTC (which is the only P2P transport that works on the
-web) we made some protocol changes. Therefore, a browser-based WebTorrent client or **"web
-peer"** can only connect to other clients that support WebTorrent/WebRTC.
-
-To seed files to web peers, use a client that supports WebTorrent, e.g.
-[WebTorrent Desktop][webtorrent-desktop], a desktop client with a
-familiar UI that can connect to web peers,
-[webtorrent-hybrid](https://github.com/webtorrent/webtorrent-hybrid), a command line program,
-or [Instant.io](https://instant.io/), a website. Established torrent clients like
-**Vuze** have [already added WebTorrent support](https://wiki.vuze.com/w/WebTorrent) so
-they can connect to both normal *and* web peers. We hope other clients will follow.
-
-![Network](https://webtorrent.io/img/network.png)
 
 ### Features
-
-- **Torrent client for node.js & the browser** (same npm package!)
+- **Decentralized**
+- Uses **Web3** technology!
 - **Insanely fast**
+- Uses **bittorrent** tracker servers for static file distribution
 - Download **multiple torrents** simultaneously, efficiently
-- **Pure Javascript** (no native dependencies)
-- Exposes files as **streams**
-  - Fetches pieces from the network on-demand so seeking is supported (even before torrent is finished)
-  - Seamlessly switches between sequential and rarest-first piece selection strategy
-- Supports advanced torrent client features
-  - **magnet uri** support via **[ut_metadata](https://github.com/webtorrent/ut_metadata)**
-  - **peer discovery** via **[dht](https://github.com/webtorrent/bittorrent-dht)**,
-    **[tracker](https://github.com/webtorrent/bittorrent-tracker)**,
-    **[lsd](https://github.com/webtorrent/bittorrent-lsd)**, and
-    **[ut_pex](https://github.com/webtorrent/ut_pex)**
-  - **[protocol extension api](https://github.com/webtorrent/bittorrent-protocol#extension-api)**
-    for adding new extensions
-- **Comprehensive test suite** (runs completely offline, so it's reliable and fast)
-- Check all the **[supported BEPs here](docs/bep_support.md)**
-
-#### Browser/WebRTC environment features
-
-- **WebRTC data channels** for lightweight peer-to-peer communication with **no plugins**
-- **No silos.** WebTorrent is a P2P network for the **entire web.** WebTorrent clients
-  running on one domain can connect to clients on any other domain.
-- Stream video torrents into a `<video>` tag (`webm, mkv, mp4, ogv, mov, etc (AV1, H264, HEVC*, VP8, VP9, AAC, FLAC, MP3, OPUS, Vorbis, etc)`)
-- Supports Chrome, Firefox, Opera and Safari.
-
-<!-- <p align="center">
-  <a href="https://saucelabs.com/u/webtorrent">
-    <img src="https://saucelabs.com/browser-matrix/webtorrent.svg" alt="Sauce Labs">
-  </a>
-</p> -->
 
 ### Install
 
