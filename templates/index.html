@@ -195,10 +195,22 @@
 
         window.onload = async function () {
             if (typeof window.ethereum !== 'undefined') {
-                web3 = new Web3(window.ethereum);
-                document.getElementById("status").innerText = 'MetaMask detected, connect to continue.';
+                const web3 = new Web3(window.ethereum);
+
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+                    gremlinThreadContract = new web3.eth.Contract(
+                        {{ gremlinThreadABI | safe }},
+                        '{{ gremlinThreadAddress }}'
+                    );
+                    await loadMorePosts();
+                } catch (error) {
+                    alert('Could not access MetaMask. Please ensure MetaMask is installed and you have authorized access.');
+                    console.log(error);
+                }
             } else {
-                document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
+                alert('MetaMask is not installed. Please install MetaMask to use this application.');
             }
         };
 
