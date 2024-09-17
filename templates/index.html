@@ -91,7 +91,9 @@
             padding: 10px;
             border: 1px solid #ccc;
             background-color: #f1f1f1;
-            margin-left: 20px; /* Add indentation to replies */
+            margin-left: 20px; /* Indentation for replies */
+            border-left: 2px solid #ccc;
+            padding-left: 10px;
         }
 
 
@@ -278,6 +280,26 @@
                 document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
             }
         };
+
+        // Listen for new thread events to dynamically update the display
+        gremlinThreadContract.events.ThreadCreated({}, (error, event) => {
+            if (!error) {
+                const newThread = event.returnValues;
+                if (newThread.parentThreadId === "0") {
+                    // New root thread
+                    displayThreadWithReplies(newThread, threadMap);
+                } else {
+                    // New reply, add to the map and display
+                    if (!threadMap[newThread.parentThreadId]) {
+                        threadMap[newThread.parentThreadId] = [];
+                    }
+                    threadMap[newThread.parentThreadId].push(newThread);
+                    displayThreadWithReplies(newThread, threadMap, 1);
+                }
+            } else {
+                console.error("Error listening to ThreadCreated event:", error);
+            }
+        });
 
         function displayUserLists() {
             const userWhitelistDisplay = document.getElementById('userWhitelistDisplay');
