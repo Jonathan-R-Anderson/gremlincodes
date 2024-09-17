@@ -530,30 +530,54 @@
     }
 
     // Fetch and display the current blacklist and whitelist (tags, magnet URLs, users)
+// Fetch and display the current blacklist and whitelist (tags, magnet URLs, users)
     async function fetchBlacklistWhitelist() {
-        const blacklistRes = await fetch('/admin/blacklist');
-        const whitelistRes = await fetch('/admin/whitelist');
-        const blacklist = await blacklistRes.json();
-        const whitelist = await whitelistRes.json();
+        try {
+            // Fetch the blacklist and whitelist data from the server
+            const blacklistRes = await fetch('/admin/blacklist');
+            const whitelistRes = await fetch('/admin/whitelist');
 
-        const blacklistDisplay = document.getElementById('blacklistDisplay');
-        const whitelistDisplay = document.getElementById('whitelistDisplay');
+            // Ensure the response is in JSON format
+            const blacklistData = await blacklistRes.json();
+            const whitelistData = await whitelistRes.json();
 
-        blacklistDisplay.innerHTML = '';
-        whitelistDisplay.innerHTML = '';
+            const blacklist = Array.isArray(blacklistData) ? blacklistData : blacklistData.blacklist;
+            const whitelist = Array.isArray(whitelistData) ? whitelistData : whitelistData.whitelist;
 
-        blacklist.forEach(item => {
-            const li = document.createElement('li');
-            li.innerText = item;
-            blacklistDisplay.appendChild(li);
-        });
+            const blacklistDisplay = document.getElementById('blacklistDisplay');
+            const whitelistDisplay = document.getElementById('whitelistDisplay');
 
-        whitelist.forEach(item => {
-            const li = document.createElement('li');
-            li.innerText = item;
-            whitelistDisplay.appendChild(li);
-        });
+            // Clear the current lists
+            blacklistDisplay.innerHTML = '';
+            whitelistDisplay.innerHTML = '';
+
+            // Display blacklist items
+            if (Array.isArray(blacklist)) {
+                blacklist.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerText = item;
+                    blacklistDisplay.appendChild(li);
+                });
+            } else {
+                console.error('Blacklist is not an array:', blacklist);
+            }
+
+            // Display whitelist items
+            if (Array.isArray(whitelist)) {
+                whitelist.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerText = item;
+                    whitelistDisplay.appendChild(li);
+                });
+            } else {
+                console.error('Whitelist is not an array:', whitelist);
+            }
+        } catch (error) {
+            console.error('Error fetching blacklist or whitelist:', error);
+            document.getElementById('status').innerText = 'Error loading blacklist/whitelist. Check console for details.';
+        }
     }
+
 
     // Load current blacklists and whitelists on page load
     window.onload = async function() {
