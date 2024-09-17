@@ -89,9 +89,23 @@
 
     <div class="navbar">ManiwaniBoard</div>
 
+    <!-- Add the radio buttons for filtering in the search-box section -->
     <div class="search-box">
-        <input type="text" id="searchBar" placeholder="Enter tags..." oninput="filterPosts()" />
+        <input type="text" id="searchBar" placeholder="Enter tags..." onkeypress="addTagToSearchOnEnter(event)" />
+        
+        <!-- Whitelist and Blacklist Radio Buttons -->
+        <div>
+            <input type="radio" id="whitelist" name="filterMode" value="whitelist" checked>
+            <label for="whitelist">Whitelist</label>
+            
+            <input type="radio" id="blacklist" name="filterMode" value="blacklist">
+            <label for="blacklist">Blacklist</label>
+        </div>
+        
+        <!-- Display selected search tags -->
+        <div id="searchTagsDisplay" style="margin-top: 10px;"></div>
     </div>
+
 
     <button id="showOverlayBtn" onclick="showOverlay()">Create Post</button>
 
@@ -383,15 +397,37 @@
             }
         }
 
-        // Filter posts based on tags
+        // Filter posts based on the selected radio button (Whitelist or Blacklist) and tags
         function filterPosts() {
-            const searchTags = document.getElementById('searchBar').value.split(',').map(tag => tag.trim().toLowerCase()).filter(tag => tag);
+            const searchTagsDisplay = document.getElementById('searchTagsDisplay');
+            const tags = searchTagsDisplay.getElementsByTagName('span');
+            const searchTags = [];
+
+            // Collect all tags from the displayed search tags
+            for (let i = 0; i < tags.length; i++) {
+                searchTags.push(tags[i].textContent.replace(' X', '').toLowerCase());
+            }
+
             const contentDiv = document.getElementById('infiniteScrollContent');
             contentDiv.innerHTML = ''; // Clear the current posts
 
+            // Get the selected filter mode (Whitelist or Blacklist)
+            const filterMode = document.querySelector('input[name="filterMode"]:checked').value;
+
+            // Filter the threads based on the selected filter mode
             allThreads.forEach(thread => {
                 const threadTags = thread.tags.map(tag => tag.toLowerCase());
-                if (searchTags.every(tag => threadTags.includes(tag))) {
+                let showThread = false;
+
+                if (filterMode === 'whitelist') {
+                    // Whitelist: Only show if all search tags are in the thread's tags
+                    showThread = searchTags.every(tag => threadTags.includes(tag));
+                } else if (filterMode === 'blacklist') {
+                    // Blacklist: Hide if any search tag is in the thread's tags
+                    showThread = !searchTags.some(tag => threadTags.includes(tag));
+                }
+
+                if (showThread) {
                     displayThread(thread);
                 }
             });
@@ -411,6 +447,50 @@
             document.getElementById('imageUpload').value = '';
             document.getElementById('overlay').style.height = "0%";
         }
+
+
+        // Add tag to the search field and filter posts
+        function addTagToSearchOnEnter(event) {
+            if (event.key === 'Enter') {
+                const tagInput = document.getElementById('searchBar');
+                const tag = tagInput.value.trim().toLowerCase();
+                if (tag) {
+                    const searchTags = document.getElementById('searchTagsDisplay');
+                    const tagElement = document.createElement('span');
+                    tagElement.className = 'tag';
+                    tagElement.style.display = 'inline-block';
+                    tagElement.style.marginRight = '5px';
+                    tagElement.style.padding = '5px 10px';
+                    tagElement.style.backgroundColor = '#007bff';
+                    tagElement.style.color = '#fff';
+                    tagElement.style.borderRadius = '5px';
+                    tagElement.style.cursor = 'pointer';
+
+                    // Set the tag name and an 'X' to remove it
+                    tagElement.innerHTML = `${tag} <span style="margin-left: 5px; color: #fff; cursor: pointer;" onclick="removeTagFromSearch('${tag}')">X</span>`;
+                    searchTags.appendChild(tagElement);
+                    
+                    tagInput.value = ''; // Clear the input field
+                    filterPosts(); // Re-filter the posts
+                }
+            }
+        }
+
+        // Remove tag from the search
+        function removeTagFromSearch(tag) {
+            const searchTagsDisplay = document.getElementById('searchTagsDisplay');
+            const tags = searchTagsDisplay.getElementsByTagName('span');
+            
+            for (let i = 0; i < tags.length; i++) {
+                if (tags[i].textContent.includes(tag)) {
+                    searchTagsDisplay.removeChild(tags[i]);
+                    break;
+                }
+            }
+
+            filterPosts(); // Re-filter posts after removing a tag
+        }
+
     </script>
 </body>
 </html>
