@@ -109,7 +109,7 @@
     <button id="connectMetaMask">Connect MetaMask</button>
 
     <div class="navbar">Gremlin.Codes DApp</div>
-    
+
     <div>
         <h3>User Tag Management</h3>
         <div>
@@ -321,16 +321,11 @@
         async function checkIfAdmin(account) {
             try {
                 const admin = await gremlinAdminContract.methods.owner().call();
-                console.log(`Admin Address: ${admin}, Current Account: ${account}`);
-
                 if (admin.toLowerCase() === account.toLowerCase()) {
                     document.getElementById('adminPanel').style.display = 'block';
-                    console.log("Admin account detected.");
-                } else {
-                    console.log("Non-admin account.");
                 }
             } catch (error) {
-                console.error("Error checking admin status:", error);
+                console.error("Non-admin account:", error);
             }
         }
 
