@@ -227,13 +227,9 @@
         document.getElementById("connectMetaMask").onclick = async function() {
             if (typeof window.ethereum !== 'undefined') {
                 try {
-                    // MetaMask or another provider is available
-                    const web3 = new Web3(window.ethereum);
-
-                    // Request account access if needed
+                    // Reuse the already initialized web3 instance
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
 
-                    // Access accounts or other web3 features
                     const accounts = await web3.eth.getAccounts();
                     console.log('Connected account:', accounts[0]);
                     document.getElementById("status").innerText = `Connected account: ${accounts[0]}`;
@@ -241,11 +237,11 @@
                     console.error('MetaMask access error:', error);
                 }
             } else {
-                // MetaMask is not installed or not available
                 alert('MetaMask is not installed. Please install MetaMask to use this DApp.');
                 document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask.';
             }
         };
+
 
 
         // Check if the connected account is the admin
