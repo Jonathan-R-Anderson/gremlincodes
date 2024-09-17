@@ -40,24 +40,29 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 # Dictionary to store magnet URLs for seeding files
 seeded_files = {}
 
-# Initialize storage if not present
 def load_blacklist():
-    try:
-        with open(BLACKLIST_FILE, 'r') as f:
+    if not os.path.exists(BLACKLIST_FILE):
+        return []  # Return empty list if file does not exist
+    with open(BLACKLIST_FILE, 'r') as f:
+        try:
             return json.load(f)
-    except FileNotFoundError:
-        return {"tags": [], "magnet_urls": [], "users": []}
+        except json.JSONDecodeError:
+            return []  # Return empty list if file is corrupt or empty
 
+# Load whitelist from file, if it exists, otherwise return an empty list
 def load_whitelist():
-    try:
-        with open(WHITELIST_FILE, 'r') as f:
+    if not os.path.exists(WHITELIST_FILE):
+        return []  # Return empty list if file does not exist
+    with open(WHITELIST_FILE, 'r') as f:
+        try:
             return json.load(f)
-    except FileNotFoundError:
-        return {"tags": [], "magnet_urls": [], "users": []}
+        except json.JSONDecodeError:
+            return []  # Retur
 
 def save_blacklist(data):
     with open(BLACKLIST_FILE, 'w') as f:
         json.dump(data, f)
+
 
 def save_whitelist(data):
     with open(WHITELIST_FILE, 'w') as f:
