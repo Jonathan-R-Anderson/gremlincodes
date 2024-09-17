@@ -35,7 +35,7 @@ gremlinThreadAddress = '0x7aA9305b453Cd5Ad1C6dDcaEbb14Af9febB83199'
 gremlinAdminAddress = '0x69B0C4FDAC564C8DC5Eb64e9cAFe691f4af6BF94'
 
 # Contract ABIs
-gremlinThreadABI = json.loads([
+gremlinThreadABI = [json.loads(
     {
       "inputs": [],
       "stateMutability": "nonpayable",
@@ -281,10 +281,10 @@ gremlinThreadABI = json.loads([
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
-    }
-])
+    })
+]
 
-gremlinAdminABI = json.loads([
+gremlinAdminABI = [json.loads(
     {
       "inputs": [
         {
@@ -349,8 +349,8 @@ gremlinAdminABI = json.loads([
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
-    }
-])
+    })
+]
 
 # Contract objects
 #gremlinThreadContract = web3.eth.contract(address=gremlinThreadAddress, abi=gremlinThreadABI)
