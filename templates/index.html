@@ -91,7 +91,9 @@
             padding: 10px;
             border: 1px solid #ccc;
             background-color: #f1f1f1;
+            margin-left: 20px; /* Add indentation to replies */
         }
+
 
     </style>
 </head>
@@ -584,11 +586,11 @@
             });
             threadContainer.appendChild(tagsContainer);
 
-            // Fetch and display the latest 3 replies
             const repliesContainer = document.createElement('div');
             repliesContainer.className = 'replies-container';
             threadContainer.appendChild(repliesContainer);
 
+            // Fetch and display replies under the thread
             fetchAndDisplayLatestReplies(thread, repliesContainer);
 
             const replyButton = document.createElement('button');
@@ -603,7 +605,43 @@
             document.getElementById('infiniteScrollContent').appendChild(threadContainer);
         }
 
+        // Function to display a single reply
+        function displayReply(reply, repliesContainer) {
+            const replyContainer = document.createElement('div');
+            replyContainer.className = 'reply-container'; // Styled for indentation
 
+            const replyContent = document.createElement('p');
+            replyContent.innerText = `Reply: ${reply.content}`;
+            replyContainer.appendChild(replyContent);
+
+            const replyAuthor = document.createElement('p');
+            replyAuthor.innerText = `Author: ${reply.ethAddress}`;
+            replyContainer.appendChild(replyAuthor);
+
+            repliesContainer.appendChild(replyContainer); // Append the reply directly to the replies container
+        }
+
+        // Function to fetch and display the latest replies for a thread
+        async function fetchAndDisplayLatestReplies(thread, repliesContainer) {
+            try {
+                const repliesCount = await gremlinThreadContract.methods.getRepliesCount(thread.id).call();
+                const totalReplies = Number(repliesCount);
+
+                if (totalReplies === 0) {
+                    const noRepliesMessage = document.createElement('p');
+                    noRepliesMessage.innerText = "No replies yet.";
+                    repliesContainer.appendChild(noRepliesMessage);
+                    return;
+                }
+
+                for (let i = 0; i < totalReplies; i++) {
+                    const reply = await gremlinThreadContract.methods.getReply(thread.id, i).call();
+                    displayReply(reply, repliesContainer); // Display replies under the thread
+                }
+            } catch (error) {
+                console.error('Error fetching replies:', error);
+            }
+        }
 
         // Function to render Markdown using Showdown
         function renderMarkdown(text) {
