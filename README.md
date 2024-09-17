@@ -10,7 +10,7 @@
 <h4 align="center">Decentralized forum and video streaming platform for the web.</h4>
 
 <p align="center">
-  <a href="https://discord.gg/cnXkm4Z"><img src="https://img.shields.io/discord/612575111718895616" alt="discord"></a>
+  <a href="https://discord.gg/dWuhZtqm9z"><img src="https://img.shields.io/discord/612575111718895616" alt="discord"></a>
 </p>
 
 
@@ -30,4 +30,3 @@
 ### Requirements
  - Metamask
  - ZKsync Era Mainnet
- 
