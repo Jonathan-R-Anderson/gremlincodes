@@ -221,7 +221,6 @@
     let gremlinThreadContract;
     let gremlinAdminContract;
     let currentAccount = null;
-    let loadedThreads = 0;
     const batchSize = 5;
     const client = new WebTorrent();
     let allThreads = []; // Store all loaded threads for filtering
@@ -247,14 +246,15 @@
 
                 const accounts = await web3.eth.getAccounts();
                 
-                if (accounts.length == 0) {
+                if (accounts.length === 0) {
                     document.getElementById('connectWalletIcon').style.display = 'block';
                 } else {
                     currentAccount = accounts[0];
                     document.getElementById('connectWalletIcon').style.display = 'none';
                     document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
-                    gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
-                    gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
+
+                    // Initialize contract instances
+                    initializeContracts();
 
                     console.log("Gremlin contracts initialized successfully.");
 
@@ -277,9 +277,19 @@
         }
     };
 
+    // Function to initialize the contract instances
+    function initializeContracts() {
+        gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
+        gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
+    }
+
     // Function to fetch and organize threads
     async function loadAndDisplayThreads() {
         try {
+            if (!gremlinThreadContract || !gremlinThreadContract.methods) {
+                throw new Error('gremlinThreadContract is not initialized');
+            }
+
             const allFetchedThreads = await gremlinThreadContract.methods.getAllThreads().call();
             allThreads = allFetchedThreads;
 
@@ -409,28 +419,6 @@
         replyContainer.appendChild(replyContent);
 
         repliesContainer.appendChild(replyContainer);
-    }
-
-    // Fetch the threads initially when the page loads
-    window.onload = function() {
-        loadAndDisplayThreads();
-    };
-
-    // Function to connect to MetaMask when the icon is clicked
-    async function connectMetaMask() {
-        try {
-            await window.ethereum.request({ method: 'eth_requestAccounts' });
-            const accounts = await web3.eth.getAccounts();
-            if (accounts.length > 0) {
-                currentAccount = accounts[0];
-                document.getElementById('connectWalletIcon').style.display = 'none';
-                document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
-                
-                loadAndDisplayThreads();
-            }
-        } catch (error) {
-            console.error('Error connecting to MetaMask:', error);
-        }
     }
 
     // Render Markdown using Showdown
