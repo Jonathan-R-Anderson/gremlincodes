@@ -216,12 +216,12 @@
         import WebTorrent from 'https://esm.sh/webtorrent';
     </script>
 
+
 <script>
     let web3;
     let gremlinThreadContract;
     let gremlinAdminContract;
     let currentAccount = null;
-    const batchSize = 5;
     const client = new WebTorrent();
     let allThreads = []; // Store all loaded threads for filtering
     let threadMap = {};  // Map for root threads and replies
@@ -281,6 +281,7 @@
     function initializeContracts() {
         gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
         gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
+        console.log("Contract instances created.");
     }
 
     // Function to fetch and organize threads
@@ -290,7 +291,19 @@
                 throw new Error('gremlinThreadContract is not initialized');
             }
 
+            console.log("Fetching all threads from the contract...");
+
+            // Fetch all threads from the contract
             const allFetchedThreads = await gremlinThreadContract.methods.getAllThreads().call();
+            console.log("Threads fetched from contract:", allFetchedThreads);
+
+            // If no threads are returned, log an error
+            if (!allFetchedThreads || allFetchedThreads.length === 0) {
+                console.log("No threads found.");
+                document.getElementById("status").innerText = "No threads found.";
+                return;
+            }
+
             allThreads = allFetchedThreads;
 
             // Organize threads into root threads and replies
@@ -300,12 +313,14 @@
             displaySortedThreads();
         } catch (error) {
             console.error("Error loading threads:", error);
+            document.getElementById("status").innerText = `Error loading threads: ${error.message}`;
         }
     }
 
     // Organize threads: root threads and replies under parent
     function organizeThreads(threads) {
         threadMap = {}; // Clear existing threadMap
+        console.log("Organizing threads...");
 
         threads.forEach(thread => {
             if (thread && thread.parentThreadId === "0") {
@@ -325,6 +340,8 @@
                 threadMap[thread.parentThreadId].replies.push(thread);
             }
         });
+
+        console.log("Threads organized into threadMap:", threadMap);
     }
 
     // Sort and display threads by their latest activity (either thread or reply)
@@ -338,6 +355,8 @@
             const latestB = getLastActivityTimestamp(b);
             return latestB - latestA; // Sort in descending order
         });
+
+        console.log("Displaying sorted threads...");
 
         // Display each root thread with its replies
         sortedThreads.forEach(({ thread, replies }) => {
@@ -444,6 +463,8 @@
         }
     }
 </script>
+
+
 
 </body>
 </html>
