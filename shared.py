@@ -7,6 +7,7 @@ from flask_restful import Api
 from werkzeug.datastructures import ImmutableDict
 from web3 import Web3
 from web3.exceptions import ContractLogicError
+import json
 
 class ManiwaniApp(Flask):
     jinja_options = ImmutableDict()
@@ -34,7 +35,7 @@ gremlinThreadAddress = '0x7aA9305b453Cd5Ad1C6dDcaEbb14Af9febB83199'
 gremlinAdminAddress = '0x69B0C4FDAC564C8DC5Eb64e9cAFe691f4af6BF94'
 
 # Contract ABIs
-gremlinThreadABI = [
+gremlinThreadABI = json.loads([
     {
       "inputs": [],
       "stateMutability": "nonpayable",
@@ -281,9 +282,9 @@ gremlinThreadABI = [
       "stateMutability": "nonpayable",
       "type": "function"
     }
-]
+])
 
-gremlinAdminABI = [
+gremlinAdminABI = json.loads([
     {
       "inputs": [
         {
@@ -349,7 +350,7 @@ gremlinAdminABI = [
       "stateMutability": "nonpayable",
       "type": "function"
     }
-]
+])
 
 # Contract objects
 #gremlinThreadContract = web3.eth.contract(address=gremlinThreadAddress, abi=gremlinThreadABI)
