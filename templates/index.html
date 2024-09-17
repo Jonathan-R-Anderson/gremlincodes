@@ -153,43 +153,35 @@
         </div>
     </div>
 
+    <!-- Overlay for Thread Creation/Reply -->
     <div id="overlay">
         <div id="overlayContent">
             <h2 id="overlayTitle">Create a New Post</h2>
-    
+            <p id="replyContext" style="display: none;">Replying to: <span id="replyThreadTitle"></span></p> <!-- Added reply context -->
+
             <!-- Input for Post Title -->
             <input type="text" id="newPostTitle" placeholder="Title" style="width: 100%; padding: 10px;" />
-    
+        
             <!-- Input for Post Content -->
             <textarea id="newPostContent" placeholder="Content" style="width: 100%; padding: 10px; height: 100px;"></textarea>
-    
-            <!-- Instructions for Formatting -->
-            <div id="instructions">
-                You can format your post like this:
-                <ul>
-                    <li><code>*italic*</code> for <em>italic</em></li>
-                    <li><code>**bold**</code> for <strong>bold</strong></li>
-                    <li><code>***bold italic***</code> for <strong><em>bold italic</em></strong></li>
-                    <li><code>```code block```</code> for <code>code block</code></li>
-                </ul>
-            </div>
-    
+
             <!-- Input for Tags -->
             <input type="text" id="newPostTags" placeholder="Tags (comma-separated)" style="width: 100%; padding: 10px;" />
-    
+
             <!-- Input for Email -->
             <input type="email" id="newPostEmail" placeholder="Your Email (optional)" style="width: 100%; padding: 10px;" />
-    
+
             <!-- Input for File Upload -->
             <input type="file" id="imageUpload" accept="image/*" style="width: 100%; padding: 10px;" />
-    
+        
             <!-- Submit Button -->
             <button id="submitPostBtn" onclick="submitPost()">Submit Post</button>
-    
+
             <!-- Cancel Button -->
             <button id="closeOverlayBtn" onclick="closeOverlay()">Cancel</button>
         </div>
     </div>
+
     
     <div id="infiniteScrollContent"></div>
 
@@ -378,10 +370,17 @@
             const content = document.getElementById('newPostContent').value;
             const tags = document.getElementById('newPostTags').value.split(',').map(tag => tag.trim());
             const imageFile = document.getElementById('imageUpload').files[0];
+            const ethAddress = currentAccount; // Use connected Ethereum address
 
             try {
                 // Assuming the file is uploaded via WebTorrent
                 const magnetUrl = await uploadToServer(imageFile);
+
+                const isReply = document.getElementById('replyContext').style.display !== 'none';
+                let subject = "New Thread";
+                if (isReply) {
+                    subject = `Reply to: ${document.getElementById('replyThreadTitle').innerText}`;
+                }
 
                 // Request Ethereum accounts to submit the transaction
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -389,18 +388,18 @@
 
                 // Estimate the gas required for the transaction
                 const gasEstimate = await gremlinThreadContract.methods.createThread(
-                    title, "Test Subject", email, magnetUrl, tags, content, 0
+                    title, subject, email, magnetUrl, tags, content, ethAddress
                 ).estimateGas({ from: account });
 
-                // Send the transaction to create the new thread
+                // Send the transaction to create the new thread or reply
                 await gremlinThreadContract.methods.createThread(
-                    title, "Test Subject", email, magnetUrl, tags, content, 0
+                    title, subject, email, magnetUrl, tags, content, ethAddress
                 ).send({ from: account, gas: gasEstimate });
 
                 // Collapse the overlay after successful submission
                 closeOverlay();
 
-                // Reload posts after submitting the new post
+                // Reload posts after submitting the new post/reply
                 await loadMorePosts();
             } catch (error) {
                 console.error('Error submitting post:', error);
@@ -469,7 +468,7 @@
         }
 
         // Display a Thread
-        function displayThread(thread) {
+        function displayThread(thread, index) {
             const threadContainer = document.createElement('div');
             threadContainer.className = 'thread-container';
 
@@ -484,6 +483,10 @@
             const email = document.createElement('p');
             email.innerText = `Email: ${thread.email}`;
             threadContainer.appendChild(email);
+
+            const ethAddress = document.createElement('p');
+            ethAddress.innerText = `Ethereum Address: ${thread.ethAddress}`;
+            threadContainer.appendChild(ethAddress);
 
             const content = document.createElement('div');
             content.innerHTML = renderMarkdown(thread.content);
@@ -500,12 +503,18 @@
             });
             threadContainer.appendChild(tagsContainer);
 
+            const replyButton = document.createElement('button');
+            replyButton.innerText = 'Reply';
+            replyButton.onclick = () => openReplyOverlay(thread.name, index); // Trigger reply overlay with thread context
+            threadContainer.appendChild(replyButton);
+
             if (thread.magnetUrl) {
                 downloadImage(thread.magnetUrl, threadContainer);
             }
 
             document.getElementById('infiniteScrollContent').appendChild(threadContainer);
         }
+
 
         // Function to render Markdown using Showdown
         function renderMarkdown(text) {
@@ -609,14 +618,22 @@
             document.getElementById('overlay').style.height = "100%";
         }
 
-        // Close overlay and reset form
+        function openReplyOverlay(threadTitle, threadIndex) {
+            document.getElementById('replyContext').style.display = 'block'; // Show the reply context
+            document.getElementById('replyThreadTitle').innerText = threadTitle; // Set the thread being replied to
+            document.getElementById('overlayTitle').innerText = 'Reply to Thread'; // Update overlay title to indicate a reply
+            document.getElementById('overlay').style.height = '100%'; // Open the overlay
+        }
+
         function closeOverlay() {
             document.getElementById('newPostTitle').value = '';
             document.getElementById('newPostContent').value = '';
             document.getElementById('newPostTags').value = '';
             document.getElementById('newPostEmail').value = '';
             document.getElementById('imageUpload').value = '';
-            document.getElementById('overlay').style.height = "0%";
+            document.getElementById('replyContext').style.display = 'none'; // Hide the reply context on close
+            document.getElementById('overlayTitle').innerText = 'Create a New Post'; // Reset the title
+            document.getElementById('overlay').style.height = '0%'; // Close the overlay
         }
 
 
