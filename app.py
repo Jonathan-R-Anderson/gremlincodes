@@ -13,7 +13,6 @@ from blueprints.routes import blueprint
 
 app.register_blueprint(blueprint)
 
-
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -40,12 +39,14 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 # Dictionary to store magnet URLs for seeding files
 seeded_files = {}
 
+
 def allowed_file(filename):
     """Check if the file has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
 def seed_file(file_path):
-    """Function to seed the file using the WebTorrent command."""
+    """Function to seed the file using the WebTorrent command and stop seeding after enough peers."""
     try:
         # Prepare tracker list for WebTorrent seed command
         tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
@@ -64,8 +65,9 @@ def seed_file(file_path):
         )
 
         magnet_url = None
+        peer_count = 0
 
-        # Read output to extract magnet link
+        # Read output to extract magnet link and check peers
         while True:
             output = process.stdout.readline()
             if output == '' and process.poll() is not None:
@@ -78,14 +80,36 @@ def seed_file(file_path):
                     seeded_files[file_path] = magnet_url
                     logging.info(f"Magnet URL found: {magnet_url}")
 
+                # Monitor the number of peers
+                if "Connected to" in output and "peers" in output:
+                    peer_count = int(output.split("Connected to")[1].split()[0])
+                    logging.info(f"Peers connected: {peer_count}")
+
+                # Stop seeding when 5 or more peers are connected
+                if peer_count >= 5:
+                    logging.info(f"Stopping seeding for {file_path} after reaching {peer_count} peers")
+                    process.terminate()
+                    break
+
         # Ensure subprocess completes
         process.communicate()
 
-        if process.returncode != 0:
+        if process.returncode != 0 and peer_count < 5:
             logging.error(f"Seeding process failed for {file_path}")
 
     except Exception as e:
         logging.error(f"Error while seeding file: {str(e)}")
+
+
+def auto_seed_static_files():
+    """Automatically seed all allowed files in the static directory."""
+    for filename in os.listdir(FILE_DIR):
+        file_path = os.path.join(FILE_DIR, filename)
+        if os.path.isfile(file_path) and allowed_file(filename):
+            logging.info(f"Automatically seeding {file_path}")
+            seed_thread = threading.Thread(target=seed_file, args=(file_path,))
+            seed_thread.start()
+
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -129,11 +153,17 @@ def upload_file():
 
     return jsonify({"error": "Invalid file type"}), 400
 
+
 @app.route('/static/<path:filename>', methods=['GET'])
 def serve_static(filename):
     """Serve the uploaded image."""
     return send_from_directory(FILE_DIR, filename)
 
+
 if __name__ == "__main__":
     logging.info("Starting webseed server")
+    
+    # Automatically seed files in the static directory
+    auto_seed_static_files()
+
     app.run(host="0.0.0.0", port=TRACKER_PORT, debug=True)
