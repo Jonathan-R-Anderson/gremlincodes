@@ -70,10 +70,15 @@
             margin: 10px auto;
             padding: 10px 20px;
         }
-        #instructions {
-            font-size: 0.9em;
-            color: #ccc;
-            margin-top: 10px;
+        #adminPanel {
+            display: none;
+            background-color: #eee;
+            padding: 15px;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+        }
+        .admin-controls {
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -89,6 +94,16 @@
     </div>
 
     <button id="showOverlayBtn" onclick="showOverlay()">Create Post</button>
+
+    <!-- Admin Panel -->
+    <div id="adminPanel">
+        <h2>Admin Panel</h2>
+        <div class="admin-controls">
+            <button onclick="deletePostById()">Delete Post by ID</button>
+            <input type="text" id="postIdToDelete" placeholder="Enter post ID" />
+        </div>
+        <!-- Add more admin controls as needed -->
+    </div>
 
     <div id="overlay">
         <div id="overlayContent">
@@ -170,6 +185,10 @@
 
                     // Initialize the DApp (load threads, check admin status, etc.)
                     initializeDApp();
+
+                    // Check if the connected account is the admin
+                    checkIfAdmin(currentAccount);
+
                 } catch (error) {
                     console.error('MetaMask access error:', error);
                     document.getElementById("status").innerText = 'Could not access MetaMask. Please ensure you have authorized access.';
@@ -178,6 +197,38 @@
                 document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
             }
         };
+
+        // Check if the connected account is the admin
+        async function checkIfAdmin(account) {
+            try {
+                const admin = await gremlinAdminContract.methods.owner().call();
+                if (admin.toLowerCase() === account.toLowerCase()) {
+                    document.getElementById('adminPanel').style.display = 'block';  // Show admin panel
+                    console.log('Admin detected: Admin panel displayed.');
+                }
+            } catch (error) {
+                console.error('Error checking admin status:', error);
+            }
+        }
+
+        // Delete a post by ID (Admin function)
+        async function deletePostById() {
+            const postId = document.getElementById('postIdToDelete').value;
+            if (postId) {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const account = accounts[0];
+                    const gasEstimate = await gremlinThreadContract.methods.deleteThread(postId).estimateGas({ from: account });
+
+                    await gremlinThreadContract.methods.deleteThread(postId).send({ from: account, gas: gasEstimate });
+                    console.log(`Post with ID ${postId} deleted successfully.`);
+                } catch (error) {
+                    console.error('Error deleting post:', error);
+                }
+            } else {
+                alert("Please enter a valid post ID.");
+            }
+        }
 
         // Initialize DApp after connecting MetaMask
         async function initializeDApp() {
