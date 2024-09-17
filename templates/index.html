@@ -109,32 +109,27 @@
     <button id="connectMetaMask">Connect MetaMask</button>
 
     <div class="navbar">Gremlin.Codes DApp</div>
-
-    <!-- Add the radio buttons for filtering in the search-box section -->
-    <div class="search-box">
-        <input type="text" id="searchBar" placeholder="Enter tags..." onkeypress="addTagToSearchOnEnter(event)" />
-        
-        <!-- Whitelist and Blacklist Radio Buttons -->
+    
+    <div>
+        <h3>User Tag Management</h3>
         <div>
-            <h3>User Whitelist/Blacklist</h3>
-            <div>
-                <input type="text" id="userTagInput" placeholder="Enter tag..." />
-                <button onclick="addUserWhitelist(document.getElementById('userTagInput').value)">Add to Whitelist</button>
-                <button onclick="addUserBlacklist(document.getElementById('userTagInput').value)">Add to Blacklist</button>
-            </div>
-            <div>
-                <h4>Current User Whitelist:</h4>
-                <ul id="userWhitelistDisplay"></ul>
-                
-                <h4>Current User Blacklist:</h4>
-                <ul id="userBlacklistDisplay"></ul>
-            </div>
+            <!-- Radio buttons to toggle between whitelist and blacklist -->
+            <input type="radio" id="whitelist" name="filterMode" value="whitelist" checked onchange="updateTagDisplay()">
+            <label for="whitelist">Whitelist</label>
+            <input type="radio" id="blacklist" name="filterMode" value="blacklist" onchange="updateTagDisplay()">
+            <label for="blacklist">Blacklist</label>
         </div>
-        
-        
-        <!-- Display selected search tags -->
+    
+        <!-- Search bar to add tags to the currently active mode (whitelist or blacklist) -->
+        <input type="text" id="searchBar" placeholder="Enter tag..." onkeypress="addTagOnEnter(event)" />
         <div id="searchTagsDisplay" style="margin-top: 10px;"></div>
+
+        <div id="tagDisplayContainer">
+            <h4 id="tagDisplayTitle">Current Whitelist:</h4>
+            <ul id="tagDisplay"></ul> <!-- This will display either whitelist or blacklist based on the mode -->
+        </div>
     </div>
+    
 
 
     <button id="showOverlayBtn" onclick="showOverlay()">Create Post</button>
