@@ -139,6 +139,8 @@
         // Submit a new post
         async function submitPost() {
             const title = document.getElementById('newPostTitle').value;
+            const subject = "Test Subject";  // For now, use static values until you adjust the form
+            const email = "test@example.com";  // Also using a static value for email
             const content = document.getElementById('newPostContent').value;
             const tags = document.getElementById('newPostTags').value.split(',').map(tag => tag.trim());
             const imageFile = document.getElementById('imageUpload').files[0];
@@ -150,8 +152,14 @@
 
                 // Submit the thread to the GremlinThread contract
                 await gremlinThreadContract.methods.createThread(
-                    title, tags, magnetUrl
-                ).send({ from: account });
+                    title,        // Name
+                    subject,      // Subject
+                    email,        // Email
+                    magnetUrl,    // Magnet URL of the file
+                    tags,         // Tags as array of strings
+                    content,      // Content
+                    0             // Parent thread ID (use 0 for a new post)
+                ).send({ from: account, gas: 3000000 });
 
                 closeOverlay();
                 await loadMorePosts();
