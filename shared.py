@@ -283,7 +283,7 @@ gremlinThreadABI = [
       "type": "function"
     }
 ]
-gremlinThreadABI = [json.dumps(item) for item in gremlinThreadABI]
+
 gremlinAdminABI = [
     {
       "inputs": [
@@ -351,7 +351,6 @@ gremlinAdminABI = [
       "type": "function"
     }
 ]
-gremlinAdminABI = [json.dumps(item) for item in gremlinAdminABI]
 
 # Contract objects
 #gremlinThreadContract = web3.eth.contract(address=gremlinThreadAddress, abi=gremlinThreadABI)
