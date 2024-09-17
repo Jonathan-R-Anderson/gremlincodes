@@ -25,6 +25,18 @@
             max-width: 100%;
             height: auto;
         }
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .tag {
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
         #overlay {
             position: fixed;
             top: 0;
@@ -67,7 +79,7 @@
     <div class="navbar">ManiwaniBoard</div>
 
     <div class="search-box">
-        <input type="text" id="searchBar" placeholder="Enter tags..." />
+        <input type="text" id="searchBar" placeholder="Enter tags..." oninput="filterPosts()" />
     </div>
 
     <div id="infiniteScrollContent"></div>
@@ -94,6 +106,7 @@
         let loadedThreads = 0;  // Track the number of loaded threads
         const batchSize = 5;    // Number of posts to load per batch
         const client = new WebTorrent(); // WebTorrent client for image handling
+        let allThreads = []; // Store all loaded threads for filtering
 
         const _gremlinThreadABI = {{ gremlinThreadABI | safe }};  // Inject GremlinThread ABI
         const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  // Inject GremlinThread Address
@@ -200,6 +213,7 @@
 
                 for (let i = loadedThreads; i < loadedThreads + threadsToLoad; i++) {
                     const thread = await gremlinThreadContract.methods.getThread(i + 1).call();
+                    allThreads.push(thread);
                     displayThread(thread);
                 }
 
@@ -234,6 +248,18 @@
             content.innerText = `Content: ${thread.content}`;
             threadContainer.appendChild(content);
 
+            // Add tags display and click functionality
+            const tagsContainer = document.createElement('div');
+            tagsContainer.className = 'tags';
+            thread.tags.forEach(tag => {
+                const tagElement = document.createElement('span');
+                tagElement.className = 'tag';
+                tagElement.innerText = tag;
+                tagElement.onclick = () => addTagToSearch(tag);
+                tagsContainer.appendChild(tagElement);
+            });
+            threadContainer.appendChild(tagsContainer);
+
             // If there's a magnet URL for the image, download and display it
             if (thread.magnetUrl) {
                 downloadImage(thread.magnetUrl, threadContainer);
@@ -266,6 +292,31 @@
                         });
                     }
                 });
+            });
+        }
+
+        // Add tag to the search field and filter posts
+        function addTagToSearch(tag) {
+            const searchBar = document.getElementById('searchBar');
+            const currentTags = searchBar.value.split(',').map(t => t.trim()).filter(t => t);
+            if (!currentTags.includes(tag)) {
+                currentTags.push(tag);
+                searchBar.value = currentTags.join(', ');
+                filterPosts();
+            }
+        }
+
+        // Filter posts based on the tags in the search bar
+        function filterPosts() {
+            const searchTags = document.getElementById('searchBar').value.split(',').map(tag => tag.trim().toLowerCase()).filter(tag => tag);
+            const contentDiv = document.getElementById('infiniteScrollContent');
+            contentDiv.innerHTML = ''; // Clear the current posts
+
+            allThreads.forEach(thread => {
+                const threadTags = thread.tags.map(tag => tag.toLowerCase());
+                if (searchTags.every(tag => threadTags.includes(tag))) {
+                    displayThread(thread);
+                }
             });
         }
 
