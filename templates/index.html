@@ -82,6 +82,17 @@
         .admin-controls {
             margin-bottom: 10px;
         }
+        .replies-container {
+            margin-top: 10px;
+        }
+
+        .reply-container {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+        }
+
     </style>
 </head>
 <body>
@@ -503,6 +514,13 @@
             });
             threadContainer.appendChild(tagsContainer);
 
+            // Fetch and display the latest 3 replies
+            const repliesContainer = document.createElement('div');
+            repliesContainer.className = 'replies-container';
+            threadContainer.appendChild(repliesContainer);
+
+            fetchAndDisplayLatestReplies(thread, repliesContainer);
+
             const replyButton = document.createElement('button');
             replyButton.innerText = 'Reply';
             replyButton.onclick = () => openReplyOverlay(thread.name, index); // Trigger reply overlay with thread context
@@ -514,6 +532,7 @@
 
             document.getElementById('infiniteScrollContent').appendChild(threadContainer);
         }
+
 
 
         // Function to render Markdown using Showdown
@@ -557,6 +576,53 @@
                 });
             });
         }
+
+        // Function to fetch and display the latest 3 replies for a thread
+        async function fetchAndDisplayLatestReplies(thread, repliesContainer) {
+            try {
+                // Assuming the contract has a method to get replies for a thread
+                const repliesCount = await gremlinThreadContract.methods.getRepliesCount(thread.id).call();
+                const totalReplies = Number(repliesCount);
+
+                // If there are less than 3 replies, show all replies
+                const repliesToShow = Math.min(3, totalReplies);
+
+                if (repliesToShow === 0) {
+                    const noRepliesMessage = document.createElement('p');
+                    noRepliesMessage.innerText = "No replies yet.";
+                    repliesContainer.appendChild(noRepliesMessage);
+                    return;
+                }
+
+                for (let i = totalReplies - repliesToShow; i < totalReplies; i++) {
+                    const reply = await gremlinThreadContract.methods.getReply(thread.id, i).call();
+                    displayReply(reply, repliesContainer);
+                }
+            } catch (error) {
+                console.error('Error fetching replies:', error);
+            }
+        }
+
+        // Function to display a single reply
+        function displayReply(reply, repliesContainer) {
+            const replyContainer = document.createElement('div');
+            replyContainer.className = 'reply-container';
+            replyContainer.style.marginTop = '10px';
+            replyContainer.style.padding = '10px';
+            replyContainer.style.border = '1px solid #ccc';
+            replyContainer.style.backgroundColor = '#f1f1f1';
+
+            const replyContent = document.createElement('p');
+            replyContent.innerText = `Reply: ${reply.content}`;
+            replyContainer.appendChild(replyContent);
+
+            const replyAuthor = document.createElement('p');
+            replyAuthor.innerText = `Author: ${reply.ethAddress}`;
+            replyContainer.appendChild(replyAuthor);
+
+            repliesContainer.appendChild(replyContainer);
+        }
+
 
         function seedFile(blob) {
             // Seed the file using the WebTorrent client
