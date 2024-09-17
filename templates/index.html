@@ -285,16 +285,18 @@
         gremlinThreadContract.events.ThreadCreated({}, (error, event) => {
             if (!error) {
                 const newThread = event.returnValues;
+
                 if (newThread.parentThreadId === "0") {
-                    // New root thread, display it
+                    // New root thread
                     displayThreadWithReplies(newThread, threadMap);
                 } else {
-                    // New reply, add to its parent thread
+                    // New reply, add to its parent thread's replies
                     if (!threadMap[newThread.parentThreadId]) {
                         threadMap[newThread.parentThreadId] = [];
                     }
                     threadMap[newThread.parentThreadId].push(newThread);
-                    // Re-display the parent thread with the new reply
+
+                    // Re-display the parent thread with updated replies
                     const parentThread = allThreads.find(t => t.id === newThread.parentThreadId);
                     displayThreadWithReplies(parentThread, threadMap);
                 }
@@ -302,7 +304,8 @@
                 console.error("Error listening to ThreadCreated event:", error);
             }
         });
-        
+
+
         function displayUserLists() {
             const userWhitelistDisplay = document.getElementById('userWhitelistDisplay');
             const userBlacklistDisplay = document.getElementById('userBlacklistDisplay');
@@ -323,23 +326,21 @@
             });
         }
 
-        // Fetch threads and organize them by parent-child relationships
         async function loadAndDisplayThreads() {
             try {
                 // Fetch all threads from the contract
                 const allThreads = await gremlinThreadContract.methods.getAllThreads().call();
                 
-                // Create a map to group threads by their parentThreadId
-                const threadMap = {}; // Store threads by their ID
-                const rootThreads = []; // Store threads that have no parent (i.e., original threads)
+                // Organize threads into root threads and replies
+                const threadMap = {}; // Map to store replies under their parent thread
+                const rootThreads = []; // List to store root threads
 
-                // Separate threads into root threads and replies
                 allThreads.forEach(thread => {
                     if (thread.parentThreadId === "0") {
-                        // Root thread, no parent
+                        // This is a root thread, add it to the rootThreads list
                         rootThreads.push(thread);
                     } else {
-                        // Reply thread, has a parent
+                        // This is a reply, group it under its parent thread
                         if (!threadMap[thread.parentThreadId]) {
                             threadMap[thread.parentThreadId] = [];
                         }
@@ -347,7 +348,7 @@
                     }
                 });
 
-                // Display root threads first, then their replies
+                // Now display root threads and their replies
                 rootThreads.forEach(thread => {
                     displayThreadWithReplies(thread, threadMap);
                 });
@@ -358,12 +359,13 @@
         }
 
 
-        // Function to display a thread and its replies recursively
         function displayThreadWithReplies(thread, threadMap, depth = 0) {
+            // Create the thread container
             const threadContainer = document.createElement('div');
             threadContainer.className = 'thread-container';
-            threadContainer.style.marginLeft = `${depth * 20}px`; // Indent based on depth
+            threadContainer.style.marginLeft = `${depth * 20}px`; // Indentation for replies based on depth
 
+            // Add thread title, subject, content, etc.
             const title = document.createElement('h3');
             title.innerText = `Title: ${thread.name}`;
             threadContainer.appendChild(title);
@@ -388,12 +390,14 @@
 
             document.getElementById('infiniteScrollContent').appendChild(threadContainer);
 
-            // Check if there are replies to this thread
-            const replies = threadMap[thread.id];
-            if (replies) {
-                replies.forEach(reply => displayThreadWithReplies(reply, threadMap, depth + 1)); // Recursively display replies
+            // If this thread has replies, display them recursively
+            if (threadMap[thread.id]) {
+                threadMap[thread.id].forEach(reply => {
+                    displayThreadWithReplies(reply, threadMap, depth + 1); // Increase depth for replies
+                });
             }
         }
+
 
 
         // Function to connect to MetaMask when the icon is clicked
