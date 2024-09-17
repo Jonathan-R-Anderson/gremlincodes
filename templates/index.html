@@ -21,6 +21,10 @@
             border: 1px solid #ccc;
             background-color: #f9f9f9;
         }
+        .thread-container img {
+            max-width: 100%;
+            height: auto;
+        }
         #overlay {
             position: fixed;
             top: 0;
@@ -57,9 +61,9 @@
 </head>
 <body>
     <h1>Gremlin Threads DApp</h1>
-    <div id="status">Loading...</div> <!-- Status element added -->
+    <div id="status">Loading...</div>
     <button id="connectMetaMask">Connect MetaMask</button>
-    
+
     <div class="navbar">ManiwaniBoard</div>
 
     <div class="search-box">
@@ -89,15 +93,13 @@
         let currentAccount = null;
         let loadedThreads = 0;  // Track the number of loaded threads
         const batchSize = 5;    // Number of posts to load per batch
+        const client = new WebTorrent(); // WebTorrent client for image handling
 
         const _gremlinThreadABI = {{ gremlinThreadABI | safe }};  // Inject GremlinThread ABI
         const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  // Inject GremlinThread Address
 
         const _gremlinAdminABI = {{ gremlinAdminABI | safe }};  // Inject GremlinAdmin ABI
         const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";  // Inject GremlinAdmin Address
-
-        // Initialize WebTorrent client
-        const client = new WebTorrent();
 
         window.onload = async function () {
             if (typeof window.ethereum !== 'undefined') {
@@ -232,7 +234,39 @@
             content.innerText = `Content: ${thread.content}`;
             threadContainer.appendChild(content);
 
+            // If there's a magnet URL for the image, download and display it
+            if (thread.magnetUrl) {
+                downloadImage(thread.magnetUrl, threadContainer);
+            }
+
             document.getElementById('infiniteScrollContent').appendChild(threadContainer);
+        }
+
+        // Download and display the image using WebTorrent
+        function downloadImage(magnetURI, threadContainer) {
+            const output = document.createElement('p');
+            output.innerText = 'Downloading image...';
+            threadContainer.appendChild(output);
+
+            client.add(magnetURI, torrent => {
+                torrent.files.forEach(file => {
+                    if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
+                        file.getBlobURL((err, url) => {
+                            if (err) {
+                                output.innerText = 'Error downloading image.';
+                                return console.error(err);
+                            }
+
+                            const img = document.createElement('img');
+                            img.src = url;
+                            img.alt = file.name;
+                            threadContainer.appendChild(img);
+
+                            output.innerText = `Image downloaded: ${file.name}`;
+                        });
+                    }
+                });
+            });
         }
 
         function showOverlay() {
