@@ -7,6 +7,8 @@
     <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script> <!-- Include Showdown -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js"></script>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -265,6 +267,85 @@
                 console.error("Error checking admin status:", error);
             }
         }
+
+        // Extend renderMarkdown to detect languages in code blocks
+        function renderMarkdown(text) {
+            const converter = new showdown.Converter();
+            let html = converter.makeHtml(text);
+
+            // Modify regex to extract language class, e.g., ```python
+            html = html.replace(/<pre><code class="language-(\w+)">([\s\S]*?)<\/code><\/pre>/g, (match, lang, codeContent) => {
+                return `<pre><code>${codeContent}</code></pre>
+                        <button class="run-code-btn" onclick="runCodeInLanguage(\`${encodeURIComponent(codeContent)}\`, '${lang}', this)">Run ${lang} Code</button>
+                        <pre class="code-output" style="background-color: #f9f9f9; padding: 10px; border: 1px solid #ccc;"></pre>`;
+            });
+
+            return html;
+        }
+
+        async function runCodeInLanguage(code, language, button) {
+            const decodedCode = decodeURIComponent(code);
+            const outputContainer = button.nextElementSibling;
+            outputContainer.innerText = ''; // Clear previous output
+
+            if (language === 'javascript') {
+                runJavaScriptCode(decodedCode, outputContainer);
+            } else if (language === 'python') {
+                await runPythonCode(decodedCode, outputContainer);
+            } else {
+                outputContainer.innerText = `Unsupported language: ${language}`;
+            }
+        }
+
+        let pyodideReady = false;
+
+        async function loadPyodide() {
+            if (!pyodideReady) {
+                window.pyodide = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.21.3/full/"
+                });
+                pyodideReady = true;
+            }
+        }
+
+
+        // Function to run JavaScript using JS-Interpreter
+        function runJavaScriptCode(code, outputContainer) {
+            try {
+                const myInterpreter = new Interpreter(code, (interpreter, globalObject) => {
+                    interpreter.setProperty(globalObject, 'console', interpreter.createObject({
+                        log: interpreter.createNativeFunction((text) => {
+                            outputContainer.innerText += `${text}\n`;
+                        })
+                    }));
+                });
+                
+                // Step through the code asynchronously
+                function nextStep() {
+                    if (myInterpreter.step()) {
+                        setTimeout(nextStep, 10);
+                    }
+                }
+                nextStep();
+            } catch (error) {
+                outputContainer.innerText = `JavaScript Error: ${error.message}`;
+            }
+        }
+
+        // Function to run Python using Pyodide
+        async function runPythonCode(code, outputContainer) {
+            try {
+                await loadPyodide(); // Load Pyodide if it’s not already loaded
+                let pyodide = window.pyodide; // Access the loaded Pyodide instance
+
+                // Execute Python code and capture the output
+                let output = pyodide.runPython(code);
+                outputContainer.innerText = output;
+            } catch (error) {
+                outputContainer.innerText = `Python Error: ${error.message}`;
+            }
+        }
+
 
         // Initialize DApp
         async function initializeDApp() {
