@@ -79,7 +79,7 @@ def allowed_file(filename):
 
 
 def seed_file(file_path):
-    """Function to seed the file using the WebTorrent command and stop seeding after enough peers."""
+    """Function to seed the file using the WebTorrent command and return the magnet URL without waiting for the process to exit."""
     try:
         # Check if the file is already being seeded
         if file_path in seeded_files:
@@ -88,7 +88,7 @@ def seed_file(file_path):
 
         # Prepare tracker list for WebTorrent seed command
         tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
-        
+
         # WebTorrent seed command with trackers and keep-seeding
         cmd = f"webtorrent seed '{file_path}' {tracker_list} --keep-seeding"
         logging.info(f"Running seeding command: {cmd}")
@@ -103,33 +103,40 @@ def seed_file(file_path):
         )
 
         magnet_url = None
-        peer_count = 0
 
-        # Read output to extract magnet link and check peers
-        while True:
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break
-
-            if output:
-                #logging.info(f"WebTorrent output: {output.strip()}")
-                if "Magnet URI:" in output:
-                    magnet_url = output.split("Magnet URI:")[1].strip()
-                    seeded_files[file_path] = magnet_url
-                    logging.info(f"Magnet URL found: {magnet_url}")
-
-                if peer_count >= 5:
-                    #logging.info(f"Stopping seeding for {file_path} after reaching {peer_count} peers")
-                    process.terminate()
+        # Function to monitor the output of the WebTorrent process
+        def monitor_output():
+            nonlocal magnet_url
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
                     break
 
-        process.communicate()
-        return magnet_url
+                if output:
+                    logging.info(f"WebTorrent output: {output.strip()}")
+                    if "Magnet URI:" in output:
+                        magnet_url = output.split("Magnet URI:")[1].strip()
+                        seeded_files[file_path] = magnet_url
+                        logging.info(f"Magnet URL found: {magnet_url}")
+                        break  # Magnet URL found, exit the loop
+
+        # Start monitoring output in a separate thread
+        output_thread = threading.Thread(target=monitor_output)
+        output_thread.start()
+
+        # Wait for the magnet URL to be extracted
+        output_thread.join(timeout=10)  # Wait for up to 10 seconds for the magnet URL to appear
+
+        if magnet_url:
+            logging.info(f"Magnet URL returned: {magnet_url}")
+            return magnet_url
+        else:
+            logging.error(f"Failed to retrieve the magnet URL in time.")
+            return None
 
     except Exception as e:
         logging.error(f"Error while seeding file: {str(e)}")
         return None
-
 
 def auto_seed_static_files():
     """Automatically seed all allowed files in the static directory."""
