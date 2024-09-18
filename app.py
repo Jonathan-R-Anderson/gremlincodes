@@ -29,9 +29,9 @@ os.makedirs(TORRENT_DIR, exist_ok=True)
 # Torrent WSS trackers to be used for distribution (updated for WebSockets)
 TRACKER_URLS = [
     "wss://tracker.openwebtorrent.com",
-    "wss://tracker.btorrent.xyz",
-    "wss://tracker.fastcast.nz",
-    "wss://tracker.webtorrent.io"
+    #"wss://tracker.btorrent.xyz",
+    #"wss://tracker.fastcast.nz",
+    #"wss://tracker.webtorrent.io"
 ]
 
 # Allowed file extensions
