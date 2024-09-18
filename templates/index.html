@@ -574,30 +574,33 @@
         return converter.makeHtml(text);
     }
 
+
     function downloadImage(magnetURI, threadContainer) {
         const output = document.createElement('p');
         output.innerText = 'Downloading image...';
         threadContainer.appendChild(output);
 
+        const trackerOptions = {
+            announce: ['wss://tracker.openwebtorrent.com']  // Specify the desired tracker(s)
+        };
+
         // Check if the magnet URL is already added
         if (addedMagnets.has(magnetURI)) {
             console.log(`Magnet URL already added: ${magnetURI}`);
-            // Display the image without adding to WebTorrent again
             renderImageFromTorrent(magnetURI, threadContainer, output);
         } else {
-            // Add the magnet URL to the set to track it
             addedMagnets.add(magnetURI);
 
-            // Add the magnet URL to WebTorrent client
-            client.add(magnetURI, torrent => {
+            // Add torrent with the specified trackers
+            client.add(magnetURI, trackerOptions, torrent => {
                 console.log('Torrent added successfully:', torrent.infoHash);
                 renderImageFromTorrent(magnetURI, threadContainer, output);
             });
         }
     }
 
+
     function renderImageFromTorrent(magnetURI, threadContainer, output) {
-        // Use the torrent from the client (already added) to get the files and render the image
         const torrent = client.get(magnetURI);
         if (!torrent) {
             output.innerText = 'Error: Torrent not found';
