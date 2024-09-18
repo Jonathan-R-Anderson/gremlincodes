@@ -292,66 +292,59 @@
     }
 
     async function submitPost() {
-        const title = document.getElementById('newPostTitle').value.trim();
-        const email = document.getElementById('newPostEmail').value || "test@example.com";  // Default email
-        const content = document.getElementById('newPostContent').value.trim();
-        const tags = document.getElementById('newPostTags').style.display === 'block' ? document.getElementById('newPostTags').value.split(',').map(tag => tag.trim()) : [];
+        const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';  // Default to 'Untitled Post'
+        const email = document.getElementById('newPostEmail').value || 'no-email@example.com';  // Default to 'no-email@example.com'
+        const content = document.getElementById('newPostContent').value.trim() || 'No content provided';  // Default content
+        const tags = document.getElementById('newPostTags').style.display === 'block' 
+            ? (document.getElementById('newPostTags').value.split(',').map(tag => tag.trim()) || ['uncategorized'])  // Default to 'uncategorized'
+            : ['uncategorized'];  // Default to 'uncategorized' if tags input is hidden (i.e., for replies)
         const imageFile = document.getElementById('imageUpload').files[0];
         const ethAddress = currentAccount;  // Use the connected Ethereum address
-
-        // Check if title and content are provided
-        if (!title || !content) {
-            console.error('Title and content are required to submit the post.');
-            return;
-        }
 
         try {
             let magnetUrl = '';
 
-            // If an image file is provided, upload it via WebTorrent and get the magnet URL
             if (imageFile) {
                 magnetUrl = await uploadToServer(imageFile);
+            } else {
+                magnetUrl = 'no-image';  // Dummy value for magnet URL
             }
 
-            // Check if the user is replying to a thread
             const isReply = document.getElementById('replyContext').style.display !== 'none';
             let parentThreadId = "0";  // Default to "0" for a new thread
 
             if (isReply) {
-                parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;  // Get the parent thread ID from the hidden reply context
+                parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId || '0';  // Default to '0' if no parent ID
             }
 
-            // Ensure user is connected to Ethereum before posting
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             const account = accounts[0];
 
             // Estimate the gas required for the transaction
             const gasEstimate = await gremlinThreadContract.methods.createThread(
-                title, 
-                isReply ? `Reply to: ${title}` : title,  // If it's a reply, use "Reply to: [title]"
-                email, 
-                magnetUrl || '',  // If no image, pass an empty string for magnetUrl
-                tags.length > 0 ? tags : ['general'],  // Ensure at least one tag is provided
-                content, 
-                parentThreadId  // Pass parentThreadId directly as a string
+                title,                         // _name
+                isReply ? `Reply to: ${title}` : title,  // _subject
+                email,                         // _email
+                magnetUrl,                     // _magnetUrl
+                tags,                          // _tags
+                content,                       // _content
+                parentThreadId                 // _parentThreadId (make sure it's passed as a string or number)
             ).estimateGas({ from: account });
 
             // Send the transaction to create the new thread or reply
             await gremlinThreadContract.methods.createThread(
-                title, 
-                isReply ? `Reply to: ${title}` : title,  // If it's a reply, use "Reply to: [title]"
-                email, 
-                magnetUrl || '',  // If no image, pass an empty string for magnetUrl
-                tags.length > 0 ? tags : ['general'],  // Ensure at least one tag is provided
-                content, 
-                parentThreadId  // Pass parentThreadId directly as a string
+                title,
+                isReply ? `Reply to: ${title}` : title,
+                email,
+                magnetUrl,
+                tags,
+                content,
+                parentThreadId  // Ensure it's a valid uint256 number or string
             ).send({ from: account, gas: gasEstimate });
 
-            // Collapse the overlay after successful submission
             closeOverlay();
-
-            // Reload the threads after submitting the new post/reply
             await loadAndDisplayThreads();
+
         } catch (error) {
             console.error('Error submitting post:', error);
         }
