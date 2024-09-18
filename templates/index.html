@@ -223,10 +223,9 @@
     let gremlinAdminContract;
     let currentAccount = null;
     const client = new WebTorrent();
-    let allThreads = []; // Store all loaded threads for filtering
-    let threadMap = {};  // Map for root threads and replies
+    let allThreads = [];
+    let threadMap = {}; 
 
-    // Assuming these will be injected
     const _gremlinThreadABI = {{ gremlinThreadABI | safe }};  
     const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  
     const _gremlinAdminABI = {{ gremlinAdminABI | safe }};  
@@ -234,7 +233,6 @@
 
     window.onload = async function() {
         console.log("Window loaded.");
-
         if (typeof window.ethereum !== 'undefined') {
             console.log("MetaMask detected.");
             web3 = new Web3(window.ethereum);
@@ -242,9 +240,7 @@
             try {
                 console.log("Requesting MetaMask accounts...");
                 await window.ethereum.request({ method: 'eth_requestAccounts' });
-
                 const accounts = await web3.eth.getAccounts();
-                
                 if (accounts.length === 0) {
                     document.getElementById('connectWalletIcon').style.display = 'block';
                 } else {
@@ -252,16 +248,10 @@
                     document.getElementById('connectWalletIcon').style.display = 'none';
                     document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
 
-                    // Initialize contract instances
                     initializeContracts();
-
                     console.log("Gremlin contracts initialized successfully.");
-
-                    // Check if the connected account is the admin
-                    console.log("Checking admin status...");
                     await checkIfAdmin(currentAccount);
 
-                    // Initialize the DApp (load threads, etc.)
                     console.log("Initializing DApp...");
                     loadAndDisplayThreads();
                 }
@@ -289,7 +279,6 @@
             }
 
             console.log("Fetching all threads from the contract...");
-
             const allFetchedThreads = await gremlinThreadContract.methods.getAllThreads().call();
             console.log("Threads fetched from contract:", allFetchedThreads);
 
@@ -300,11 +289,7 @@
             }
 
             allThreads = allFetchedThreads;
-
-            // Organize threads into root threads and replies
             organizeThreads(allThreads);
-
-            // Sort and display threads based on recent activity
             displaySortedThreads();
         } catch (error) {
             console.error("Error loading threads:", error);
@@ -318,36 +303,24 @@
 
         threads.forEach(thread => {
             if (thread) {
-                // Handle BigInt (because blockchain data might use BigInt)
                 const parentThreadId = thread.parentThreadId.toString();
 
                 if (parentThreadId === "0") {
-                    // Root thread
-                    threadMap[thread.id] = {
-                        thread: thread,
-                        replies: []
-                    };
+                    threadMap[thread.id] = { thread: thread, replies: [] };
                 } else {
-                    // Reply to a parent thread
                     if (!threadMap[parentThreadId]) {
-                        threadMap[parentThreadId] = {
-                            thread: null,
-                            replies: []
-                        };
+                        threadMap[parentThreadId] = { thread: null, replies: [] };
                     }
                     threadMap[parentThreadId].replies.push(thread);
                 }
             }
         });
-
         console.log("Threads organized into threadMap:", threadMap);
     }
 
     function displaySortedThreads() {
         const contentDiv = document.getElementById('infiniteScrollContent');
         contentDiv.innerHTML = '';
-
-        // Filter out entries without valid root threads
         const validThreads = Object.values(threadMap).filter(({ thread }) => thread !== null);
 
         if (validThreads.length === 0) {
@@ -356,7 +329,6 @@
             return;
         }
 
-        // Sort threads by latest activity (thread creation or reply)
         const sortedThreads = validThreads.sort((a, b) => {
             const latestA = getLastActivityTimestamp(a);
             const latestB = getLastActivityTimestamp(b);
@@ -364,7 +336,6 @@
         });
 
         console.log("Displaying sorted threads...");
-
         sortedThreads.forEach(({ thread, replies }) => {
             displayThreadWithReplies(thread, replies);
         });
@@ -372,11 +343,9 @@
 
     function getLastActivityTimestamp({ thread, replies }) {
         if (!thread) return 0;
-
         const latestReplyTimestamp = replies.length > 0
             ? Math.max(...replies.map(reply => reply ? Number(reply.timestamp) : 0))
             : 0;
-
         return Math.max(Number(thread.timestamp), latestReplyTimestamp);
     }
 
@@ -406,6 +375,15 @@
         });
         threadContainer.appendChild(tagsContainer);
 
+        const replyButton = document.createElement('button');
+        replyButton.innerText = "Reply";
+        replyButton.onclick = () => openReplyOverlay(thread);
+        threadContainer.appendChild(replyButton);
+
+        if (thread.magnetUrl) {
+            downloadImage(thread.magnetUrl, threadContainer);
+        }
+
         const toggleRepliesBtn = document.createElement('button');
         toggleRepliesBtn.innerText = "Show Replies";
         threadContainer.appendChild(toggleRepliesBtn);
@@ -428,20 +406,70 @@
 
     function displayReply(reply, repliesContainer) {
         if (!reply) return;
-
         const replyContainer = document.createElement('div');
         replyContainer.className = 'reply-container';
-
         const replyContent = document.createElement('p');
         replyContent.innerText = `Reply: ${reply.content}`;
         replyContainer.appendChild(replyContent);
-
         repliesContainer.appendChild(replyContainer);
     }
 
     function renderMarkdown(text) {
         const converter = new showdown.Converter();
         return converter.makeHtml(text);
+    }
+
+    function downloadImage(magnetURI, threadContainer) {
+        const output = document.createElement('p');
+        output.innerText = 'Downloading image...';
+        threadContainer.appendChild(output);
+
+        client.add(magnetURI, torrent => {
+            torrent.files.forEach(file => {
+                if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
+                    file.getBlobURL((err, url) => {
+                        if (err) {
+                            output.innerText = 'Error downloading image.';
+                            return console.error(err);
+                        }
+
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.alt = file.name;
+                        img.style.maxWidth = '200px';  // Set thumbnail size
+                        img.style.cursor = 'pointer';
+                        img.onclick = () => openImageFullScreen(url);  // Open full-screen on click
+                        threadContainer.appendChild(img);
+
+                        output.innerText = `Image downloaded: ${file.name}`;
+                    });
+                }
+            });
+        });
+    }
+
+    function openImageFullScreen(url) {
+        const fullScreenImage = document.createElement('img');
+        fullScreenImage.src = url;
+        fullScreenImage.style.position = 'fixed';
+        fullScreenImage.style.top = '50%';
+        fullScreenImage.style.left = '50%';
+        fullScreenImage.style.transform = 'translate(-50%, -50%)';
+        fullScreenImage.style.maxWidth = '100%';
+        fullScreenImage.style.maxHeight = '100%';
+        fullScreenImage.style.zIndex = '10000';
+        document.body.appendChild(fullScreenImage);
+
+        fullScreenImage.onclick = () => {
+            document.body.removeChild(fullScreenImage);
+        };
+    }
+
+    function openReplyOverlay(thread) {
+        document.getElementById('replyContext').style.display = 'block'; 
+        document.getElementById('replyThreadTitle').innerText = thread.name;
+        document.getElementById('overlayTitle').innerText = 'Reply to Thread'; 
+        document.getElementById('overlay').style.height = '100%'; 
     }
 
     async function checkIfAdmin(account) {
