@@ -315,10 +315,10 @@
 
             // Check if the user is replying to a thread
             const isReply = document.getElementById('replyContext').style.display !== 'none';
-            let parentThreadId = new web3.utils.BN("0");  // Default to "0" for a new thread, must be BigNumber for web3
+            let parentThreadId = "0";  // Default to "0" for a new thread
 
             if (isReply) {
-                parentThreadId = new web3.utils.BN(document.getElementById('replyThreadTitle').dataset.threadId);  // Get the parent thread ID from the hidden reply context
+                parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;  // Get the parent thread ID from the hidden reply context
             }
 
             // Ensure user is connected to Ethereum before posting
@@ -333,7 +333,7 @@
                 magnetUrl || '',  // If no image, pass an empty string for magnetUrl
                 tags.length > 0 ? tags : ['general'],  // Ensure at least one tag is provided
                 content, 
-                parentThreadId  // Ensure this is a BigNumber
+                parentThreadId  // Pass parentThreadId directly as a string
             ).estimateGas({ from: account });
 
             // Send the transaction to create the new thread or reply
@@ -344,7 +344,7 @@
                 magnetUrl || '',  // If no image, pass an empty string for magnetUrl
                 tags.length > 0 ? tags : ['general'],  // Ensure at least one tag is provided
                 content, 
-                parentThreadId  // Pass BigNumber ID for parent thread
+                parentThreadId  // Pass parentThreadId directly as a string
             ).send({ from: account, gas: gasEstimate });
 
             // Collapse the overlay after successful submission
