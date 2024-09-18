@@ -291,6 +291,91 @@
         console.log("Contract instances created.");
     }
 
+    async function submitPost() {
+        const title = document.getElementById('newPostTitle').value;
+        const email = document.getElementById('newPostEmail').value || "test@example.com";  // Default email
+        const content = document.getElementById('newPostContent').value;
+        const tags = document.getElementById('newPostTags').style.display === 'block' ? document.getElementById('newPostTags').value.split(',').map(tag => tag.trim()) : [];
+        const imageFile = document.getElementById('imageUpload').files[0];
+        const ethAddress = currentAccount; // Use the connected Ethereum address
+
+        try {
+            let magnetUrl = '';
+
+            // If an image file is provided, upload it via WebTorrent and get the magnet URL
+            if (imageFile) {
+                magnetUrl = await uploadToServer(imageFile);
+            }
+
+            // Check if the user is replying to a thread
+            const isReply = document.getElementById('replyContext').style.display !== 'none';
+            let parentThreadId = "0";  // Default to "0" for a new thread
+
+            if (isReply) {
+                parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;  // Get the parent thread ID from the hidden reply context
+            }
+
+            // Ensure user is connected to Ethereum before posting
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const account = accounts[0];
+
+            // Estimate the gas required for the transaction
+            const gasEstimate = await gremlinThreadContract.methods.createThread(
+                title, 
+                `Reply to: ${title}`, 
+                email, 
+                magnetUrl, 
+                tags, 
+                content, 
+                parentThreadId
+            ).estimateGas({ from: account });
+
+            // Send the transaction to create the new thread or reply
+            await gremlinThreadContract.methods.createThread(
+                title, 
+                `Reply to: ${title}`, 
+                email, 
+                magnetUrl, 
+                tags, 
+                content, 
+                parentThreadId
+            ).send({ from: account, gas: gasEstimate });
+
+            // Collapse the overlay after successful submission
+            closeOverlay();
+
+            // Reload the threads after submitting the new post/reply
+            await loadAndDisplayThreads();
+        } catch (error) {
+            console.error('Error submitting post:', error);
+        }
+    }
+
+    function uploadToServer(file) {
+        return new Promise((resolve, reject) => {
+            const existingTorrent = client.get(file);
+
+            if (existingTorrent) {
+                console.log('Destroying existing torrent:', existingTorrent.infoHash);
+                existingTorrent.destroy(err => {
+                    if (err) return reject(err);
+
+                    client.seed(file, torrent => {
+                        console.log('File seeded, magnet URI:', torrent.magnetURI);
+                        resolve(torrent.magnetURI);
+                    });
+                });
+            } else {
+                client.seed(file, torrent => {
+                    console.log('File seeded, magnet URI:', torrent.magnetURI);
+                    resolve(torrent.magnetURI);
+                });
+            }
+        });
+    }
+
+
+
     async function loadAndDisplayThreads() {
         try {
             if (!gremlinThreadContract || !gremlinThreadContract.methods) {
