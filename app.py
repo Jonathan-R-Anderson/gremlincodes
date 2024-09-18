@@ -86,7 +86,7 @@ def seed_file(file_path):
         
         # WebTorrent seed command with trackers and keep-seeding
         cmd = f"webtorrent seed '{file_path}' {tracker_list} --keep-seeding"
-        logging.info(f"Running seeding command: {cmd}")
+        #logging.info(f"Running seeding command: {cmd}")
 
         # Run the command in a subprocess
         process = subprocess.Popen(
@@ -107,20 +107,20 @@ def seed_file(file_path):
                 break
 
             if output:
-                logging.info(f"WebTorrent output: {output.strip()}")
+                #logging.info(f"WebTorrent output: {output.strip()}")
                 if "Magnet URI:" in output:
                     magnet_url = output.split("Magnet URI:")[1].strip()
                     seeded_files[file_path] = magnet_url
                     logging.info(f"Magnet URL found: {magnet_url}")
 
                 # Monitor the number of peers
-                if "Connected to" in output and "peers" in output:
+                #if "Connected to" in output and "peers" in output:
                     peer_count = int(output.split("Connected to")[1].split()[0])
-                    logging.info(f"Peers connected: {peer_count}")
+                    #logging.info(f"Peers connected: {peer_count}")
 
                 # Stop seeding when 5 or more peers are connected
                 if peer_count >= 5:
-                    logging.info(f"Stopping seeding for {file_path} after reaching {peer_count} peers")
+                    #logging.info(f"Stopping seeding for {file_path} after reaching {peer_count} peers")
                     process.terminate()
                     break
 
