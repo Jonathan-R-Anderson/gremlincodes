@@ -315,10 +315,10 @@
 
             // Check if the user is replying to a thread
             const isReply = document.getElementById('replyContext').style.display !== 'none';
-            let parentThreadId = web3.utils.toBN("0");  // Default to "0" for a new thread, must be BigNumber for web3
+            let parentThreadId = new web3.utils.BN("0");  // Default to "0" for a new thread, must be BigNumber for web3
 
             if (isReply) {
-                parentThreadId = web3.utils.toBN(document.getElementById('replyThreadTitle').dataset.threadId);  // Get the parent thread ID from the hidden reply context
+                parentThreadId = new web3.utils.BN(document.getElementById('replyThreadTitle').dataset.threadId);  // Get the parent thread ID from the hidden reply context
             }
 
             // Ensure user is connected to Ethereum before posting
