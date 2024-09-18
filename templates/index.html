@@ -224,12 +224,12 @@
     let currentAccount = null;
     const client = new WebTorrent();
     let allThreads = [];
-    let threadMap = {}; 
+    let threadMap = {};
 
-    const _gremlinThreadABI = {{ gremlinThreadABI | safe }};  
-    const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";  
-    const _gremlinAdminABI = {{ gremlinAdminABI | safe }};  
-    const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";  
+    const _gremlinThreadABI = {{ gremlinThreadABI | safe }};
+    const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";
+    const _gremlinAdminABI = {{ gremlinAdminABI | safe }};
+    const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";
 
     window.onload = async function() {
         console.log("Window loaded.");
@@ -384,22 +384,14 @@
             downloadImage(thread.magnetUrl, threadContainer);
         }
 
-        const toggleRepliesBtn = document.createElement('button');
-        toggleRepliesBtn.innerText = "Show Replies";
-        threadContainer.appendChild(toggleRepliesBtn);
+        if (replies.length > 0) {
+            const repliesContainer = document.createElement('div');
+            repliesContainer.className = 'replies-container';
+            threadContainer.appendChild(repliesContainer);
 
-        const repliesContainer = document.createElement('div');
-        repliesContainer.className = 'replies-container';
-        repliesContainer.style.display = 'none';
-        threadContainer.appendChild(repliesContainer);
-
-        replies.forEach(reply => displayReply(reply, repliesContainer));
-
-        toggleRepliesBtn.onclick = () => {
-            const isHidden = repliesContainer.style.display === 'none';
-            repliesContainer.style.display = isHidden ? 'block' : 'none';
-            toggleRepliesBtn.innerText = isHidden ? 'Hide Replies' : 'Show Replies';
-        };
+            const lastThreeReplies = replies.slice(-3);
+            lastThreeReplies.forEach(reply => displayReply(reply, repliesContainer));
+        }
 
         document.getElementById('infiniteScrollContent').appendChild(threadContainer);
     }
@@ -436,9 +428,9 @@
                         const img = document.createElement('img');
                         img.src = url;
                         img.alt = file.name;
-                        img.style.maxWidth = '200px';  // Set thumbnail size
+                        img.style.maxWidth = '200px';
                         img.style.cursor = 'pointer';
-                        img.onclick = () => openImageFullScreen(url);  // Open full-screen on click
+                        img.onclick = () => openImageFullScreen(url);
                         threadContainer.appendChild(img);
 
                         output.innerText = `Image downloaded: ${file.name}`;
@@ -449,19 +441,28 @@
     }
 
     function openImageFullScreen(url) {
+        const overlayDiv = document.createElement('div');
+        overlayDiv.style.position = 'fixed';
+        overlayDiv.style.top = '0';
+        overlayDiv.style.left = '0';
+        overlayDiv.style.width = '100%';
+        overlayDiv.style.height = '100%';
+        overlayDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+        overlayDiv.style.zIndex = '10000';
+        overlayDiv.style.display = 'flex';
+        overlayDiv.style.justifyContent = 'center';
+        overlayDiv.style.alignItems = 'center';
+
         const fullScreenImage = document.createElement('img');
         fullScreenImage.src = url;
-        fullScreenImage.style.position = 'fixed';
-        fullScreenImage.style.top = '50%';
-        fullScreenImage.style.left = '50%';
-        fullScreenImage.style.transform = 'translate(-50%, -50%)';
-        fullScreenImage.style.maxWidth = '100%';
-        fullScreenImage.style.maxHeight = '100%';
-        fullScreenImage.style.zIndex = '10000';
-        document.body.appendChild(fullScreenImage);
+        fullScreenImage.style.maxWidth = '90%';
+        fullScreenImage.style.maxHeight = '90%';
 
-        fullScreenImage.onclick = () => {
-            document.body.removeChild(fullScreenImage);
+        overlayDiv.appendChild(fullScreenImage);
+        document.body.appendChild(overlayDiv);
+
+        overlayDiv.onclick = () => {
+            document.body.removeChild(overlayDiv);
         };
     }
 
@@ -469,7 +470,10 @@
         document.getElementById('replyContext').style.display = 'block'; 
         document.getElementById('replyThreadTitle').innerText = thread.name;
         document.getElementById('overlayTitle').innerText = 'Reply to Thread'; 
-        document.getElementById('overlay').style.height = '100%'; 
+        document.getElementById('overlay').style.height = '100%';
+
+        document.getElementById('newPostTitle').value = thread.name;  // Set thread name as the title
+        document.getElementById('newPostTags').style.display = 'none';  // Hide tags input for replies
     }
 
     async function checkIfAdmin(account) {
