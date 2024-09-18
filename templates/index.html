@@ -372,18 +372,22 @@
         const threadContainer = document.createElement('div');
         threadContainer.className = 'thread-container';
 
+        // Display thread title
         const title = document.createElement('h3');
         title.innerText = `Title: ${thread.name}`;
         threadContainer.appendChild(title);
 
+        // Display thread subject
         const subject = document.createElement('p');
         subject.innerText = `Subject: ${thread.subject}`;
         threadContainer.appendChild(subject);
 
+        // Display thread content with markdown rendering
         const content = document.createElement('div');
         content.innerHTML = renderMarkdown(thread.content);
         threadContainer.appendChild(content);
 
+        // Display thread tags
         const tagsContainer = document.createElement('div');
         tagsContainer.className = 'tags';
         thread.tags.forEach(tag => {
@@ -394,36 +398,48 @@
         });
         threadContainer.appendChild(tagsContainer);
 
+        // Reply button
         const replyButton = document.createElement('button');
         replyButton.innerText = "Reply";
         replyButton.onclick = () => openReplyOverlay(thread);
         threadContainer.appendChild(replyButton);
 
+        // Download image if magnet URL is present
         if (thread.magnetUrl) {
             downloadImage(thread.magnetUrl, threadContainer);
         }
 
-        if (replies.length > 0) {
+        // Check if there are replies, if so display the last three replies
+        if (replies && replies.length > 0) {
             const repliesContainer = document.createElement('div');
             repliesContainer.className = 'replies-container';
             threadContainer.appendChild(repliesContainer);
 
-            const lastThreeReplies = replies.slice(-3);
+            const lastThreeReplies = replies.slice(-3);  // Get the last 3 replies
             lastThreeReplies.forEach(reply => displayReply(reply, repliesContainer));
         }
 
+        // Add the thread container to the content section
         document.getElementById('infiniteScrollContent').appendChild(threadContainer);
     }
 
     function displayReply(reply, repliesContainer) {
         if (!reply) return;
+
+        // Create a container for each reply
         const replyContainer = document.createElement('div');
         replyContainer.className = 'reply-container';
+
+        // Display reply content
         const replyContent = document.createElement('p');
         replyContent.innerText = `Reply: ${reply.content}`;
         replyContainer.appendChild(replyContent);
+
+        // Append the reply container to the replies section
         repliesContainer.appendChild(replyContainer);
     }
+
+
 
     function renderMarkdown(text) {
         const converter = new showdown.Converter();
