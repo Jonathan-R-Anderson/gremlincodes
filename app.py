@@ -164,7 +164,7 @@ def upload_file():
 
         try:
             file.save(file_path)  # Save the file
-            logging.info(f"File successfully saved to {file_path}")  # Confirm file saved
+            logging.info(f"File successfully saved to {file_path}")
 
             # Start seeding in a separate thread
             seed_thread = threading.Thread(target=seed_file, args=(file_path,))
@@ -190,7 +190,7 @@ def upload_file():
             return jsonify({"error": "Error creating torrent", "details": str(e)}), 500
 
     else:
-        logging.error(f"Invalid file type: {file.filename}")  # Log invalid file type
+        logging.error(f"Invalid file type: {file.filename}")
         return jsonify({"error": "Invalid file type"}), 400
 
 
