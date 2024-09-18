@@ -144,22 +144,27 @@ def auto_seed_static_files():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """Handle the image upload, start torrent seeding in a separate thread, and return the magnet link."""
+    logging.info('Upload route accessed')  # Log route access
+    
     if 'file' not in request.files:
+        logging.error('No file part in the request')  # Log missing file part
         return jsonify({"error": "No file provided"}), 400
 
     file = request.files['file']
 
     if file.filename == '':
+        logging.error('No file selected')  # Log empty filename
         return jsonify({"error": "No selected file"}), 400
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file_path = os.path.join(os.path.abspath(FILE_DIR), filename)
-        logging.info(f"Saving file: {filename} at {file_path}")  # Log file details
+        
+        logging.info(f"Attempting to save file: {filename} at {file_path}")  # Log file details
 
         try:
-            file.save(file_path)
-            logging.info(f"File successfully saved to {file_path}")
+            file.save(file_path)  # Save the file
+            logging.info(f"File successfully saved to {file_path}")  # Confirm file saved
 
             # Start seeding in a separate thread
             seed_thread = threading.Thread(target=seed_file, args=(file_path,))
@@ -177,13 +182,16 @@ def upload_file():
                 logging.info(f"Magnet URL generated: {magnet_url}")
                 return jsonify({"magnet_url": magnet_url}), 200
             else:
+                logging.error('Failed to generate magnet URL in time')
                 return jsonify({"error": "Failed to generate magnet URL in time"}), 500
 
         except Exception as e:
-            logging.error(f"Error during seeding or file saving: {e}")
+            logging.error(f"Error during file saving or torrent creation: {e}")
             return jsonify({"error": "Error creating torrent", "details": str(e)}), 500
 
-    return jsonify({"error": "Invalid file type"}), 400
+    else:
+        logging.error(f"Invalid file type: {file.filename}")  # Log invalid file type
+        return jsonify({"error": "Invalid file type"}), 400
 
 
 @app.route('/static/<path:filename>', methods=['GET'])
