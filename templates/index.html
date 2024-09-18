@@ -293,6 +293,7 @@
         console.log("Contract instances created.");
     }
 
+
     async function submitPost() {
         const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';  // Default to 'Untitled Post'
         const email = document.getElementById('newPostEmail').value || 'no-email@example.com';  // Default to 'no-email@example.com'
@@ -307,7 +308,8 @@
             let magnetUrl = '';
 
             if (imageFile) {
-                magnetUrl = await uploadToServer(imageFile);
+                const uploadResponse = await uploadToServer(imageFile);
+                magnetUrl = uploadResponse.serverMagnet;  // Extract the magnet URL as a string
             } else {
                 magnetUrl = 'no-image';  // Dummy value for magnet URL
             }
@@ -329,7 +331,7 @@
                 title,  // Thread or reply title
                 isReply ? `Reply to: ${title}` : title,  // Subject for replies will be like 'Reply to'
                 email,  // Email of the poster
-                magnetUrl,  // Image magnet URL or 'no-image'
+                magnetUrl,  // Use just the string for the magnet URL here
                 tags,  // Only relevant for threads, not replies
                 content,  // Content of the post
                 parentThreadId  // Parent ID, 0 for threads, actual thread ID for replies
@@ -340,7 +342,7 @@
                 title,
                 isReply ? `Reply to: ${title}` : title,
                 email,
-                magnetUrl,
+                magnetUrl,  // Pass only the magnet URL string here
                 tags,
                 content,
                 parentThreadId
@@ -353,6 +355,7 @@
             console.error('Error submitting post:', error);
         }
     }
+
 
     function uploadToServer(file) {
         return new Promise((resolve, reject) => {
