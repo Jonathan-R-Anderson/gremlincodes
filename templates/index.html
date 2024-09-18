@@ -372,9 +372,8 @@
             .then(data => {
                 if (data.magnet_url) {
                     console.log('Server seeding: Magnet URL:', data.magnet_url);
-                    resolve({
-                        serverMagnet: data.magnet_url      // Only server-side magnet link
-                    });
+                    resolve(String(data.magnet_url));  // Resolve with the magnet URL string directly
+
                 } else {
                     console.error('Error from server:', data.error || 'Unknown error');
                     reject(data.error || 'Unknown error');
