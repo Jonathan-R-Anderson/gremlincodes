@@ -220,6 +220,7 @@
 <script>
     let web3;
     let gremlinThreadContract;
+    let gremlinReplyContract;
     let gremlinAdminContract;
     let currentAccount = null;
     const client = new WebTorrent();
@@ -228,6 +229,8 @@
 
     const _gremlinThreadABI = {{ gremlinThreadABI | safe }};
     const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";
+    const _gremlinReplyABI = {{ gremlinReplyABI | safe }};
+    const _gremlinReplyAddress = "{{ gremlinReplyAddress }}";
     const _gremlinAdminABI = {{ gremlinAdminABI | safe }};
     const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";
 
@@ -267,26 +270,25 @@
     };
 
     function showOverlay() {
-    document.getElementById('replyContext').style.display = 'none'; // Hide reply-specific context
-    document.getElementById('newPostTitle').style.display = 'block'; // Show title input for new thread
-    document.getElementById('newPostTags').style.display = 'block'; // Show tags input for new thread
-    document.getElementById('overlayTitle').innerText = 'Create a New Post'; // Set overlay title for new post
-    document.getElementById('overlay').style.height = '100%'; // Show the overlay
+        document.getElementById('replyContext').style.display = 'none'; // Hide reply-specific context
+        document.getElementById('newPostTitle').style.display = 'block'; // Show title input for new thread
+        document.getElementById('newPostTags').style.display = 'block'; // Show tags input for new thread
+        document.getElementById('overlayTitle').innerText = 'Create a New Post'; // Set overlay title for new post
+        document.getElementById('overlay').style.height = '100%'; // Show the overlay
     }
-
 
     function closeOverlay() {
-    document.getElementById('newPostTitle').value = ''; // Clear title input
-    document.getElementById('newPostContent').value = ''; // Clear content input
-    document.getElementById('newPostTags').value = ''; // Clear tags input
-    document.getElementById('newPostEmail').value = ''; // Clear email input
-    document.getElementById('imageUpload').value = ''; // Clear file input
-    document.getElementById('overlay').style.height = '0%'; // Hide the overlay
+        document.getElementById('newPostTitle').value = ''; // Clear title input
+        document.getElementById('newPostContent').value = ''; // Clear content input
+        document.getElementById('newPostTags').value = ''; // Clear tags input
+        document.getElementById('newPostEmail').value = ''; // Clear email input
+        document.getElementById('imageUpload').value = ''; // Clear file input
+        document.getElementById('overlay').style.height = '0%'; // Hide the overlay
     }
 
-    
     function initializeContracts() {
         gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
+        gremlinReplyContract = new web3.eth.Contract(_gremlinReplyABI, _gremlinReplyAddress);
         gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
         console.log("Contract instances created.");
     }
@@ -295,7 +297,7 @@
         const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';  // Default to 'Untitled Post'
         const email = document.getElementById('newPostEmail').value || 'no-email@example.com';  // Default to 'no-email@example.com'
         const content = document.getElementById('newPostContent').value.trim() || 'No content provided';  // Default content
-        const tags = document.getElementById('newPostTags').style.display === 'block' 
+        const tags = document.getElementById('newPostTags').style.display === 'block'
             ? (document.getElementById('newPostTags').value.split(',').map(tag => tag.trim()) || ['uncategorized'])  // Default to 'uncategorized'
             : ['uncategorized'];  // Default to 'uncategorized' if tags input is hidden (i.e., for replies)
         const imageFile = document.getElementById('imageUpload').files[0];
@@ -320,26 +322,28 @@
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             const account = accounts[0];
 
+            const contractMethod = isReply ? gremlinReplyContract.methods.createReply : gremlinThreadContract.methods.createThread;
+
             // Estimate the gas required for the transaction
-            const gasEstimate = await gremlinThreadContract.methods.createThread(
-                title,                         // _name
-                isReply ? `Reply to: ${title}` : title,  // _subject
-                email,                         // _email
-                magnetUrl,                     // _magnetUrl
-                tags,                          // _tags
-                content,                       // _content
-                parentThreadId                 // _parentThreadId (make sure it's passed as a string or number)
+            const gasEstimate = await contractMethod(
+                title,  // Thread or reply title
+                isReply ? `Reply to: ${title}` : title,  // Subject for replies will be like 'Reply to'
+                email,  // Email of the poster
+                magnetUrl,  // Image magnet URL or 'no-image'
+                tags,  // Only relevant for threads, not replies
+                content,  // Content of the post
+                parentThreadId  // Parent ID, 0 for threads, actual thread ID for replies
             ).estimateGas({ from: account });
 
-            // Send the transaction to create the new thread or reply
-            await gremlinThreadContract.methods.createThread(
+            // Send the transaction to create a new thread or reply
+            await contractMethod(
                 title,
                 isReply ? `Reply to: ${title}` : title,
                 email,
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId  // Ensure it's a valid uint256 number or string
+                parentThreadId
             ).send({ from: account, gas: gasEstimate });
 
             closeOverlay();
@@ -349,7 +353,6 @@
             console.error('Error submitting post:', error);
         }
     }
-
 
     function uploadToServer(file) {
         return new Promise((resolve, reject) => {
@@ -373,8 +376,6 @@
             }
         });
     }
-
-
 
     async function loadAndDisplayThreads() {
         try {
@@ -524,8 +525,6 @@
         repliesContainer.appendChild(replyContainer);
     }
 
-
-
     function renderMarkdown(text) {
         const converter = new showdown.Converter();
         return converter.makeHtml(text);
@@ -589,6 +588,7 @@
     function openReplyOverlay(thread) {
         document.getElementById('replyContext').style.display = 'block'; 
         document.getElementById('replyThreadTitle').innerText = thread.name;
+        document.getElementById('replyThreadTitle').dataset.threadId = thread.id;
         document.getElementById('overlayTitle').innerText = 'Reply to Thread'; 
         document.getElementById('overlay').style.height = '100%';
 
@@ -607,7 +607,6 @@
         }
     }
 </script>
-
 
 
 </body>
