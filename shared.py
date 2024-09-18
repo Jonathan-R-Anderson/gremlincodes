@@ -43,10 +43,10 @@ gremlinThreadABI = [
       "type": "constructor"
     },
     {
-      "anonymous": false,
+      "anonymous": False,
       "inputs": [
         {
-          "indexed": false,
+          "indexed": False,
           "internalType": "uint256",
           "name": "id",
           "type": "uint256"
@@ -56,28 +56,28 @@ gremlinThreadABI = [
       "type": "event"
     },
     {
-      "anonymous": false,
+      "anonymous": False,
       "inputs": [
         {
-          "indexed": false,
+          "indexed": False,
           "internalType": "uint256",
           "name": "id",
           "type": "uint256"
         },
         {
-          "indexed": false,
+          "indexed": False,
           "internalType": "uint256",
           "name": "parentThreadId",
           "type": "uint256"
         },
         {
-          "indexed": false,
+          "indexed": False,
           "internalType": "string",
           "name": "subject",
           "type": "string"
         },
         {
-          "indexed": false,
+          "indexed": False,
           "internalType": "string",
           "name": "email",
           "type": "string"
@@ -87,10 +87,10 @@ gremlinThreadABI = [
       "type": "event"
     },
     {
-      "anonymous": false,
+      "anonymous": False,
       "inputs": [
         {
-          "indexed": false,
+          "indexed": False,
           "internalType": "uint256",
           "name": "id",
           "type": "uint256"
@@ -100,10 +100,10 @@ gremlinThreadABI = [
       "type": "event"
     },
     {
-      "anonymous": false,
+      "anonymous": False,
       "inputs": [
         {
-          "indexed": false,
+          "indexed": False,
           "internalType": "uint256",
           "name": "id",
           "type": "uint256"
