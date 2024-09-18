@@ -297,7 +297,7 @@
         const content = document.getElementById('newPostContent').value.trim();
         const tags = document.getElementById('newPostTags').style.display === 'block' ? document.getElementById('newPostTags').value.split(',').map(tag => tag.trim()) : [];
         const imageFile = document.getElementById('imageUpload').files[0];
-        const ethAddress = currentAccount; // Use the connected Ethereum address
+        const ethAddress = currentAccount;  // Use the connected Ethereum address
 
         // Check if title and content are provided
         if (!title || !content) {
@@ -315,10 +315,10 @@
 
             // Check if the user is replying to a thread
             const isReply = document.getElementById('replyContext').style.display !== 'none';
-            let parentThreadId = "0";  // Default to "0" for a new thread
+            let parentThreadId = web3.utils.toBN("0");  // Default to "0" for a new thread, must be BigNumber for web3
 
             if (isReply) {
-                parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;  // Get the parent thread ID from the hidden reply context
+                parentThreadId = web3.utils.toBN(document.getElementById('replyThreadTitle').dataset.threadId);  // Get the parent thread ID from the hidden reply context
             }
 
             // Ensure user is connected to Ethereum before posting
@@ -333,7 +333,7 @@
                 magnetUrl || '',  // If no image, pass an empty string for magnetUrl
                 tags.length > 0 ? tags : ['general'],  // Ensure at least one tag is provided
                 content, 
-                parentThreadId
+                parentThreadId  // Ensure this is a BigNumber
             ).estimateGas({ from: account });
 
             // Send the transaction to create the new thread or reply
@@ -344,7 +344,7 @@
                 magnetUrl || '',  // If no image, pass an empty string for magnetUrl
                 tags.length > 0 ? tags : ['general'],  // Ensure at least one tag is provided
                 content, 
-                parentThreadId
+                parentThreadId  // Pass BigNumber ID for parent thread
             ).send({ from: account, gas: gasEstimate });
 
             // Collapse the overlay after successful submission
@@ -356,7 +356,6 @@
             console.error('Error submitting post:', error);
         }
     }
-
 
 
     function uploadToServer(file) {
