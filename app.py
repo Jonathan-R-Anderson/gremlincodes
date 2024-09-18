@@ -157,11 +157,13 @@ def upload_file():
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        file_path = os.path.join(FILE_DIR, filename)
-        file.save(file_path)
-        logging.info(f"File saved to {file_path}")
+        file_path = os.path.join(os.path.abspath(FILE_DIR), filename)  # Use absolute path
+        logging.info(f"Saving file: {filename} at {file_path}")  # Log file details
 
         try:
+            file.save(file_path)
+            logging.info(f"File successfully saved to {file_path}")
+
             # Start seeding in a separate thread
             seed_thread = threading.Thread(target=seed_file, args=(file_path,))
             seed_thread.start()
@@ -181,7 +183,7 @@ def upload_file():
                 return jsonify({"error": "Failed to generate magnet URL in time"}), 500
 
         except Exception as e:
-            logging.error(f"Error during seeding: {e}")
+            logging.error(f"Error during seeding or file saving: {e}")
             return jsonify({"error": "Error creating torrent", "details": str(e)}), 500
 
     return jsonify({"error": "Invalid file type"}), 400
