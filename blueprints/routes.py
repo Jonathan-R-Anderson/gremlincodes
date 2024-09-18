@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template
-from shared import gremlinThreadABI, gremlinThreadAddress, gremlinAdminABI, gremlinAdminAddress
+from shared import gremlinThreadABI, gremlinThreadAddress, gremlinAdminABI, gremlinAdminAddress, gremlinReplyABI, gremlinReplyAddress
 import json
 
 blueprint = Blueprint('blueprint', __name__)
@@ -10,8 +10,6 @@ def index():
                            gremlinThreadABI=json.dumps(gremlinThreadABI, ensure_ascii=False),  # Avoid ASCII escaping
                            gremlinThreadAddress=gremlinThreadAddress,
                            gremlinAdminABI=json.dumps(gremlinAdminABI, ensure_ascii=False),  # Avoid ASCII escaping
-                           gremlinAdminAddress=gremlinAdminAddress)
-
-@blueprint.route('/test')
-def test():
-    return render_template('test.html')
+                           gremlinAdminAddress=gremlinAdminAddress,
+                           gremlinReplyABI=json.dumps(gremlinReplyABI, ensure_ascii=False),
+                           gremlinReplyAddress=gremlinReplyAddress)

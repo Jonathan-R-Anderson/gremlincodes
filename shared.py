@@ -31,8 +31,9 @@ rest_api = Api(app)
 #web3 = Web3(Web3.HTTPProvider('https://endpoints.omniatech.io/v1/zksync-era/mainnet/1a6a3c9fbe4c40d5b4d6c46b466e674f'))
 
 # Contract addresses
-gremlinThreadAddress = '0x7aA9305b453Cd5Ad1C6dDcaEbb14Af9febB83199'
-gremlinAdminAddress = '0x69B0C4FDAC564C8DC5Eb64e9cAFe691f4af6BF94'
+gremlinThreadAddress = '0x6D56E530D3af63BfAcDca26f6aC7CEeCaAA59376'
+gremlinReplyAddress = '0x4b8E86142f146824Db266Fe4C5Bad1D278F0ef39'
+gremlinAdminAddress = '0x70Af4FD96E41a3C8adbd5011deb2C27C00eC5380'
 
 # Contract ABIs
 gremlinThreadABI = [
@@ -42,36 +43,41 @@ gremlinThreadABI = [
       "type": "constructor"
     },
     {
-      "anonymous": False,
+      "anonymous": false,
       "inputs": [
-        {"indexed": False, "internalType": "uint256", "name": "id", "type": "uint256"}
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        }
       ],
       "name": "ThreadBlacklisted",
       "type": "event"
     },
     {
-      "anonymous": False,
+      "anonymous": false,
       "inputs": [
         {
-          "indexed": False,
+          "indexed": false,
           "internalType": "uint256",
           "name": "id",
           "type": "uint256"
         },
         {
-          "indexed": False,
+          "indexed": false,
           "internalType": "uint256",
           "name": "parentThreadId",
           "type": "uint256"
         },
         {
-          "indexed": False,
+          "indexed": false,
           "internalType": "string",
           "name": "subject",
           "type": "string"
         },
         {
-          "indexed": False,
+          "indexed": false,
           "internalType": "string",
           "name": "email",
           "type": "string"
@@ -81,9 +87,27 @@ gremlinThreadABI = [
       "type": "event"
     },
     {
-      "anonymous": False,
+      "anonymous": false,
       "inputs": [
-        {"indexed": False, "internalType": "uint256", "name": "id", "type": "uint256"}
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        }
+      ],
+      "name": "ThreadDeleted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        }
       ],
       "name": "ThreadWhitelisted",
       "type": "event"
@@ -92,14 +116,22 @@ gremlinThreadABI = [
       "inputs": [],
       "name": "admin",
       "outputs": [
-        {"internalType": "address", "name": "", "type": "address"}
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
       ],
       "stateMutability": "view",
       "type": "function"
     },
     {
       "inputs": [
-        {"internalType": "address", "name": "_addr", "type": "address"}
+        {
+          "internalType": "address",
+          "name": "_addr",
+          "type": "address"
+        }
       ],
       "name": "banAddress",
       "outputs": [],
@@ -108,18 +140,30 @@ gremlinThreadABI = [
     },
     {
       "inputs": [
-        {"internalType": "address", "name": "", "type": "address"}
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
       ],
       "name": "bannedAddresses",
       "outputs": [
-        {"internalType": "bool", "name": "", "type": "bool"}
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
       ],
       "stateMutability": "view",
       "type": "function"
     },
     {
       "inputs": [
-        {"internalType": "uint256", "name": "_threadId", "type": "uint256"}
+        {
+          "internalType": "uint256",
+          "name": "_threadId",
+          "type": "uint256"
+        }
       ],
       "name": "blacklistThread",
       "outputs": [],
@@ -170,23 +214,89 @@ gremlinThreadABI = [
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_threadId",
+          "type": "uint256"
+        }
+      ],
+      "name": "deleteThread",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "getAllThreads",
       "outputs": [
         {
           "components": [
-            {"internalType": "uint256", "name": "id", "type": "uint256"},
-            {"internalType": "string", "name": "name", "type": "string"},
-            {"internalType": "string", "name": "subject", "type": "string"},
-            {"internalType": "string", "name": "email", "type": "string"},
-            {"internalType": "string", "name": "magnetUrl", "type": "string"},
-            {"internalType": "string[]", "name": "tags", "type": "string[]"},
-            {"internalType": "string", "name": "content", "type": "string"},
-            {"internalType": "uint256", "name": "parentThreadId", "type": "uint256"},
-            {"internalType": "address", "name": "sender", "type": "address"},
-            {"internalType": "uint256", "name": "timestamp", "type": "uint256"},
-            {"internalType": "bool", "name": "whitelisted", "type": "bool"},
-            {"internalType": "bool", "name": "blacklisted", "type": "bool"}
+            {
+              "internalType": "uint256",
+              "name": "id",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "subject",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "email",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "magnetUrl",
+              "type": "string"
+            },
+            {
+              "internalType": "string[]",
+              "name": "tags",
+              "type": "string[]"
+            },
+            {
+              "internalType": "string",
+              "name": "content",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "parentThreadId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "sender",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bool",
+              "name": "whitelisted",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "blacklisted",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "deleted",
+              "type": "bool"
+            }
           ],
           "internalType": "struct GremlinThread.Thread[]",
           "name": "",
@@ -198,24 +308,81 @@ gremlinThreadABI = [
     },
     {
       "inputs": [
-        {"internalType": "uint256", "name": "_threadId", "type": "uint256"}
+        {
+          "internalType": "uint256",
+          "name": "_threadId",
+          "type": "uint256"
+        }
       ],
       "name": "getThread",
       "outputs": [
         {
           "components": [
-            {"internalType": "uint256", "name": "id", "type": "uint256"},
-            {"internalType": "string", "name": "name", "type": "string"},
-            {"internalType": "string", "name": "subject", "type": "string"},
-            {"internalType": "string", "name": "email", "type": "string"},
-            {"internalType": "string", "name": "magnetUrl", "type": "string"},
-            {"internalType": "string[]", "name": "tags", "type": "string[]"},
-            {"internalType": "string", "name": "content", "type": "string"},
-            {"internalType": "uint256", "name": "parentThreadId", "type": "uint256"},
-            {"internalType": "address", "name": "sender", "type": "address"},
-            {"internalType": "uint256", "name": "timestamp", "type": "uint256"},
-            {"internalType": "bool", "name": "whitelisted", "type": "bool"},
-            {"internalType": "bool", "name": "blacklisted", "type": "bool"}
+            {
+              "internalType": "uint256",
+              "name": "id",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "subject",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "email",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "magnetUrl",
+              "type": "string"
+            },
+            {
+              "internalType": "string[]",
+              "name": "tags",
+              "type": "string[]"
+            },
+            {
+              "internalType": "string",
+              "name": "content",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "parentThreadId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "sender",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bool",
+              "name": "whitelisted",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "blacklisted",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "deleted",
+              "type": "bool"
+            }
           ],
           "internalType": "struct GremlinThread.Thread",
           "name": "",
@@ -229,35 +396,96 @@ gremlinThreadABI = [
       "inputs": [],
       "name": "threadCount",
       "outputs": [
-        {"internalType": "uint256", "name": "", "type": "uint256"}
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
       ],
       "stateMutability": "view",
       "type": "function"
     },
     {
       "inputs": [
-        {"internalType": "uint256", "name": "", "type": "uint256"}
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
       ],
       "name": "threads",
       "outputs": [
-        {"internalType": "uint256", "name": "id", "type": "uint256"},
-        {"internalType": "string", "name": "name", "type": "string"},
-        {"internalType": "string", "name": "subject", "type": "string"},
-        {"internalType": "string", "name": "email", "type": "string"},
-        {"internalType": "string", "name": "magnetUrl", "type": "string"},
-        {"internalType": "string", "name": "content", "type": "string"},
-        {"internalType": "uint256", "name": "parentThreadId", "type": "uint256"},
-        {"internalType": "address", "name": "sender", "type": "address"},
-        {"internalType": "uint256", "name": "timestamp", "type": "uint256"},
-        {"internalType": "bool", "name": "whitelisted", "type": "bool"},
-        {"internalType": "bool", "name": "blacklisted", "type": "bool"}
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "subject",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "email",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "magnetUrl",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "content",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "parentThreadId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "whitelisted",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "blacklisted",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "deleted",
+          "type": "bool"
+        }
       ],
       "stateMutability": "view",
       "type": "function"
     },
     {
       "inputs": [
-        {"internalType": "address", "name": "newAdmin", "type": "address"}
+        {
+          "internalType": "address",
+          "name": "newAdmin",
+          "type": "address"
+        }
       ],
       "name": "transferAdmin",
       "outputs": [],
@@ -266,7 +494,11 @@ gremlinThreadABI = [
     },
     {
       "inputs": [
-        {"internalType": "address", "name": "_addr", "type": "address"}
+        {
+          "internalType": "address",
+          "name": "_addr",
+          "type": "address"
+        }
       ],
       "name": "unbanAddress",
       "outputs": [],
@@ -275,14 +507,224 @@ gremlinThreadABI = [
     },
     {
       "inputs": [
-        {"internalType": "uint256", "name": "_threadId", "type": "uint256"}
+        {
+          "internalType": "uint256",
+          "name": "_threadId",
+          "type": "uint256"
+        }
       ],
       "name": "whitelistThread",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
     }
-]
+  ]
+
+
+gremlinReplyABI = [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "admin",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_addr",
+          "type": "address"
+        }
+      ],
+      "name": "banAddress",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "bannedAddresses",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_replyId",
+          "type": "uint256"
+        }
+      ],
+      "name": "blacklistReply",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_content",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "_email",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "_magnetUrl",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_parentId",
+          "type": "uint256"
+        }
+      ],
+      "name": "createReply",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_replyId",
+          "type": "uint256"
+        }
+      ],
+      "name": "deleteReply",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "replies",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "content",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "email",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "magnetUrl",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "parentId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "whitelisted",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "blacklisted",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "replyCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_addr",
+          "type": "address"
+        }
+      ],
+      "name": "unbanAddress",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_replyId",
+          "type": "uint256"
+        }
+      ],
+      "name": "whitelistReply",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ]
 
 gremlinAdminABI = [
     {
@@ -291,6 +733,11 @@ gremlinAdminABI = [
           "internalType": "address",
           "name": "_gremlinThreadAddress",
           "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_gremlinReplyAddress",
+          "type": "address"
         }
       ],
       "stateMutability": "nonpayable",
@@ -298,7 +745,11 @@ gremlinAdminABI = [
     },
     {
       "inputs": [
-        {"internalType": "address", "name": "_user", "type": "address"}
+        {
+          "internalType": "address",
+          "name": "_user",
+          "type": "address"
+        }
       ],
       "name": "banUser",
       "outputs": [],
@@ -307,7 +758,24 @@ gremlinAdminABI = [
     },
     {
       "inputs": [
-        {"internalType": "uint256", "name": "_threadId", "type": "uint256"}
+        {
+          "internalType": "uint256",
+          "name": "_replyId",
+          "type": "uint256"
+        }
+      ],
+      "name": "blacklistReply",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_threadId",
+          "type": "uint256"
+        }
       ],
       "name": "blacklistThread",
       "outputs": [],
@@ -315,10 +783,53 @@ gremlinAdminABI = [
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_replyId",
+          "type": "uint256"
+        }
+      ],
+      "name": "deleteReply",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_threadId",
+          "type": "uint256"
+        }
+      ],
+      "name": "deleteThread",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "gremlinReply",
+      "outputs": [
+        {
+          "internalType": "contract GremlinReply",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "gremlinThread",
       "outputs": [
-        {"internalType": "contract GremlinThread", "name": "", "type": "address"}
+        {
+          "internalType": "contract GremlinThread",
+          "name": "",
+          "type": "address"
+        }
       ],
       "stateMutability": "view",
       "type": "function"
@@ -327,14 +838,22 @@ gremlinAdminABI = [
       "inputs": [],
       "name": "owner",
       "outputs": [
-        {"internalType": "address", "name": "", "type": "address"}
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
       ],
       "stateMutability": "view",
       "type": "function"
     },
     {
       "inputs": [
-        {"internalType": "address", "name": "_user", "type": "address"}
+        {
+          "internalType": "address",
+          "name": "_user",
+          "type": "address"
+        }
       ],
       "name": "unbanUser",
       "outputs": [],
@@ -343,14 +862,32 @@ gremlinAdminABI = [
     },
     {
       "inputs": [
-        {"internalType": "uint256", "name": "_threadId", "type": "uint256"}
+        {
+          "internalType": "uint256",
+          "name": "_replyId",
+          "type": "uint256"
+        }
+      ],
+      "name": "whitelistReply",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_threadId",
+          "type": "uint256"
+        }
       ],
       "name": "whitelistThread",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
     }
-]
+  ]
+
 
 # Contract objects
 #gremlinThreadContract = web3.eth.contract(address=gremlinThreadAddress, abi=gremlinThreadABI)
