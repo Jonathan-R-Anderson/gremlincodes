@@ -115,7 +115,7 @@ def seed_file(file_path):
                 if output:
                     #logging.info(f"WebTorrent output: {output.strip()}")
                     if "Magnet:" in output:
-                        magnet_url = output.split("Magnet URI:")[1].strip()
+                        magnet_url = output.split("Magnet: ")[1].strip()
                         seeded_files[file_path] = magnet_url
                         logging.info(f"Magnet URL found: {magnet_url}")
                         break  # Magnet URL found, exit the loop
