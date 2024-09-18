@@ -355,27 +355,40 @@
     }
 
     function uploadToServer(file) {
-        return new Promise((resolve, reject) => {
-            const existingTorrent = client.get(file);
+    return new Promise((resolve, reject) => {
+        // Client-side seeding
+        client.seed(file, torrent => {
+            console.log('Client seeding: Magnet URI:', torrent.magnetURI);
 
-            if (existingTorrent) {
-                console.log('Destroying existing torrent:', existingTorrent.infoHash);
-                existingTorrent.destroy(err => {
-                    if (err) return reject(err);
+            // After client starts seeding, upload the file to the server
+            const formData = new FormData();
+            formData.append('file', file);
 
-                    client.seed(file, torrent => {
-                        console.log('File seeded, magnet URI:', torrent.magnetURI);
-                        resolve(torrent.magnetURI);
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.magnet_url) {
+                    console.log('Server seeding: Magnet URL:', data.magnet_url);
+                    resolve({
+                        clientMagnet: torrent.magnetURI,   // Client-side magnet link
+                        serverMagnet: data.magnet_url      // Server-side magnet link
                     });
-                });
-            } else {
-                client.seed(file, torrent => {
-                    console.log('File seeded, magnet URI:', torrent.magnetURI);
-                    resolve(torrent.magnetURI);
-                });
-            }
+                } else {
+                    console.error('Error from server:', data.error || 'Unknown error');
+                    reject(data.error || 'Unknown error');
+                }
+            })
+            .catch(error => {
+                console.error('Error uploading to server:', error);
+                reject(error);
+            });
         });
-    }
+    });
+}
+
 
     async function loadAndDisplayThreads() {
         try {
