@@ -81,12 +81,17 @@ def allowed_file(filename):
 def seed_file(file_path):
     """Function to seed the file using the WebTorrent command and stop seeding after enough peers."""
     try:
+        # Check if the file is already being seeded
+        if file_path in seeded_files:
+            logging.info(f"{file_path} is already being seeded.")
+            return seeded_files[file_path]  # Return existing magnet URL if it's already seeded
+
         # Prepare tracker list for WebTorrent seed command
         tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
         
         # WebTorrent seed command with trackers and keep-seeding
         cmd = f"webtorrent seed '{file_path}' {tracker_list} --keep-seeding"
-        #logging.info(f"Running seeding command: {cmd}")
+        logging.info(f"Running seeding command: {cmd}")
 
         # Run the command in a subprocess
         process = subprocess.Popen(
@@ -107,31 +112,23 @@ def seed_file(file_path):
                 break
 
             if output:
-                #logging.info(f"WebTorrent output: {output.strip()}")
+                logging.info(f"WebTorrent output: {output.strip()}")
                 if "Magnet URI:" in output:
                     magnet_url = output.split("Magnet URI:")[1].strip()
                     seeded_files[file_path] = magnet_url
                     logging.info(f"Magnet URL found: {magnet_url}")
 
-                # Monitor the number of peers
-                #if "Connected to" in output and "peers" in output:
-                    peer_count = int(output.split("Connected to")[1].split()[0])
-                    #logging.info(f"Peers connected: {peer_count}")
-
-                # Stop seeding when 5 or more peers are connected
                 if peer_count >= 5:
-                    #logging.info(f"Stopping seeding for {file_path} after reaching {peer_count} peers")
+                    logging.info(f"Stopping seeding for {file_path} after reaching {peer_count} peers")
                     process.terminate()
                     break
 
-        # Ensure subprocess completes
         process.communicate()
-
-        if process.returncode != 0 and peer_count < 5:
-            logging.error(f"Seeding process failed for {file_path}")
+        return magnet_url
 
     except Exception as e:
         logging.error(f"Error while seeding file: {str(e)}")
+        return None
 
 
 def auto_seed_static_files():
@@ -157,7 +154,7 @@ def upload_file():
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        file_path = os.path.join(os.path.abspath(FILE_DIR), filename)  # Use absolute path
+        file_path = os.path.join(os.path.abspath(FILE_DIR), filename)
         logging.info(f"Saving file: {filename} at {file_path}")  # Log file details
 
         try:
