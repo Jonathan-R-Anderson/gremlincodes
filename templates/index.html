@@ -357,7 +357,6 @@
         }
     }
 
-
     function uploadToServer(file) {
         return new Promise((resolve, reject) => {
             // Upload the file directly to the server
@@ -372,9 +371,22 @@
             .then(response => response.json())
             .then(data => {
                 if (data.magnet_url) {
-                    console.log('Server seeding: Magnet URL:', data.magnet_url);
-                    resolve(String(data.magnet_url));  // Resolve with the magnet URL string directly
+                    const magnetUrl = String(data.magnet_url);  // Ensure magnet URL is a string
+                    console.log('Server seeding: Magnet URL:', magnetUrl);
 
+                    // Check if the torrent is already added to the client
+                    const existingTorrent = client.get(magnetUrl);
+
+                    if (existingTorrent) {
+                        console.log('Torrent already exists, reusing it:', existingTorrent.infoHash);
+                        resolve(magnetUrl);  // Reuse the existing torrent
+                    } else {
+                        // Add the torrent if it doesn't already exist
+                        client.add(magnetUrl, torrent => {
+                            console.log('Torrent added successfully:', torrent.infoHash);
+                            resolve(magnetUrl);  // Resolve the magnet URL
+                        });
+                    }
                 } else {
                     console.error('Error from server:', data.error || 'Unknown error');
                     reject(data.error || 'Unknown error');
@@ -386,6 +398,7 @@
             });
         });
     }
+
 
 
     async function loadAndDisplayThreads() {
