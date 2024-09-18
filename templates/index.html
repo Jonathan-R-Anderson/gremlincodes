@@ -309,7 +309,8 @@
 
             if (imageFile) {
                 const uploadResponse = await uploadToServer(imageFile);
-                magnetUrl = uploadResponse.serverMagnet;  // Extract the magnet URL as a string
+                magnetUrl = uploadResponse;  // Ensure it's a string
+                console.log("Magnet URL:", magnetUrl);  // Log the magnet URL for debugging
             } else {
                 magnetUrl = 'no-image';  // Dummy value for magnet URL
             }
