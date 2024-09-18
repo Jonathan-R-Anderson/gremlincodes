@@ -125,7 +125,7 @@ def seed_file(file_path):
         output_thread.start()
 
         # Wait for the magnet URL to be extracted
-        output_thread.join(timeout=10)  # Wait for up to 10 seconds for the magnet URL to appear
+        output_thread.join(timeout=30)  # Wait for up to 10 seconds for the magnet URL to appear
 
         if magnet_url:
             logging.info(f"Magnet URL returned: {magnet_url}")
