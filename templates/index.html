@@ -266,6 +266,25 @@
         }
     };
 
+    function showOverlay() {
+    document.getElementById('replyContext').style.display = 'none'; // Hide reply-specific context
+    document.getElementById('newPostTitle').style.display = 'block'; // Show title input for new thread
+    document.getElementById('newPostTags').style.display = 'block'; // Show tags input for new thread
+    document.getElementById('overlayTitle').innerText = 'Create a New Post'; // Set overlay title for new post
+    document.getElementById('overlay').style.height = '100%'; // Show the overlay
+    }
+
+
+    function closeOverlay() {
+    document.getElementById('newPostTitle').value = ''; // Clear title input
+    document.getElementById('newPostContent').value = ''; // Clear content input
+    document.getElementById('newPostTags').value = ''; // Clear tags input
+    document.getElementById('newPostEmail').value = ''; // Clear email input
+    document.getElementById('imageUpload').value = ''; // Clear file input
+    document.getElementById('overlay').style.height = '0%'; // Hide the overlay
+    }
+
+    
     function initializeContracts() {
         gremlinThreadContract = new web3.eth.Contract(_gremlinThreadABI, _gremlinThreadAddress);
         gremlinAdminContract = new web3.eth.Contract(_gremlinAdminABI, _gremlinAdminAddress);
