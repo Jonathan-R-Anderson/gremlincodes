@@ -83,7 +83,7 @@ def seed_file(file_path):
     try:
         # Check if the file is already being seeded
         if file_path in seeded_files:
-            logging.info(f"{file_path} is already being seeded.")
+            #logging.info(f"{file_path} is already being seeded.")
             return seeded_files[file_path]  # Return existing magnet URL if it's already seeded
 
         # Prepare tracker list for WebTorrent seed command
@@ -91,7 +91,7 @@ def seed_file(file_path):
         
         # WebTorrent seed command with trackers and keep-seeding
         cmd = f"webtorrent seed '{file_path}' {tracker_list} --keep-seeding"
-        logging.info(f"Running seeding command: {cmd}")
+        #logging.info(f"Running seeding command: {cmd}")
 
         # Run the command in a subprocess
         process = subprocess.Popen(
@@ -112,7 +112,7 @@ def seed_file(file_path):
                 break
 
             if output:
-                logging.info(f"WebTorrent output: {output.strip()}")
+                #logging.info(f"WebTorrent output: {output.strip()}")
                 if "Magnet URI:" in output:
                     magnet_url = output.split("Magnet URI:")[1].strip()
                     seeded_files[file_path] = magnet_url
@@ -136,7 +136,7 @@ def auto_seed_static_files():
     for filename in os.listdir(FILE_DIR):
         file_path = os.path.join(FILE_DIR, filename)
         if os.path.isfile(file_path) and allowed_file(filename):
-            logging.info(f"Automatically seeding {file_path}")
+            #logging.info(f"Automatically seeding {file_path}")
             seed_thread = threading.Thread(target=seed_file, args=(file_path,))
             seed_thread.start()
 
