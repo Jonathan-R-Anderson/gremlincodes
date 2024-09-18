@@ -294,6 +294,23 @@
     }
 
 
+    function updateTagDisplay() {
+        const filterMode = document.querySelector('input[name="filterMode"]:checked').value;
+        const tagDisplayTitle = document.getElementById('tagDisplayTitle');
+        const tagDisplay = document.getElementById('tagDisplay');
+
+        if (filterMode === 'whitelist') {
+            tagDisplayTitle.innerText = "Current Whitelist:";
+            // Add logic to display whitelist tags
+            tagDisplay.innerHTML = '<li>Example Whitelist Tag 1</li><li>Example Whitelist Tag 2</li>';
+        } else if (filterMode === 'blacklist') {
+            tagDisplayTitle.innerText = "Current Blacklist:";
+            // Add logic to display blacklist tags
+            tagDisplay.innerHTML = '<li>Example Blacklist Tag 1</li><li>Example Blacklist Tag 2</li>';
+        }
+    }
+
+
     async function submitPost() {
         const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';  // Default to 'Untitled Post'
         const email = document.getElementById('newPostEmail').value || 'no-email@example.com';  // Default to 'no-email@example.com'
@@ -374,16 +391,19 @@
                     const magnetUrl = String(data.magnet_url);  // Ensure magnet URL is a string
                     console.log('Server seeding: Magnet URL:', magnetUrl);
 
-                    // Check if the torrent is already added to the client
                     const existingTorrent = client.get(magnetUrl);
 
                     if (existingTorrent) {
                         console.log('Torrent already exists, reusing it:', existingTorrent.infoHash);
                         resolve(magnetUrl);  // Reuse the existing torrent
                     } else {
-                        // Add the torrent if it doesn't already exist
-                        client.add(magnetUrl, torrent => {
-                            console.log('Torrent added successfully:', torrent.infoHash);
+                        // Add the torrent with custom trackers
+                        const trackerOptions = {
+                            announce: ['wss://tracker.openwebtorrent.com']  // Specify the desired tracker(s)
+                        };
+                        
+                        client.add(magnetUrl, trackerOptions, torrent => {
+                            console.log('Torrent added successfully with the specified tracker:', torrent.infoHash);
                             resolve(magnetUrl);  // Resolve the magnet URL
                         });
                     }
@@ -398,7 +418,6 @@
             });
         });
     }
-
 
 
     async function loadAndDisplayThreads() {
