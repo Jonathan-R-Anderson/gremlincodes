@@ -292,12 +292,18 @@
     }
 
     async function submitPost() {
-        const title = document.getElementById('newPostTitle').value;
+        const title = document.getElementById('newPostTitle').value.trim();
         const email = document.getElementById('newPostEmail').value || "test@example.com";  // Default email
-        const content = document.getElementById('newPostContent').value;
+        const content = document.getElementById('newPostContent').value.trim();
         const tags = document.getElementById('newPostTags').style.display === 'block' ? document.getElementById('newPostTags').value.split(',').map(tag => tag.trim()) : [];
         const imageFile = document.getElementById('imageUpload').files[0];
         const ethAddress = currentAccount; // Use the connected Ethereum address
+
+        // Check if title and content are provided
+        if (!title || !content) {
+            console.error('Title and content are required to submit the post.');
+            return;
+        }
 
         try {
             let magnetUrl = '';
@@ -322,10 +328,10 @@
             // Estimate the gas required for the transaction
             const gasEstimate = await gremlinThreadContract.methods.createThread(
                 title, 
-                `Reply to: ${title}`, 
+                isReply ? `Reply to: ${title}` : title,  // If it's a reply, use "Reply to: [title]"
                 email, 
-                magnetUrl, 
-                tags, 
+                magnetUrl || '',  // If no image, pass an empty string for magnetUrl
+                tags.length > 0 ? tags : ['general'],  // Ensure at least one tag is provided
                 content, 
                 parentThreadId
             ).estimateGas({ from: account });
@@ -333,10 +339,10 @@
             // Send the transaction to create the new thread or reply
             await gremlinThreadContract.methods.createThread(
                 title, 
-                `Reply to: ${title}`, 
+                isReply ? `Reply to: ${title}` : title,  // If it's a reply, use "Reply to: [title]"
                 email, 
-                magnetUrl, 
-                tags, 
+                magnetUrl || '',  // If no image, pass an empty string for magnetUrl
+                tags.length > 0 ? tags : ['general'],  // Ensure at least one tag is provided
                 content, 
                 parentThreadId
             ).send({ from: account, gas: gasEstimate });
@@ -350,6 +356,8 @@
             console.error('Error submitting post:', error);
         }
     }
+
+
 
     function uploadToServer(file) {
         return new Promise((resolve, reject) => {
