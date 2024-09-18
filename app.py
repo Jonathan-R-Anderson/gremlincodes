@@ -171,7 +171,7 @@ def upload_file():
             seed_thread.start()
 
             # Poll the seeded_files dictionary until the magnet URL is available
-            max_wait_time = 10  # Max wait time in seconds
+            max_wait_time = 30  # Max wait time in seconds
             wait_time = 0
             while file_path not in seeded_files and wait_time < max_wait_time:
                 time.sleep(0.5)  # Sleep for 500ms
