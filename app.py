@@ -116,10 +116,10 @@ def seed_file(file_path):
                 if "Magnet URI:" in output:
                     magnet_url = output.split("Magnet URI:")[1].strip()
                     seeded_files[file_path] = magnet_url
-                    logging.info(f"Magnet URL found: {magnet_url}")
+                    #logging.info(f"Magnet URL found: {magnet_url}")
 
                 if peer_count >= 5:
-                    logging.info(f"Stopping seeding for {file_path} after reaching {peer_count} peers")
+                    #logging.info(f"Stopping seeding for {file_path} after reaching {peer_count} peers")
                     process.terminate()
                     break
 
