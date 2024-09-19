@@ -595,23 +595,35 @@
         threadContainer.appendChild(output);
 
         const trackerOptions = {
-            announce: ['wss://tracker.openwebtorrent.com']  // Specify the desired tracker(s)
+            announce: [
+                'wss://tracker.openwebtorrent.com',
+                'wss://tracker.fastcast.nz',
+                'wss://tracker.opentracker.org',
+                'wss://tracker.files.fm'
+            ]
         };
 
-        // Whether or not the torrent is already added, render the image
+        // Remove the torrent if it already exists to force re-addition
         const existingTorrent = client.get(magnetURI);
-
         if (existingTorrent) {
-            console.log(`Reusing existing torrent: ${magnetURI}`);
-            renderImageFromTorrent(existingTorrent, threadContainer, output);  // Pass the torrent directly
-        } else {
-            // Add the torrent if it doesn't already exist
-            client.add(magnetURI, trackerOptions, torrent => {
-                console.log(`Torrent added: ${torrent.infoHash}`);
-                renderImageFromTorrent(torrent, threadContainer, output);  // Pass the torrent directly
+            console.log(`Removing existing torrent: ${magnetURI}`);
+            client.remove(existingTorrent, () => {
+                console.log(`Removed existing torrent: ${magnetURI}`);
+                addTorrent(magnetURI, trackerOptions, threadContainer, output);
             });
+        } else {
+            addTorrent(magnetURI, trackerOptions, threadContainer, output);
         }
     }
+
+    function addTorrent(magnetURI, trackerOptions, threadContainer, output) {
+        // Add the torrent if it doesn't already exist
+        client.add(magnetURI, trackerOptions, torrent => {
+            console.log(`Torrent added: ${torrent.infoHash}`);
+            renderImageFromTorrent(torrent, threadContainer, output);  // Pass the torrent directly
+        });
+    }
+
 
     function renderImageFromTorrent(torrent, threadContainer, output) {
         if (!torrent) {
