@@ -226,6 +226,7 @@
     const client = new WebTorrent();
     let allThreads = [];
     let threadMap = {};
+    let isAdmin = false;  // Default to non-admin
     const addedMagnets = new Set();
 
     const _gremlinThreadABI = {{ gremlinThreadABI | safe }};
@@ -269,6 +270,19 @@
             document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
         }
     };
+
+    async function checkIfAdmin(account) {
+        try {
+            const admin = await gremlinAdminContract.methods.owner().call();
+            if (admin.toLowerCase() === account.toLowerCase()) {
+                isAdmin = true;  // Set isAdmin to true if the user is the admin
+                document.getElementById('adminPanel').style.display = 'block';
+            }
+        } catch (error) {
+            console.error("Non-admin account:", error);
+        }
+    }
+
 
     function showOverlay() {
         document.getElementById('replyContext').style.display = 'none'; // Hide reply-specific context
