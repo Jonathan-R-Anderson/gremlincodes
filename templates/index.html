@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script> <!-- Include Showdown -->
     <script src="https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.9.1/dist/gsap.min.js"></script>
 
     <style>
         body {
@@ -243,6 +244,9 @@
             console.log("MetaMask detected.");
             web3 = new Web3(window.ethereum);
 
+            // GSAP animation for MetaMask Icon
+            gsap.fromTo('#connectWalletIcon', { scale: 0.8 }, { scale: 1.2, duration: 0.5, yoyo: true, repeat: -1, ease: 'power1.inOut' });
+
             try {
                 console.log("Requesting MetaMask accounts...");
                 await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -259,9 +263,6 @@
                     console.log("Gremlin contracts initialized successfully.");
                     
                     await checkIfAdmin(currentAccount);  // Wait for the admin check to complete
-
-                    // Only load threads after the admin check is complete
-                    console.log("Initializing DApp...");
                     await loadAndDisplayThreads();
                 }
 
@@ -269,11 +270,12 @@
                 console.error('MetaMask access error:', error);
                 document.getElementById("status").innerText = 'Could not access MetaMask. Please ensure you have authorized access.';
             }
-        } else {
-            console.log("MetaMask is not installed.");
-            document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
         }
-    };
+        else {
+                    console.log("MetaMask is not installed.");
+                    document.getElementById("status").innerText = 'MetaMask is not installed. Please install MetaMask to use this DApp.';
+                }
+            };
 
 
 
@@ -542,30 +544,14 @@
         });
         threadContainer.appendChild(tagsContainer);
 
-        // Reply button
-        const replyButton = document.createElement('button');
-        replyButton.innerText = "Reply";
-        replyButton.onclick = () => openReplyOverlay(thread);
-        threadContainer.appendChild(replyButton);
-
-        // Download image if magnet URL is present
-        if (thread.magnetUrl) {
-            downloadImage(thread.magnetUrl, threadContainer);
-        }
-
-        // Check if there are replies, if so display the last three replies
-        if (replies && replies.length > 0) {
-            const repliesContainer = document.createElement('div');
-            repliesContainer.className = 'replies-container';
-            threadContainer.appendChild(repliesContainer);
-
-            const lastThreeReplies = replies.slice(-3);  // Get the last 3 replies
-            lastThreeReplies.forEach(reply => displayReply(reply, repliesContainer));
-        }
-
         // Add the thread container to the content section
         document.getElementById('infiniteScrollContent').appendChild(threadContainer);
+
+        // GSAP animation: fade in and move up when threads are displayed
+        gsap.fromTo(threadContainer, { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 1 });
     }
+
+
 
     function displayReply(reply, repliesContainer) {
         if (!reply) return;
