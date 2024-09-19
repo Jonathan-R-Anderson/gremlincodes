@@ -607,42 +607,40 @@
 
         if (existingTorrent) {
             console.log(`Reusing existing torrent: ${magnetURI}`);
-            renderImageFromTorrent(existingTorrent, threadContainer, output);  // Render the image again
+            renderImageFromTorrent(existingTorrent, threadContainer);  // Always render the image for each thread
         } else {
             console.log(`Adding new torrent: ${magnetURI}`);
             client.add(magnetURI, trackerOptions, (torrent) => {
                 console.log(`Torrent added: ${torrent.infoHash}`);
-                renderImageFromTorrent(torrent, threadContainer, output);  // Render the image once added
+                renderImageFromTorrent(torrent, threadContainer);  // Render the image once added
             }).on('error', (err) => {
                 console.error(`Error adding torrent: ${err.message}`);
             });
         }
     }
 
-    function renderImageFromTorrent(torrent, threadContainer, output) {
+    function renderImageFromTorrent(torrent, threadContainer) {
+        // Render the image for every instance
         torrent.files.forEach(file => {
             if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
                 file.getBlobURL((err, url) => {
                     if (err) {
-                        output.innerText = 'Error downloading image.';
-                        return console.error(err);
+                        console.error('Error downloading image:', err);
+                        return;
                     }
 
-                    // Create a new image element for each instance
+                    // Create a new image element for each thread referencing the torrent
                     const img = document.createElement('img');
                     img.src = url;
                     img.alt = file.name;
                     img.style.maxWidth = '200px';
                     img.style.cursor = 'pointer';
-                    img.onclick = () => openImageFullScreen(url);
+                    img.onclick = () => openImageFullScreen(url);  // Enable fullscreen viewing on click
                     threadContainer.appendChild(img);
-
-                    output.innerText = `Image downloaded: ${file.name}`;
                 });
             }
         });
     }
-
 
     function openImageFullScreen(url) {
         const overlayDiv = document.createElement('div');
