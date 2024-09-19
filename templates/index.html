@@ -281,13 +281,17 @@
 
 
 
-    function showOverlay() {
+    document.getElementById('showOverlayBtn').addEventListener('click', function() {
         document.getElementById('replyContext').style.display = 'none'; // Hide reply-specific context
         document.getElementById('newPostTitle').style.display = 'block'; // Show title input for new thread
         document.getElementById('newPostTags').style.display = 'block'; // Show tags input for new thread
         document.getElementById('overlayTitle').innerText = 'Create a New Post'; // Set overlay title for new post
         document.getElementById('overlay').style.height = '100%'; // Show the overlay
-    }
+
+        // GSAP animation to scroll to the overlay content
+        gsap.to(window, { duration: 1, scrollTo: '#overlayContent', ease: 'power2.inOut' });
+    });
+
 
     function closeOverlay() {
         document.getElementById('newPostTitle').value = ''; // Clear title input
@@ -544,13 +548,30 @@
         });
         threadContainer.appendChild(tagsContainer);
 
+        // Reply button
+        const replyButton = document.createElement('button');
+        replyButton.innerText = "Reply";
+        replyButton.onclick = () => openReplyOverlay(thread);
+        threadContainer.appendChild(replyButton);
+
+        // Download image if magnet URL is present
+        if (thread.magnetUrl) {
+            downloadImage(thread.magnetUrl, threadContainer); // This is where downloadImage is called
+        }
+
+        // Check if there are replies, if so display the last three replies
+        if (replies && replies.length > 0) {
+            const repliesContainer = document.createElement('div');
+            repliesContainer.className = 'replies-container';
+            threadContainer.appendChild(repliesContainer);
+
+            const lastThreeReplies = replies.slice(-3);  // Get the last 3 replies
+            lastThreeReplies.forEach(reply => displayReply(reply, repliesContainer));
+        }
+
         // Add the thread container to the content section
         document.getElementById('infiniteScrollContent').appendChild(threadContainer);
-
-        // GSAP animation: fade in and move up when threads are displayed
-        gsap.fromTo(threadContainer, { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 1 });
     }
-
 
 
     function displayReply(reply, repliesContainer) {
