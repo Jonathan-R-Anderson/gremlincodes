@@ -180,6 +180,16 @@
         let isAdmin = false;  // Default to non-admin
         const addedMagnets = new Set();
 
+
+        const _gremlinThreadABI = {{ gremlinThreadABI | safe }};
+        const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";
+        const _gremlinReplyABI = {{ gremlinReplyABI | safe }};
+        const _gremlinReplyAddress = "{{ gremlinReplyAddress }}";
+        const _gremlinAdminABI = {{ gremlinAdminABI | safe }};
+        const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";
+
+
+
         window.onload = async function () {
             gsap.from(".navbar", { duration: 1, y: -100, ease: "bounce" });
             console.log("Window loaded.");
