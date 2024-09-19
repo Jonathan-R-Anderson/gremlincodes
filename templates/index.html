@@ -236,6 +236,7 @@
     const _gremlinAdminABI = {{ gremlinAdminABI | safe }};
     const _gremlinAdminAddress = "{{ gremlinAdminAddress }}";
 
+
     window.onload = async function() {
         console.log("Window loaded.");
         if (typeof window.ethereum !== 'undefined') {
@@ -253,11 +254,11 @@
                     document.getElementById('connectWalletIcon').style.display = 'none';
                     document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
 
-                    // Initialize contracts and check admin before loading threads
+                    // Initialize contracts and check admin status before loading threads
                     initializeContracts();
                     console.log("Gremlin contracts initialized successfully.");
                     
-                    await checkIfAdmin(currentAccount);  // Check admin status
+                    await checkIfAdmin(currentAccount);  // Wait for the admin check to complete
 
                     // Only load threads after the admin check is complete
                     console.log("Initializing DApp...");
@@ -275,21 +276,23 @@
     };
 
 
-
     async function checkIfAdmin(account) {
         try {
             const admin = await gremlinAdminContract.methods.owner().call();
             if (admin.toLowerCase() === account.toLowerCase()) {
                 isAdmin = true;  // Set isAdmin to true if the user is the admin
                 console.log('User is admin:', isAdmin);
-                document.getElementById('adminPanel').style.display = 'block';
+                document.getElementById('adminPanel').style.display = 'block';  // Display admin panel if the user is admin
             } else {
-                console.log('User is not an admin');
+                isAdmin = false;
+                console.log('User is not admin:', isAdmin);
             }
         } catch (error) {
             console.error("Error checking admin status:", error);
+            isAdmin = false;
         }
     }
+
 
 
     function showOverlay() {
@@ -625,7 +628,6 @@
         }
     }
 
-
     function renderImageFromTorrent(magnetURI, threadContainer, output) {
         const torrent = client.get(magnetURI);
         if (!torrent) {
@@ -633,10 +635,7 @@
             return;
         }
 
-        // Log admin detection
-        console.log('isAdmin:', isAdmin);
-
-        // Loop through the files and display images for each occurrence of the magnetURI
+        // Loop through the files and display images
         torrent.files.forEach(file => {
             if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
                 file.getBlobURL((err, url) => {
@@ -645,25 +644,19 @@
                         return console.error(err);
                     }
 
-                    // Create a new image element for each instance of the magnet URI
                     const img = document.createElement('img');
                     img.src = url;
                     img.alt = file.name;
                     img.style.maxWidth = '200px';
                     img.style.cursor = 'pointer';
                     img.onclick = () => openImageFullScreen(url);
-                    
-                    // Always append the new image to the container (allow duplicates)
                     threadContainer.appendChild(img);
 
-                    // Check if admin and append the magnet URL
+                    // Ensure magnet URL is displayed for admin users
                     if (isAdmin) {
-                        console.log(`Admin detected. Displaying magnet URL: ${magnetURI}`);
                         const magnetLink = document.createElement('p');
                         magnetLink.innerText = `Magnet URL: ${magnetURI}`;
                         threadContainer.appendChild(magnetLink);
-                    } else {
-                        console.log(`Non-admin user, magnet URL not displayed: ${magnetURI}`);
                     }
 
                     output.innerText = `Image downloaded: ${file.name}`;
