@@ -603,29 +603,21 @@
             announce: ['wss://tracker.openwebtorrent.com']  // Specify the desired tracker(s)
         };
 
-        // Check if the magnet URL is already added
-        if (addedMagnets.has(magnetURI)) {
+        // Always render the image, even if the torrent is already cached
+        const torrent = client.get(magnetURI);
+        if (torrent) {
             console.log(`Magnet URL already added: ${magnetURI}`);
-            renderImageFromTorrent(magnetURI, threadContainer, output);
+            renderImageFromTorrent(torrent, threadContainer, output);
         } else {
-            addedMagnets.add(magnetURI);
-
             // Add torrent with the specified trackers
             client.add(magnetURI, trackerOptions, torrent => {
                 console.log('Torrent added successfully:', torrent.infoHash);
-                renderImageFromTorrent(magnetURI, threadContainer, output);
+                renderImageFromTorrent(torrent, threadContainer, output);
             });
         }
     }
 
-
-    function renderImageFromTorrent(magnetURI, threadContainer, output) {
-        const torrent = client.get(magnetURI);
-        if (!torrent) {
-            output.innerText = 'Error: Torrent not found';
-            return;
-        }
-
+    function renderImageFromTorrent(torrent, threadContainer, output) {
         // Loop through the files and display images
         torrent.files.forEach(file => {
             if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
@@ -646,7 +638,7 @@
                     // For admins, display the magnet URL under the image
                     if (isAdmin) {  // Assuming `isAdmin` is set when checking if the user is admin
                         const magnetLink = document.createElement('p');
-                        magnetLink.innerText = `Magnet URL: ${magnetURI}`;
+                        magnetLink.innerText = `Magnet URL: ${torrent.magnetURI}`;
                         threadContainer.appendChild(magnetLink);
                     }
 
@@ -655,6 +647,7 @@
             }
         });
     }
+
 
     function openImageFullScreen(url) {
         const overlayDiv = document.createElement('div');
