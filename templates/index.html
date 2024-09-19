@@ -602,35 +602,17 @@
             ]
         };
 
-        const existingTorrent = client.get(magnetURI);
-
-        if (existingTorrent) {
-            console.log(`Removing existing torrent: ${magnetURI}`);
-
-            // Remove the existing torrent and ensure it is fully removed before adding
-            client.remove(magnetURI, () => {
-                console.log(`Removed existing torrent: ${magnetURI}`);
-                // Adding a slight delay to ensure removal completes
-                setTimeout(() => {
-                    addTorrent(magnetURI, trackerOptions, threadContainer, output);
-                }, 100); // Adjust this delay if necessary
-            });
-        } else {
-            addTorrent(magnetURI, trackerOptions, threadContainer, output);
-        }
-    }
-
-    function addTorrent(magnetURI, trackerOptions, threadContainer, output) {
+        // Check if the torrent already exists in the client
         const existingTorrent = client.get(magnetURI);
 
         if (existingTorrent) {
             console.log(`Reusing existing torrent: ${magnetURI}`);
-            renderImageFromTorrent(existingTorrent, threadContainer, output); // Render the image again
+            renderImageFromTorrent(existingTorrent, threadContainer, output);  // Render the image again
         } else {
             console.log(`Adding new torrent: ${magnetURI}`);
             client.add(magnetURI, trackerOptions, (torrent) => {
                 console.log(`Torrent added: ${torrent.infoHash}`);
-                renderImageFromTorrent(torrent, threadContainer, output);  // Render the image
+                renderImageFromTorrent(torrent, threadContainer, output);  // Render the image once added
             }).on('error', (err) => {
                 console.error(`Error adding torrent: ${err.message}`);
             });
@@ -646,6 +628,7 @@
                         return console.error(err);
                     }
 
+                    // Create a new image element for each instance
                     const img = document.createElement('img');
                     img.src = url;
                     img.alt = file.name;
@@ -659,7 +642,6 @@
             }
         });
     }
-
 
 
     function openImageFullScreen(url) {
