@@ -365,7 +365,12 @@
                 tags,
                 content,
                 parentThreadId
-            ).send({ from: account, gas: gasEstimate });
+                ).send({ from: account, gas: gasEstimate })
+                .on('receipt', function(receipt) {
+                    console.log('Transaction receipt:', receipt);
+                    const posterAddress = receipt.from;  // This will give you the address of the poster
+                    console.log('Post made by address:', posterAddress);
+                });
 
             closeOverlay();
             await loadAndDisplayThreads();
@@ -623,6 +628,13 @@
                     img.style.cursor = 'pointer';
                     img.onclick = () => openImageFullScreen(url);
                     threadContainer.appendChild(img);
+
+                    // For admins, display the magnet URL under the image
+                    if (isAdmin) {  // Assuming `isAdmin` is set when checking if the user is admin
+                        const magnetLink = document.createElement('p');
+                        magnetLink.innerText = `Magnet URL: ${magnetURI}`;
+                        threadContainer.appendChild(magnetLink);
+                    }
 
                     output.innerText = `Image downloaded: ${file.name}`;
                 });
