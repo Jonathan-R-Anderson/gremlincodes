@@ -253,12 +253,15 @@
                     document.getElementById('connectWalletIcon').style.display = 'none';
                     document.getElementById("status").innerText = `Connected account: ${currentAccount}`;
 
+                    // Initialize contracts and check admin before loading threads
                     initializeContracts();
                     console.log("Gremlin contracts initialized successfully.");
-                    await checkIfAdmin(currentAccount);
+                    
+                    await checkIfAdmin(currentAccount);  // Check admin status
 
+                    // Only load threads after the admin check is complete
                     console.log("Initializing DApp...");
-                    loadAndDisplayThreads();
+                    await loadAndDisplayThreads();
                 }
 
             } catch (error) {
@@ -271,15 +274,20 @@
         }
     };
 
+
+
     async function checkIfAdmin(account) {
         try {
             const admin = await gremlinAdminContract.methods.owner().call();
             if (admin.toLowerCase() === account.toLowerCase()) {
                 isAdmin = true;  // Set isAdmin to true if the user is the admin
+                console.log('User is admin:', isAdmin);
                 document.getElementById('adminPanel').style.display = 'block';
+            } else {
+                console.log('User is not an admin');
             }
         } catch (error) {
-            console.error("Non-admin account:", error);
+            console.error("Error checking admin status:", error);
         }
     }
 
