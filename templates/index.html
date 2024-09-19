@@ -588,6 +588,7 @@
         return converter.makeHtml(text);
     }
 
+
     function downloadImage(magnetURI, threadContainer) {
         const output = document.createElement('p');
         output.innerText = 'Downloading image...';
@@ -597,23 +598,22 @@
             announce: ['wss://tracker.openwebtorrent.com']  // Specify the desired tracker(s)
         };
 
-        // Instead of preventing duplicate handling, let's always try to render the image
+        // Whether or not the torrent is already added, render the image
         const existingTorrent = client.get(magnetURI);
 
         if (existingTorrent) {
             console.log(`Reusing existing torrent: ${magnetURI}`);
-            renderImageFromTorrent(magnetURI, threadContainer, output);  // Render the image again
+            renderImageFromTorrent(existingTorrent, threadContainer, output);  // Pass the torrent directly
         } else {
             // Add the torrent if it doesn't already exist
             client.add(magnetURI, trackerOptions, torrent => {
                 console.log(`Torrent added: ${torrent.infoHash}`);
-                renderImageFromTorrent(magnetURI, threadContainer, output);
+                renderImageFromTorrent(torrent, threadContainer, output);  // Pass the torrent directly
             });
         }
     }
 
-    function renderImageFromTorrent(magnetURI, threadContainer, output) {
-        const torrent = client.get(magnetURI);
+    function renderImageFromTorrent(torrent, threadContainer, output) {
         if (!torrent) {
             output.innerText = 'Error: Torrent not found';
             return;
@@ -634,12 +634,14 @@
                     img.style.maxWidth = '200px';
                     img.style.cursor = 'pointer';
                     img.onclick = () => openImageFullScreen(url);
+                    
+                    // Append the image to the thread container
                     threadContainer.appendChild(img);
 
                     // Ensure magnet URL is displayed for admin users
                     if (isAdmin) {
                         const magnetLink = document.createElement('p');
-                        magnetLink.innerText = `Magnet URL: ${magnetURI}`;
+                        magnetLink.innerText = `Magnet URL: ${torrent.magnetURI}`;  // Use the actual torrent magnet URI
                         threadContainer.appendChild(magnetLink);
                     }
 
@@ -648,7 +650,6 @@
             }
         });
     }
-
 
 
     function openImageFullScreen(url) {
