@@ -588,7 +588,6 @@
         return converter.makeHtml(text);
     }
 
-
     function downloadImage(magnetURI, threadContainer) {
         const output = document.createElement('p');
         output.innerText = 'Downloading image...';
@@ -603,10 +602,11 @@
             ]
         };
 
-        // Remove the torrent if it already exists to force re-addition
         const existingTorrent = client.get(magnetURI);
+
         if (existingTorrent) {
             console.log(`Removing existing torrent: ${magnetURI}`);
+            // Remove the existing torrent and ensure it's removed before adding it again
             client.remove(existingTorrent, () => {
                 console.log(`Removed existing torrent: ${magnetURI}`);
                 addTorrent(magnetURI, trackerOptions, threadContainer, output);
@@ -617,10 +617,12 @@
     }
 
     function addTorrent(magnetURI, trackerOptions, threadContainer, output) {
-        // Add the torrent if it doesn't already exist
-        client.add(magnetURI, trackerOptions, torrent => {
+        // Add the torrent after it's removed, or if it's not already present
+        client.add(magnetURI, trackerOptions, (torrent) => {
             console.log(`Torrent added: ${torrent.infoHash}`);
             renderImageFromTorrent(torrent, threadContainer, output);  // Pass the torrent directly
+        }).on('error', (err) => {
+            console.error(`Error adding torrent: ${err.message}`);
         });
     }
 
