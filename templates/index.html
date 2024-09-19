@@ -625,6 +625,9 @@
             return;
         }
 
+        // Log admin detection
+        console.log('isAdmin:', isAdmin);
+
         // Loop through the files and display images for each occurrence of the magnetURI
         torrent.files.forEach(file => {
             if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
@@ -645,11 +648,14 @@
                     // Always append the new image to the container (allow duplicates)
                     threadContainer.appendChild(img);
 
-                    // For admins, display the magnet URL under each image
+                    // Check if admin and append the magnet URL
                     if (isAdmin) {
+                        console.log(`Admin detected. Displaying magnet URL: ${magnetURI}`);
                         const magnetLink = document.createElement('p');
                         magnetLink.innerText = `Magnet URL: ${magnetURI}`;
                         threadContainer.appendChild(magnetLink);
+                    } else {
+                        console.log(`Non-admin user, magnet URL not displayed: ${magnetURI}`);
                     }
 
                     output.innerText = `Image downloaded: ${file.name}`;
