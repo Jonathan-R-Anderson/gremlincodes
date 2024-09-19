@@ -276,22 +276,6 @@
     };
 
 
-    async function checkIfAdmin(account) {
-        try {
-            const admin = await gremlinAdminContract.methods.owner().call();
-            if (admin.toLowerCase() === account.toLowerCase()) {
-                isAdmin = true;  // Set isAdmin to true if the user is the admin
-                console.log('User is admin:', isAdmin);
-                document.getElementById('adminPanel').style.display = 'block';  // Display admin panel if the user is admin
-            } else {
-                isAdmin = false;
-                console.log('User is not admin:', isAdmin);
-            }
-        } catch (error) {
-            console.error("Error checking admin status:", error);
-            isAdmin = false;
-        }
-    }
 
 
 
@@ -704,16 +688,30 @@
         document.getElementById('newPostTags').style.display = 'none';  // Hide tags input for replies
     }
 
+
     async function checkIfAdmin(account) {
         try {
+            // Fetch the owner/admin address from the contract
             const admin = await gremlinAdminContract.methods.owner().call();
+
+            // Log both the admin and current account for debugging
+            console.log("Admin address from contract:", admin);
+            console.log("Current connected account:", account);
+
+            // Convert both addresses to lowercase for a proper comparison
             if (admin.toLowerCase() === account.toLowerCase()) {
+                isAdmin = true;  // Set isAdmin to true
+                console.log("User is admin:", isAdmin);
                 document.getElementById('adminPanel').style.display = 'block';
+            } else {
+                console.log("User is not admin:", isAdmin);
             }
         } catch (error) {
-            console.error("Non-admin account:", error);
+            console.error("Error during admin check:", error);
         }
     }
+
+
 </script>
 
 
