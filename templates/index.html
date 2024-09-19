@@ -593,7 +593,6 @@
         return converter.makeHtml(text);
     }
 
-
     function downloadImage(magnetURI, threadContainer) {
         const output = document.createElement('p');
         output.innerText = 'Downloading image...';
@@ -603,21 +602,30 @@
             announce: ['wss://tracker.openwebtorrent.com']  // Specify the desired tracker(s)
         };
 
-        // Always render the image, even if the torrent is already cached
-        const torrent = client.get(magnetURI);
-        if (torrent) {
-            console.log(`Magnet URL already added: ${magnetURI}`);
-            renderImageFromTorrent(torrent, threadContainer, output);
+        // Instead of preventing duplicate handling, let's always try to render the image
+        const existingTorrent = client.get(magnetURI);
+
+        if (existingTorrent) {
+            console.log(`Reusing existing torrent: ${magnetURI}`);
+            renderImageFromTorrent(magnetURI, threadContainer, output);  // Render the image again
         } else {
-            // Add torrent with the specified trackers
+            // Add the torrent if it doesn't already exist
             client.add(magnetURI, trackerOptions, torrent => {
-                console.log('Torrent added successfully:', torrent.infoHash);
-                renderImageFromTorrent(torrent, threadContainer, output);
+                console.log(`Torrent added: ${torrent.infoHash}`);
+                renderImageFromTorrent(magnetURI, threadContainer, output);
             });
         }
     }
 
-    function renderImageFromTorrent(torrent, threadContainer, output) {
+
+
+    function renderImageFromTorrent(magnetURI, threadContainer, output) {
+        const torrent = client.get(magnetURI);
+        if (!torrent) {
+            output.innerText = 'Error: Torrent not found';
+            return;
+        }
+
         // Loop through the files and display images
         torrent.files.forEach(file => {
             if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
@@ -635,10 +643,10 @@
                     img.onclick = () => openImageFullScreen(url);
                     threadContainer.appendChild(img);
 
-                    // For admins, display the magnet URL under the image
-                    if (isAdmin) {  // Assuming `isAdmin` is set when checking if the user is admin
+                    // Check if user is admin and display magnet URL
+                    if (isAdmin) {
                         const magnetLink = document.createElement('p');
-                        magnetLink.innerText = `Magnet URL: ${torrent.magnetURI}`;
+                        magnetLink.innerText = `Magnet URL: ${magnetURI}`;  // Ensure magnet URL is displayed
                         threadContainer.appendChild(magnetLink);
                     }
 
