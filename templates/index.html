@@ -618,7 +618,6 @@
     }
 
 
-
     function renderImageFromTorrent(magnetURI, threadContainer, output) {
         const torrent = client.get(magnetURI);
         if (!torrent) {
@@ -626,7 +625,7 @@
             return;
         }
 
-        // Loop through the files and display images
+        // Loop through the files and display images for each occurrence of the magnetURI
         torrent.files.forEach(file => {
             if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
                 file.getBlobURL((err, url) => {
@@ -635,18 +634,21 @@
                         return console.error(err);
                     }
 
+                    // Create a new image element for each instance of the magnet URI
                     const img = document.createElement('img');
                     img.src = url;
                     img.alt = file.name;
                     img.style.maxWidth = '200px';
                     img.style.cursor = 'pointer';
                     img.onclick = () => openImageFullScreen(url);
+                    
+                    // Always append the new image to the container (allow duplicates)
                     threadContainer.appendChild(img);
 
-                    // Check if user is admin and display magnet URL
+                    // For admins, display the magnet URL under each image
                     if (isAdmin) {
                         const magnetLink = document.createElement('p');
-                        magnetLink.innerText = `Magnet URL: ${magnetURI}`;  // Ensure magnet URL is displayed
+                        magnetLink.innerText = `Magnet URL: ${magnetURI}`;
                         threadContainer.appendChild(magnetLink);
                     }
 
@@ -655,6 +657,7 @@
             }
         });
     }
+
 
 
     function openImageFullScreen(url) {
