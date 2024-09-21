@@ -334,25 +334,22 @@
             ? (document.getElementById('newPostTags').value.split(',').map(tag => tag.trim()) || ['uncategorized'])
             : ['uncategorized'];
         const imageFile = document.getElementById('imageUpload').files[0];
-        const ethAddress = currentAccount;
 
         try {
             let magnetUrl = '';
-
             if (imageFile) {
                 const uploadResponse = await uploadToServer(imageFile);
                 magnetUrl = uploadResponse;
-                console.log("Magnet URL:", magnetUrl);
             } else {
-                magnetUrl = '0'; // Pass 0 when no image is uploaded
+                magnetUrl = '0';  // No image, default to '0'
             }
 
             const isReply = document.getElementById('replyContext').style.display !== 'none';
-            let parentThreadId = "0";  // Default to "0" for a new thread
+            let parentThreadId = "0";  // Default to "0" for new threads
 
             if (isReply) {
                 parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;
-                if (parentThreadId === undefined || parentThreadId === "0") {
+                if (!parentThreadId || parentThreadId === "0") {
                     throw new Error("Replies must have a valid parentThreadId.");
                 }
             }
@@ -369,7 +366,7 @@
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId
+                parentThreadId  // Pass the correct parentThreadId
             ).estimateGas({ from: account });
 
             await contractMethod(
@@ -379,9 +376,9 @@
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId
+                parentThreadId  // Pass the correct parentThreadId here as well
             ).send({ from: account, gas: gasEstimate })
-                .on('receipt', function (receipt) {
+                .on('receipt', function(receipt) {
                     console.log('Transaction receipt:', receipt);
                 });
 
@@ -392,7 +389,6 @@
             console.error('Error submitting post:', error);
         }
     }
-
 
 
     function uploadToServer(file) {
@@ -496,8 +492,6 @@
             }
         });
     }
-
-
 
 
     function displaySortedThreads() {
