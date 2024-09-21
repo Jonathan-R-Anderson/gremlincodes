@@ -326,6 +326,7 @@
         }
     }
 
+
     async function submitPost() {
         const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';
         const email = document.getElementById('newPostEmail').value || 'no-email@example.com';
@@ -348,6 +349,7 @@
             let parentThreadId = "0";  // Default to "0" for new threads
 
             if (isReply) {
+                // Extract the parent thread ID for replies
                 parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;
                 if (!parentThreadId || parentThreadId === "0") {
                     alert("Replies must have a valid parent thread.");
@@ -358,8 +360,11 @@
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             const account = accounts[0];
 
-            const contractMethod = isReply ? gremlinReplyContract.methods.createReply : gremlinThreadContract.methods.createThread;
+            const contractMethod = isReply 
+                ? gremlinReplyContract.methods.createReply 
+                : gremlinThreadContract.methods.createThread;
 
+            // Estimate the gas required for the transaction
             const gasEstimate = await contractMethod(
                 title,
                 isReply ? `Reply to: ${title}` : title,
@@ -370,6 +375,7 @@
                 parentThreadId  // Pass the correct parentThreadId
             ).estimateGas({ from: account });
 
+            // Send the transaction
             await contractMethod(
                 title,
                 isReply ? `Reply to: ${title}` : title,
@@ -379,18 +385,17 @@
                 content,
                 parentThreadId  // Pass the correct parentThreadId here as well
             ).send({ from: account, gas: gasEstimate })
-                .on('receipt', function(receipt) {
-                    console.log('Transaction receipt:', receipt);
-                });
+            .on('receipt', function(receipt) {
+                console.log('Transaction receipt:', receipt);
+            });
 
             closeOverlay();
-            await loadAndDisplayThreads();
+            await loadAndDisplayThreads();  // Reload threads and replies
 
         } catch (error) {
             console.error('Error submitting post:', error);
         }
     }
-
 
 
     function uploadToServer(file) {
