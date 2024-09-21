@@ -451,6 +451,7 @@ magnetUrl = imageFile ? uploadResponse : '0';  // Pass 0 when no image is upload
             const allFetchedThreads = await gremlinThreadContract.methods.getAllThreads().call();
             const allFetchedReplies = await gremlinReplyContract.methods.getAllReplies().call();  // Fetch replies
             console.log("Threads fetched from contract:", allFetchedThreads);
+            console.log("replies fetched from contract:", allFetchedReplies);
 
             if (!allFetchedThreads || allFetchedThreads.length === 0) {
                 console.log("No threads found.");
@@ -484,6 +485,8 @@ magnetUrl = imageFile ? uploadResponse : '0';  // Pass 0 when no image is upload
             const parentThreadId = reply.parentThreadId.toString();
             if (threadMap[parentThreadId]) {
                 threadMap[parentThreadId].replies.push(reply);
+            } else {
+                console.warn(`Reply with parentThreadId ${parentThreadId} has no matching thread.`);
             }
         });
     }
