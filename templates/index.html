@@ -326,6 +326,7 @@
         }
     }
 
+
     async function submitPost() {
         const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';
         const email = document.getElementById('newPostEmail').value || 'no-email@example.com';
@@ -345,22 +346,27 @@
             }
 
             const isReply = document.getElementById('replyContext').style.display !== 'none';
-            let parentThreadId = "0";  // Default to "0" for new threads
+            let parentThreadId = null;  // Null initially for both thread and reply
 
             if (isReply) {
                 parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;
 
-                // Ensure a valid parentThreadId is used (not 0 for replies)
-                if (!parentThreadId || parentThreadId === "0") {
+                // Make sure we have a valid parentThreadId (not "0" or null)
+                if (!parentThreadId || parentThreadId === "0" || parentThreadId === "0n") {
                     alert("Replies must have a valid parent thread.");
                     throw new Error("Replies must have a valid parentThreadId.");
                 }
+            } else {
+                parentThreadId = "0";  // Only for new threads should parentThreadId be "0"
             }
 
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             const account = accounts[0];
 
             const contractMethod = isReply ? gremlinReplyContract.methods.createReply : gremlinThreadContract.methods.createThread;
+
+            // Log the parentThreadId to ensure correctness
+            console.log('Submitting post with parentThreadId:', parentThreadId);
 
             const gasEstimate = await contractMethod(
                 title,
@@ -369,7 +375,7 @@
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId  // Pass the correct parentThreadId
+                parentThreadId  // Correct parentThreadId passed here
             ).estimateGas({ from: account });
 
             await contractMethod(
@@ -379,7 +385,7 @@
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId  // Pass the correct parentThreadId here as well
+                parentThreadId  // Correct parentThreadId passed here
             ).send({ from: account, gas: gasEstimate })
                 .on('receipt', function(receipt) {
                     console.log('Transaction receipt:', receipt);
@@ -392,6 +398,7 @@
             console.error('Error submitting post:', error);
         }
     }
+
 
 
     function uploadToServer(file) {
