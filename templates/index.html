@@ -326,33 +326,35 @@
         }
     }
 
-
     async function submitPost() {
-        const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';  // Default to 'Untitled Post'
-        const email = document.getElementById('newPostEmail').value || 'no-email@example.com';  // Default to 'no-email@example.com'
-        const content = document.getElementById('newPostContent').value.trim() || 'No content provided';  // Default content
+        const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';
+        const email = document.getElementById('newPostEmail').value || 'no-email@example.com';
+        const content = document.getElementById('newPostContent').value.trim() || 'No content provided';
         const tags = document.getElementById('newPostTags').style.display === 'block'
-            ? (document.getElementById('newPostTags').value.split(',').map(tag => tag.trim()) || ['uncategorized'])  // Default to 'uncategorized'
-            : ['uncategorized'];  // Default to 'uncategorized' if tags input is hidden (i.e., for replies)
+            ? (document.getElementById('newPostTags').value.split(',').map(tag => tag.trim()) || ['uncategorized'])
+            : ['uncategorized'];
         const imageFile = document.getElementById('imageUpload').files[0];
-        const ethAddress = currentAccount;  // Use the connected Ethereum address
+        const ethAddress = currentAccount;
 
         try {
             let magnetUrl = '';
 
             if (imageFile) {
                 const uploadResponse = await uploadToServer(imageFile);
-                magnetUrl = uploadResponse;  // Ensure it's a string
-                console.log("Magnet URL:", magnetUrl);  // Log the magnet URL for debugging
+                magnetUrl = uploadResponse;
+                console.log("Magnet URL:", magnetUrl);
             } else {
-magnetUrl = imageFile ? uploadResponse : '0';  // Pass 0 when no image is uploaded
+                magnetUrl = '0'; // Pass 0 when no image is uploaded
             }
 
             const isReply = document.getElementById('replyContext').style.display !== 'none';
             let parentThreadId = "0";  // Default to "0" for a new thread
 
             if (isReply) {
-                parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId || '0';  // Default to '0' if no parent ID
+                parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;
+                if (parentThreadId === undefined || parentThreadId === "0") {
+                    throw new Error("Replies must have a valid parentThreadId.");
+                }
             }
 
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -360,31 +362,27 @@ magnetUrl = imageFile ? uploadResponse : '0';  // Pass 0 when no image is upload
 
             const contractMethod = isReply ? gremlinReplyContract.methods.createReply : gremlinThreadContract.methods.createThread;
 
-            // Estimate the gas required for the transaction
             const gasEstimate = await contractMethod(
-                title,  // Thread or reply title
-                isReply ? `Reply to: ${title}` : title,  // Subject for replies will be like 'Reply to'
-                email,  // Email of the poster
-                magnetUrl,  // Use just the string for the magnet URL here
-                tags,  // Only relevant for threads, not replies
-                content,  // Content of the post
-                parentThreadId  // Parent ID, 0 for threads, actual thread ID for replies
+                title,
+                isReply ? `Reply to: ${title}` : title,
+                email,
+                magnetUrl,
+                tags,
+                content,
+                parentThreadId
             ).estimateGas({ from: account });
 
-            // Send the transaction to create a new thread or reply
             await contractMethod(
                 title,
                 isReply ? `Reply to: ${title}` : title,
                 email,
-                magnetUrl,  // Pass only the magnet URL string here
+                magnetUrl,
                 tags,
                 content,
                 parentThreadId
-                ).send({ from: account, gas: gasEstimate })
-                .on('receipt', function(receipt) {
+            ).send({ from: account, gas: gasEstimate })
+                .on('receipt', function (receipt) {
                     console.log('Transaction receipt:', receipt);
-                    const posterAddress = receipt.from;  // This will give you the address of the poster
-                    console.log('Post made by address:', posterAddress);
                 });
 
             closeOverlay();
@@ -394,6 +392,8 @@ magnetUrl = imageFile ? uploadResponse : '0';  // Pass 0 when no image is upload
             console.error('Error submitting post:', error);
         }
     }
+
+
 
     function uploadToServer(file) {
         return new Promise((resolve, reject) => {
@@ -474,35 +474,27 @@ magnetUrl = imageFile ? uploadResponse : '0';  // Pass 0 when no image is upload
 
         // Organize threads
         threads.forEach(thread => {
-            if (thread) {  // Ensure the thread exists
-                const parentThreadId = thread[7].toString();  // Use the correct index for parentThreadId
-                if (parentThreadId === "0") {
-                    // Add the root thread to the map
-                    threadMap[thread[0].toString()] = { thread: thread, replies: [] };
-                }
-            }
+            const threadId = thread.id.toString();
+            threadMap[threadId] = { thread: thread, replies: [] };
         });
 
         // Organize replies and link them to their parent thread
         replies.forEach(reply => {
-            // Extract the correct parentThreadId and ensure it's treated as a valid number
-            const parentThreadId = reply[4];  // Assuming this is where parentThreadId is stored
-            console.log("parentThreadId", parentThreadId);
+            const parentThreadId = reply.parentId.toString(); // Use parentThreadId from reply
 
-            if (typeof parentThreadId === 'bigint' || typeof parentThreadId === 'number') {
-                const parentThreadIdStr = parentThreadId.toString();
-                if (threadMap[parentThreadIdStr]) {
-                    threadMap[parentThreadIdStr].replies.push(reply);
-                } else {
-                    console.warn(`Reply with parentThreadId ${parentThreadIdStr} has no matching thread.`);
-                }
+            if (parentThreadId === "0") {
+                // Skip replies with parentThreadId = 0 (indicates no valid thread association)
+                console.warn(`Reply with parentThreadId ${parentThreadId} is not associated with any thread.`);
+                return;
+            }
+
+            if (threadMap[parentThreadId]) {
+                // If the thread with parentThreadId exists, push the reply into its replies array
+                threadMap[parentThreadId].replies.push(reply);
             } else {
-                console.error(`Invalid parentThreadId: ${parentThreadId}`);
+                console.warn(`Reply with parentThreadId ${parentThreadId} has no matching thread.`);
             }
         });
-
-
-        console.log("Thread map after organization:", threadMap);
     }
 
 
