@@ -465,36 +465,31 @@
         }
     }
 
+
     function organizeThreadsAndReplies(threads, replies) {
         threadMap = {};
 
         // Organize threads
         threads.forEach(thread => {
-            const threadId = thread.id.toString(); // Ensure it's a string for map keys
+            const threadId = thread.id.toString(); // Use thread's 'id' as a unique key
             threadMap[threadId] = { thread: thread, replies: [] };
         });
 
         // Organize replies and link them to their parent thread
         replies.forEach(reply => {
-            const parentThreadId = reply.parentId; // Keep as BigInt, use it directly
+            const parentThreadId = reply.parentId.toString(); // Convert reply's 'parentId' to string for matching
 
-            // Instead of comparing against "0", check it as BigInt:
-            if (parentThreadId === 0n) {
-                // This means it's a top-level post or thread
-                console.warn(`Reply with parentThreadId 0n is associated with root or thread.`);
+            if (threadMap[parentThreadId]) {
+                // If the thread with parentThreadId exists, push the reply into its replies array
+                threadMap[parentThreadId].replies.push(reply);
             } else {
-                // Check if the parent thread exists in threadMap
-                const parentThreadIdString = parentThreadId.toString(); // Convert BigInt to string
-
-                if (threadMap[parentThreadIdString]) {
-                    // Push the reply into the replies array of the corresponding thread
-                    threadMap[parentThreadIdString].replies.push(reply);
-                } else {
-                    console.warn(`Reply with parentThreadId ${parentThreadId} has no matching thread.`);
-                }
+                console.warn(`Reply with parentThreadId ${parentThreadId} has no matching thread.`);
             }
         });
+
+        console.log("Thread map after organization:", threadMap);
     }
+
 
 
     function displaySortedThreads() {
