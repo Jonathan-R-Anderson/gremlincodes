@@ -472,18 +472,14 @@
 
         // Organize threads
         threads.forEach(thread => {
-            const threadId = BigInt(thread.id); // Ensure thread.id is BigInt
+            const threadId = thread.id.toString();
             threadMap[threadId] = { thread: thread, replies: [] };
         });
 
         // Organize replies and link them to their parent thread
         replies.forEach(reply => {
-            const parentThreadId = BigInt(reply.parentId); // Ensure parentThreadId is BigInt
-            
-            if (parentThreadId === BigInt(0)) {
-                console.log(`Reply with parentThreadId ${parentThreadId} is associated with root or thread.`);
-                return;
-            }
+            const parentThreadId = reply.parentId.toString(); // Use parentThreadId from reply
+            console.log('Organizing reply:', reply, 'for parent thread ID:', parentThreadId);
 
             if (threadMap[parentThreadId]) {
                 // If the thread with parentThreadId exists, push the reply into its replies array
@@ -492,6 +488,8 @@
                 console.warn(`Reply with parentThreadId ${parentThreadId} has no matching thread.`);
             }
         });
+
+        console.log('Thread map after organizing replies:', threadMap);
     }
 
 
@@ -565,8 +563,11 @@
 
         // Download image if magnet URL is present
         if (thread.magnetUrl && thread.magnetUrl !== '0') {
-            downloadImage(thread.magnetUrl, threadContainer); // This is where downloadImage is called
+            downloadImage(thread.magnetUrl, threadContainer); 
         }
+
+        // Log the replies to ensure they are passed
+        console.log("Replies for thread", thread.id, replies);
 
         // **Check if there are replies, if so display them**
         if (replies && replies.length > 0) {
@@ -599,7 +600,12 @@
 
         // Append the reply container to the replies section
         repliesContainer.appendChild(replyContainer);
+        
+        // Log to verify the reply is displayed
+        console.log('Displayed reply:', reply);
     }
+
+
 
 
     function renderMarkdown(text) {
