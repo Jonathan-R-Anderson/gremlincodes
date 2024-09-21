@@ -350,6 +350,7 @@
             if (isReply) {
                 parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;
                 if (!parentThreadId || parentThreadId === "0") {
+                    alert("Replies must have a valid parent thread.");
                     throw new Error("Replies must have a valid parentThreadId.");
                 }
             }
@@ -389,6 +390,7 @@
             console.error('Error submitting post:', error);
         }
     }
+
 
 
     function uploadToServer(file) {
