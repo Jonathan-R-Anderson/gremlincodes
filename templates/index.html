@@ -351,7 +351,7 @@
             let parentThreadId = "0";  // Default to "0" for new threads
 
             // If it's a reply, fetch the thread ID
-            if (isReply) {
+            if (document.getElementById('replyContext').style.display !== 'none') {
                 const replyThreadElement = document.getElementById('replyThreadTitle');
                 if (replyThreadElement && replyThreadElement.dataset.threadId) {
                     parentThreadId = replyThreadElement.dataset.threadId;
@@ -376,7 +376,7 @@
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId  // Correct thread ID here for replies
+                parentThreadId  // Use the correct thread ID here
             ).estimateGas({ from: account });
 
             // Send the transaction with the correct parameters
@@ -392,6 +392,7 @@
                 .on('receipt', function(receipt) {
                     console.log('Transaction receipt:', receipt);
                 });
+
 
             // Close the overlay and reload the threads
             closeOverlay();
