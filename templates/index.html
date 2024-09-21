@@ -326,6 +326,7 @@
         }
     }
 
+
     async function submitPost() {
         const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';
         const email = document.getElementById('newPostEmail').value || 'no-email@example.com';
@@ -345,15 +346,27 @@
                 magnetUrl = '0';  // No image, default to '0'
             }
 
-            // Determine if the post is a new thread or a reply
+            // Check if it's a reply or a new thread
             const isReply = document.getElementById('replyContext').style.display !== 'none';
-            let parentThreadId = isReply ? document.getElementById('replyThreadTitle').dataset.threadId : "0";
+            let parentThreadId = "0";  // Default to "0" for new threads
+
+            // If it's a reply, fetch the thread ID from the thread where the reply button was clicked
+            if (isReply) {
+                // The thread ID should be stored in a dataset attribute, such as `data-thread-id`
+                const replyThreadElement = document.getElementById('replyThreadTitle');
+                if (replyThreadElement && replyThreadElement.dataset.threadId) {
+                    parentThreadId = replyThreadElement.dataset.threadId;
+                } else {
+                    alert("Replies must have a valid parent thread.");
+                    throw new Error("Replies must have a valid parentThreadId.");
+                }
+            }
 
             // Request MetaMask to get the user's account
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             const account = accounts[0];
 
-            // Determine which contract method to call based on whether this is a reply or a new thread
+            // Determine which contract method to call based on whether it's a reply or a new thread
             const contractMethod = isReply ? gremlinReplyContract.methods.createReply : gremlinThreadContract.methods.createThread;
 
             // Estimate the gas needed for the transaction
@@ -375,7 +388,7 @@
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId  // Ensure this is used correctly
+                parentThreadId  // Ensure the correct thread ID is used
             ).send({ from: account, gas: gasEstimate })
                 .on('receipt', function(receipt) {
                     console.log('Transaction receipt:', receipt);
