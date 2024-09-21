@@ -326,6 +326,7 @@
         }
     }
 
+
     async function submitPost() {
         const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';
         const email = document.getElementById('newPostEmail').value || 'no-email@example.com';
@@ -349,14 +350,13 @@
             const isReply = document.getElementById('replyContext').style.display !== 'none';
             let parentThreadId = "0";  // Default to "0" for new threads
 
-            // If it's a reply, fetch the thread ID from the thread where the reply button was clicked
+            // If it's a reply, fetch the thread ID
             if (isReply) {
-                // The thread ID should be stored in a dataset attribute, such as `data-thread-id`
                 const replyThreadElement = document.getElementById('replyThreadTitle');
                 if (replyThreadElement && replyThreadElement.dataset.threadId) {
                     parentThreadId = replyThreadElement.dataset.threadId;
                 } else {
-                    alert("Replies must have a valid parent thread.");
+                    alert("Error: No valid parent thread ID found for reply.");
                     throw new Error("Replies must have a valid parentThreadId.");
                 }
             }
@@ -387,7 +387,7 @@
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId  // Ensure the correct thread ID is used
+                parentThreadId  // Ensure this is used correctly
             ).send({ from: account, gas: gasEstimate })
                 .on('receipt', function(receipt) {
                     console.log('Transaction receipt:', receipt);
@@ -401,7 +401,6 @@
             console.error('Error submitting post:', error);
         }
     }
-
 
 
     function uploadToServer(file) {
