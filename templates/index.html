@@ -125,7 +125,7 @@
             <label for="blacklist">Blacklist</label>
         </div>
     
-        <!-- Search bar to add tags to the currently active mode (whitelist or blacklist) -->
+        <!-- Search bar to manually add tags -->
         <input type="text" id="searchBar" placeholder="Enter tag..." onkeypress="addTagOnEnter(event)" />
         <div id="searchTagsDisplay" style="margin-top: 10px;"></div>
 
@@ -328,12 +328,26 @@
         }
     }
 
+
+    // Function to handle pressing Enter in the search bar
+    function addTagOnEnter(event) {
+        if (event.key === 'Enter') {
+            const tag = event.target.value.trim(); // Get the tag from the input field
+            
+            if (tag) {
+                addTagToSearchBar(tag); // Call the function to add tag as button
+                event.target.value = ''; // Clear the input field
+            }
+        }
+    }
+
+    // Function to add a tag to the search bar as a button (from manual input or tag click)
     function addTagToSearchBar(tag) {
         const searchBar = document.getElementById('searchTagsDisplay');
         
         // Check if the tag is already added
         if (selectedTags.includes(tag)) {
-            return;
+            return; // Do nothing if the tag is already in the list
         }
 
         // Add the tag to the selected tags array
@@ -344,7 +358,7 @@
         tagButton.innerText = `${tag} X`; // Show the tag with an "X" for removal
         tagButton.className = 'tag-button';
         tagButton.style.margin = '5px';
-        
+
         // Add remove functionality to the "X"
         tagButton.onclick = function() {
             // Remove the tag from the array
@@ -363,7 +377,6 @@
         // Apply filter after adding the tag
         applyTagFilter();
     }
-
 
     // Function to apply filter based on selected tags and mode (whitelist/blacklist)
     function applyTagFilter() {
@@ -385,6 +398,7 @@
             }
         });
     }
+
 
     async function submitPost() {
         const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';
