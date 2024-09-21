@@ -541,6 +541,11 @@
         subject.innerText = `Subject: ${thread.subject}`;
         threadContainer.appendChild(subject);
 
+        // Display the submitter's address
+        const submitter = document.createElement('p');
+        submitter.innerText = `Submitted by: ${thread.sender}`;
+        threadContainer.appendChild(submitter); // Add this line to show the thread sender
+
         // Display thread content with markdown rendering
         const content = document.createElement('div');
         content.innerHTML = renderMarkdown(thread.content);
@@ -568,9 +573,6 @@
             downloadImage(thread.magnetUrl, threadContainer); 
         }
 
-        // Log the replies to ensure they are passed
-        console.log("Replies for thread", thread.id, replies);
-
         // **Check if there are replies, if so display them**
         if (replies && replies.length > 0) {
             const repliesContainer = document.createElement('div');
@@ -578,7 +580,6 @@
             threadContainer.appendChild(repliesContainer);
 
             replies.forEach(reply => {
-                // Ensure that we are displaying each reply
                 displayReply(reply, repliesContainer);
             });
         }
@@ -600,13 +601,14 @@
         replyContent.innerText = `Reply: ${reply.content}`;
         replyContainer.appendChild(replyContent);
 
+        // Display the submitter's address
+        const submitter = document.createElement('p');
+        submitter.innerText = `Submitted by: ${reply.sender}`;
+        replyContainer.appendChild(submitter); // Add this line to show the reply sender
+
         // Append the reply container to the replies section
         repliesContainer.appendChild(replyContainer);
-        
-        // Log to verify the reply is displayed
-        console.log('Displayed reply:', reply);
     }
-
 
 
 
