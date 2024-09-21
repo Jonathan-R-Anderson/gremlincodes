@@ -368,7 +368,7 @@
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId  // Correctly use thread `id` as parentThreadId for replies
+                parentThreadId  // Pass the correct thread `id` as parentThreadId for replies
             ).estimateGas({ from: account });
 
             await contractMethod(
@@ -467,6 +467,7 @@
         }
     }
 
+
     function organizeThreadsAndReplies(threads, replies) {
         threadMap = {};
 
@@ -491,6 +492,7 @@
 
         console.log('Thread map after organizing replies:', threadMap);
     }
+
 
     function displaySortedThreads() {
         const contentDiv = document.getElementById('infiniteScrollContent');
