@@ -486,6 +486,7 @@ magnetUrl = imageFile ? uploadResponse : '0';  // Pass 0 when no image is upload
         // Organize replies and link them to their parent thread
         replies.forEach(reply => {
             if (reply) {  // Ensure the reply exists
+                console.log("Reply object:", reply);
                 const parentThreadId = reply[7].toString();  // Use the correct index for parentThreadId
                 if (threadMap[parentThreadId]) {
                     threadMap[parentThreadId].replies.push(reply);
