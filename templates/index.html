@@ -229,6 +229,8 @@
     let threadMap = {};
     let isAdmin = false;  // Default to non-admin
     const addedMagnets = new Set();
+    // Track selected tags for filtering
+    let selectedTags = [];
 
     const _gremlinThreadABI = {{ gremlinThreadABI | safe }};
     const _gremlinThreadAddress = "{{ gremlinThreadAddress }}";
@@ -326,6 +328,63 @@
         }
     }
 
+    function addTagToSearchBar(tag) {
+        const searchBar = document.getElementById('searchTagsDisplay');
+        
+        // Check if the tag is already added
+        if (selectedTags.includes(tag)) {
+            return;
+        }
+
+        // Add the tag to the selected tags array
+        selectedTags.push(tag);
+
+        // Create a button for the tag
+        const tagButton = document.createElement('button');
+        tagButton.innerText = `${tag} X`; // Show the tag with an "X" for removal
+        tagButton.className = 'tag-button';
+        tagButton.style.margin = '5px';
+        
+        // Add remove functionality to the "X"
+        tagButton.onclick = function() {
+            // Remove the tag from the array
+            selectedTags = selectedTags.filter(selectedTag => selectedTag !== tag);
+            
+            // Remove the button from the display
+            searchBar.removeChild(tagButton);
+
+            // Re-apply the filter based on remaining tags
+            applyTagFilter();
+        };
+
+        // Append the button to the search bar display
+        searchBar.appendChild(tagButton);
+
+        // Apply filter after adding the tag
+        applyTagFilter();
+    }
+
+
+    // Function to apply filter based on selected tags and mode (whitelist/blacklist)
+    function applyTagFilter() {
+        const filterMode = document.querySelector('input[name="filterMode"]:checked').value;
+        const allThreadContainers = document.querySelectorAll('.thread-container');
+
+        allThreadContainers.forEach(container => {
+            const tagsContainer = container.querySelector('.tags');
+            const threadTags = Array.from(tagsContainer.querySelectorAll('.tag')).map(tagElem => tagElem.innerText);
+
+            if (filterMode === 'whitelist') {
+                // Show only threads that contain ALL selected tags (whitelist)
+                const hasAllTags = selectedTags.every(tag => threadTags.includes(tag));
+                container.style.display = hasAllTags ? 'block' : 'none';
+            } else if (filterMode === 'blacklist') {
+                // Show only threads that do NOT contain any selected tags (blacklist)
+                const hasAnySelectedTag = selectedTags.some(tag => threadTags.includes(tag));
+                container.style.display = hasAnySelectedTag ? 'none' : 'block';
+            }
+        });
+    }
 
     async function submitPost() {
         const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';
@@ -527,6 +586,8 @@
         return Math.max(Number(thread.timestamp), latestReplyTimestamp);
     }
 
+
+    // Modify existing function to add click functionality on each tag in a thread
     function displayThreadWithReplies(thread, replies) {
         const threadContainer = document.createElement('div');
         threadContainer.className = 'thread-container';
@@ -558,6 +619,10 @@
             const tagElement = document.createElement('span');
             tagElement.className = 'tag';
             tagElement.innerText = tag;
+
+            // Add click event to populate the search bar with buttons
+            tagElement.onclick = () => addTagToSearchBar(tag);
+
             tagsContainer.appendChild(tagElement);
         });
         threadContainer.appendChild(tagsContainer);
