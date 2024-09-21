@@ -348,7 +348,7 @@
 
             // Check if it's a reply or a new thread
             const isReply = document.getElementById('replyContext').style.display !== 'none';
-            let parentThreadId = "0";  // Default to "0" for new threads
+            let parentThreadId = isReply ? document.getElementById('replyThreadTitle').dataset.threadId : "0";
 
             // If it's a reply, fetch the thread ID
             if (isReply) {
