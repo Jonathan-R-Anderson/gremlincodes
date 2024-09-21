@@ -474,19 +474,23 @@ magnetUrl = imageFile ? uploadResponse : '0';  // Pass 0 when no image is upload
 
         // Organize threads
         threads.forEach(thread => {
-            const parentThreadId = thread.parentThreadId.toString();
-            if (parentThreadId === "0") {
-                threadMap[thread.id] = { thread: thread, replies: [] };
+            if (thread && thread.parentThreadId) {  // Check if thread and parentThreadId exist
+                const parentThreadId = thread.parentThreadId.toString();
+                if (parentThreadId === "0") {
+                    threadMap[thread.id] = { thread: thread, replies: [] };
+                }
             }
         });
 
         // Organize replies and link them to their parent thread
         replies.forEach(reply => {
-            const parentThreadId = reply.parentThreadId.toString();
-            if (threadMap[parentThreadId]) {
-                threadMap[parentThreadId].replies.push(reply);
-            } else {
-                console.warn(`Reply with parentThreadId ${parentThreadId} has no matching thread.`);
+            if (reply && reply.parentThreadId) {  // Check if reply and parentThreadId exist
+                const parentThreadId = reply.parentThreadId.toString();
+                if (threadMap[parentThreadId]) {
+                    threadMap[parentThreadId].replies.push(reply);
+                } else {
+                    console.warn(`Reply with parentThreadId ${parentThreadId} has no matching thread.`);
+                }
             }
         });
     }
