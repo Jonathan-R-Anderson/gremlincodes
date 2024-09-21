@@ -326,7 +326,6 @@
         }
     }
 
-
     async function submitPost() {
         const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';
         const email = document.getElementById('newPostEmail').value || 'no-email@example.com';
@@ -346,27 +345,21 @@
             }
 
             const isReply = document.getElementById('replyContext').style.display !== 'none';
-            let parentThreadId = null;  // Null initially for both thread and reply
+            let parentThreadId = "0";  // Default to "0" for new threads
 
+            // If it's a reply, get the thread's `id` to use as `parentThreadId` for the reply
             if (isReply) {
                 parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;
-
-                // Make sure we have a valid parentThreadId (not "0" or null)
-                if (!parentThreadId || parentThreadId === "0" || parentThreadId === "0n") {
+                if (!parentThreadId || parentThreadId === "0") {
                     alert("Replies must have a valid parent thread.");
                     throw new Error("Replies must have a valid parentThreadId.");
                 }
-            } else {
-                parentThreadId = "0";  // Only for new threads should parentThreadId be "0"
             }
 
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             const account = accounts[0];
 
             const contractMethod = isReply ? gremlinReplyContract.methods.createReply : gremlinThreadContract.methods.createThread;
-
-            // Log the parentThreadId to ensure correctness
-            console.log('Submitting post with parentThreadId:', parentThreadId);
 
             const gasEstimate = await contractMethod(
                 title,
@@ -375,7 +368,7 @@
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId  // Correct parentThreadId passed here
+                parentThreadId  // Correctly use thread `id` as parentThreadId for replies
             ).estimateGas({ from: account });
 
             await contractMethod(
@@ -385,7 +378,7 @@
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId  // Correct parentThreadId passed here
+                parentThreadId  // Ensure reply points to the correct thread ID as parent
             ).send({ from: account, gas: gasEstimate })
                 .on('receipt', function(receipt) {
                     console.log('Transaction receipt:', receipt);
@@ -398,7 +391,6 @@
             console.error('Error submitting post:', error);
         }
     }
-
 
 
     function uploadToServer(file) {
@@ -478,19 +470,19 @@
     function organizeThreadsAndReplies(threads, replies) {
         threadMap = {};
 
-        // Organize threads
+        // Organize threads using their `id`
         threads.forEach(thread => {
-            const threadId = thread.id.toString();
+            const threadId = thread.id.toString();  // Use `id` for thread identification
             threadMap[threadId] = { thread: thread, replies: [] };
         });
 
-        // Organize replies and link them to their parent thread
+        // Organize replies and link them to their parent thread's `id`
         replies.forEach(reply => {
-            const parentThreadId = reply.parentId.toString(); // Use parentThreadId from reply
+            const parentThreadId = reply.parentId.toString();  // Use `parentId` of reply, which corresponds to thread `id`
             console.log('Organizing reply:', reply, 'for parent thread ID:', parentThreadId);
 
             if (threadMap[parentThreadId]) {
-                // If the thread with parentThreadId exists, push the reply into its replies array
+                // If the thread with parentThreadId (the thread `id`) exists, push the reply into its replies array
                 threadMap[parentThreadId].replies.push(reply);
             } else {
                 console.warn(`Reply with parentThreadId ${parentThreadId} has no matching thread.`);
@@ -499,8 +491,6 @@
 
         console.log('Thread map after organizing replies:', threadMap);
     }
-
-
 
     function displaySortedThreads() {
         const contentDiv = document.getElementById('infiniteScrollContent');
