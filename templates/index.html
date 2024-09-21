@@ -349,7 +349,7 @@
 
             // If it's a reply, get the thread's `id` to use as `parentThreadId` for the reply
             if (isReply) {
-                parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;  // Get the thread's `id`
+                parentThreadId = document.getElementById('replyThreadTitle').id;  // Get the thread's `id`
                 if (!parentThreadId || parentThreadId === "0") {
                     alert("Replies must have a valid parent thread.");
                     throw new Error("Replies must have a valid parentThreadId.");
