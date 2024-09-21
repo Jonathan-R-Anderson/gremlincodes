@@ -698,24 +698,30 @@
 
     function downloadImage(magnetURI, threadContainer) {
         // Create a container for the image download status or placeholder
-        const output = threadContainer.querySelector('#imagePlaceholder');
-        output.innerText = 'Downloading image...'; // Initial message before the image is downloaded
+        let placeholder = threadContainer.querySelector('#imagePlaceholder');
+        
+        // If the placeholder doesn't exist, create it
+        if (!placeholder) {
+            placeholder = document.createElement('div');
+            placeholder.id = 'imagePlaceholder'; // Unique id for the image
+            threadContainer.insertBefore(placeholder, threadContainer.querySelector('div')); // Place it higher up
+        }
+
+        placeholder.innerText = 'Downloading image...'; // Initial message before the image is downloaded
 
         const trackerOptions = {
             announce: [
                 'wss://tracker.openwebtorrent.com',
-                'wss://tracker.fastcast.nz',
-                'wss://tracker.opentracker.org',
-                'wss://tracker.files.fm'
+                'wss://tracker.btorrent.xyz',  // Replace with more reliable trackers
+                'wss://tracker.webtorrent.io',
+                'wss://tracker.btorrent.xyz'
             ]
         };
 
-        // Check if the torrent is already present in the client
         const existingTorrent = client.get(magnetURI);
 
         if (existingTorrent) {
             console.log(`Reusing existing torrent: ${magnetURI}`);
-            // Render the image for each occurrence of the magnet URL
             renderImageForAllOccurrences(existingTorrent, magnetURI);
         } else {
             console.log(`Adding new torrent: ${magnetURI}`);
@@ -729,7 +735,6 @@
     }
 
     function renderImageForAllOccurrences(torrent, magnetURI) {
-        // Find all containers that reference the same magnet URI
         const threadContainers = document.querySelectorAll(`[data-magnet="${magnetURI}"]`);
 
         torrent.files.forEach(file => {
@@ -740,34 +745,30 @@
                         return;
                     }
 
-                    // Loop through all containers that need this image and render the image
                     threadContainers.forEach(container => {
-                        const placeholder = container.querySelector('#imagePlaceholder'); // Find the placeholder
+                        const placeholder = container.querySelector('#imagePlaceholder');
 
                         if (placeholder) {
-                            // Create the filename and magnet URL display
                             const magnetInfo = document.createElement('p');
                             magnetInfo.innerText = `Filename: ${file.name} \n Magnet URL: ${magnetURI}`;
-                            placeholder.innerHTML = ''; // Clear the placeholder text
-                            placeholder.appendChild(magnetInfo); // Append the magnet info
+                            placeholder.innerHTML = ''; // Clear placeholder
+                            placeholder.appendChild(magnetInfo);
 
-                            // Create the image element
                             const img = document.createElement('img');
                             img.src = url;
                             img.alt = file.name;
                             img.style.maxWidth = '200px';
                             img.style.cursor = 'pointer';
-
-                            // Enable fullscreen on click
                             img.onclick = () => openImageFullScreen(url);
-                            placeholder.appendChild(img); // Insert image after magnet info
+
+                            // Insert image after magnet info
+                            placeholder.appendChild(img);
                         }
                     });
                 });
             }
         });
     }
-
 
 
     function renderImageFromTorrent(torrent, threadContainer) {
