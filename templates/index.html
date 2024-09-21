@@ -470,25 +470,28 @@
 
         // Organize threads
         threads.forEach(thread => {
-            const threadId = thread.id.toString();
+            const threadId = thread.id.toString(); // Ensure it's a string for map keys
             threadMap[threadId] = { thread: thread, replies: [] };
         });
 
         // Organize replies and link them to their parent thread
         replies.forEach(reply => {
-            const parentThreadId = reply.parentId.toString(); // Use parentThreadId from reply
+            const parentThreadId = reply.parentId; // Keep as BigInt, use it directly
 
-            if (parentThreadId === "0") {
-                // Skip replies with parentThreadId = 0 (indicates no valid thread association)
-                console.warn(`Reply with parentThreadId ${parentThreadId} is not associated with any thread.`);
-                return;
-            }
-
-            if (threadMap[parentThreadId]) {
-                // If the thread with parentThreadId exists, push the reply into its replies array
-                threadMap[parentThreadId].replies.push(reply);
+            // Instead of comparing against "0", check it as BigInt:
+            if (parentThreadId === 0n) {
+                // This means it's a top-level post or thread
+                console.warn(`Reply with parentThreadId 0n is associated with root or thread.`);
             } else {
-                console.warn(`Reply with parentThreadId ${parentThreadId} has no matching thread.`);
+                // Check if the parent thread exists in threadMap
+                const parentThreadIdString = parentThreadId.toString(); // Convert BigInt to string
+
+                if (threadMap[parentThreadIdString]) {
+                    // Push the reply into the replies array of the corresponding thread
+                    threadMap[parentThreadIdString].replies.push(reply);
+                } else {
+                    console.warn(`Reply with parentThreadId ${parentThreadId} has no matching thread.`);
+                }
             }
         });
     }
