@@ -485,16 +485,22 @@ magnetUrl = imageFile ? uploadResponse : '0';  // Pass 0 when no image is upload
 
         // Organize replies and link them to their parent thread
         replies.forEach(reply => {
-            if (reply) {  // Ensure the reply exists
-                console.log("Reply object:", reply);
-                const parentThreadId = reply[7].toString();  // Use the correct index for parentThreadId
-                if (threadMap[parentThreadId]) {
-                    threadMap[parentThreadId].replies.push(reply);
+            // Extract the correct parentThreadId and ensure it's treated as a valid number
+            const parentThreadId = reply[4];  // Assuming this is where parentThreadId is stored
+            console.log("parentThreadId", parentThreadId);
+
+            if (typeof parentThreadId === 'bigint' || typeof parentThreadId === 'number') {
+                const parentThreadIdStr = parentThreadId.toString();
+                if (threadMap[parentThreadIdStr]) {
+                    threadMap[parentThreadIdStr].replies.push(reply);
                 } else {
-                    console.warn(`Reply with parentThreadId ${parentThreadId} has no matching thread.`);
+                    console.warn(`Reply with parentThreadId ${parentThreadIdStr} has no matching thread.`);
                 }
+            } else {
+                console.error(`Invalid parentThreadId: ${parentThreadId}`);
             }
         });
+
 
         console.log("Thread map after organization:", threadMap);
     }
