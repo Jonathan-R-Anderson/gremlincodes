@@ -345,7 +345,7 @@
                 magnetUrl = uploadResponse;  // Ensure it's a string
                 console.log("Magnet URL:", magnetUrl);  // Log the magnet URL for debugging
             } else {
-                magnetUrl = 'no-image';  // Dummy value for magnet URL
+                magnetUrl = imageFile ? uploadResponse : '0';  // Pass 0 when no image is uploaded
             }
 
             const isReply = document.getElementById('replyContext').style.display !== 'none';
@@ -522,44 +522,27 @@
         const threadContainer = document.createElement('div');
         threadContainer.className = 'thread-container';
 
+        // GSAP: Animate the thread to take up the main part of the screen on load
+        gsap.fromTo(threadContainer, { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.6, ease: "power2.inOut" });
+
         // Display thread title
         const title = document.createElement('h3');
         title.innerText = `Title: ${thread.name}`;
         threadContainer.appendChild(title);
-
-        // Display thread subject
-        const subject = document.createElement('p');
-        subject.innerText = `Subject: ${thread.subject}`;
-        threadContainer.appendChild(subject);
 
         // Display thread content with markdown rendering
         const content = document.createElement('div');
         content.innerHTML = renderMarkdown(thread.content);
         threadContainer.appendChild(content);
 
-        // Display thread tags
-        const tagsContainer = document.createElement('div');
-        tagsContainer.className = 'tags';
-        thread.tags.forEach(tag => {
-            const tagElement = document.createElement('span');
-            tagElement.className = 'tag';
-            tagElement.innerText = tag;
-            tagsContainer.appendChild(tagElement);
-        });
-        threadContainer.appendChild(tagsContainer);
+        // GSAP: Expand the content as you scroll down
+        gsap.fromTo(content, { height: 0 }, { height: "auto", duration: 1, ease: "power2.inOut", scrollTrigger: {
+            trigger: threadContainer,
+            start: "top center",
+            toggleActions: "play none none none"
+        }});
 
-        // Reply button
-        const replyButton = document.createElement('button');
-        replyButton.innerText = "Reply";
-        replyButton.onclick = () => openReplyOverlay(thread);
-        threadContainer.appendChild(replyButton);
-
-        // Download image if magnet URL is present
-        if (thread.magnetUrl) {
-            downloadImage(thread.magnetUrl, threadContainer); // This is where downloadImage is called
-        }
-
-        // Check if there are replies, if so display the last three replies
+        // Replies logic...
         if (replies && replies.length > 0) {
             const repliesContainer = document.createElement('div');
             repliesContainer.className = 'replies-container';
@@ -567,9 +550,15 @@
 
             const lastThreeReplies = replies.slice(-3);  // Get the last 3 replies
             lastThreeReplies.forEach(reply => displayReply(reply, repliesContainer));
+
+            // GSAP: Expand replies horizontally as you scroll further down
+            gsap.fromTo(repliesContainer, { x: -100, opacity: 0 }, { x: 0, opacity: 1, duration: 1, ease: "power2.inOut", scrollTrigger: {
+                trigger: repliesContainer,
+                start: "top center",
+                toggleActions: "play none none none"
+            }});
         }
 
-        // Add the thread container to the content section
         document.getElementById('infiniteScrollContent').appendChild(threadContainer);
     }
 
