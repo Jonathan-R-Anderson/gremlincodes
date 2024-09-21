@@ -564,18 +564,20 @@
         threadContainer.appendChild(replyButton);
 
         // Download image if magnet URL is present
-        if (thread.magnetUrl) {
+        if (thread.magnetUrl && thread.magnetUrl !== '0') {
             downloadImage(thread.magnetUrl, threadContainer); // This is where downloadImage is called
         }
 
-        // Check if there are replies, if so display the last three replies
+        // **Check if there are replies, if so display them**
         if (replies && replies.length > 0) {
             const repliesContainer = document.createElement('div');
             repliesContainer.className = 'replies-container';
             threadContainer.appendChild(repliesContainer);
 
-            const lastThreeReplies = replies.slice(-3);  // Get the last 3 replies
-            lastThreeReplies.forEach(reply => displayReply(reply, repliesContainer));
+            replies.forEach(reply => {
+                // Ensure that we are displaying each reply
+                displayReply(reply, repliesContainer);
+            });
         }
 
         // Add the thread container to the content section
@@ -598,6 +600,7 @@
         // Append the reply container to the replies section
         repliesContainer.appendChild(replyContainer);
     }
+
 
     function renderMarkdown(text) {
         const converter = new showdown.Converter();
