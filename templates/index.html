@@ -349,7 +349,7 @@
             // Check if it's a reply or a new thread
             const isReply = document.getElementById('replyContext').style.display !== 'none';
             let parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId
-
+            console.log("Parent Thread ID before making post:", parentThreadId);
 
             // Request MetaMask to get the user's account
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
