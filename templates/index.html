@@ -614,17 +614,51 @@
 
         if (existingTorrent) {
             console.log(`Reusing existing torrent: ${magnetURI}`);
-            renderImageFromTorrent(existingTorrent, threadContainer);  // Always render the image
+            // Render the image for each occurrence of the magnet URL
+            renderImageForAllOccurrences(existingTorrent, magnetURI);
         } else {
             console.log(`Adding new torrent: ${magnetURI}`);
             client.add(magnetURI, trackerOptions, (torrent) => {
                 console.log(`Torrent added: ${torrent.infoHash}`);
-                renderImageFromTorrent(torrent, threadContainer);  // Render the image after it's added
+                renderImageForAllOccurrences(torrent, magnetURI);  // Render the image after it's added
             }).on('error', (err) => {
                 console.error(`Error adding torrent: ${err.message}`);
             });
         }
     }
+
+    function renderImageForAllOccurrences(torrent, magnetURI) {
+        // Find all containers that reference the same magnet URI
+        const threadContainers = document.querySelectorAll(`[data-magnet="${magnetURI}"]`);
+        
+        torrent.files.forEach(file => {
+            if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
+                file.getBlobURL((err, url) => {
+                    if (err) {
+                        console.error('Error downloading image:', err);
+                        return;
+                    }
+
+                    // Loop through all containers that need this image and render the image
+                    threadContainers.forEach(container => {
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.alt = file.name;
+                        img.style.maxWidth = '200px';
+                        img.style.cursor = 'pointer';
+                        img.onclick = () => openImageFullScreen(url);  // Enable fullscreen on click
+                        container.appendChild(img);
+
+                        const output = container.querySelector('p');
+                        if (output) {
+                            output.innerText = 'Image downloaded.';
+                        }
+                    });
+                });
+            }
+        });
+    }
+
 
 
     function renderImageFromTorrent(torrent, threadContainer) {
