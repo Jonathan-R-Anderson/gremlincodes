@@ -351,7 +351,7 @@
             let parentThreadId = "0";  // Default to "0" for new threads
 
             // If it's a reply, fetch the thread ID
-            if (document.getElementById('replyContext').style.display !== 'none') {
+            if (isReply) {
                 const replyThreadElement = document.getElementById('replyThreadTitle');
                 if (replyThreadElement && replyThreadElement.dataset.threadId) {
                     parentThreadId = replyThreadElement.dataset.threadId;
@@ -478,22 +478,20 @@
         }
     }
 
+
     function organizeThreadsAndReplies(threads, replies) {
         threadMap = {};
 
-        // Organize threads using their `id`
         threads.forEach(thread => {
-            const threadId = thread.id.toString();  // Use `id` for thread identification
+            const threadId = thread.id.toString();
             threadMap[threadId] = { thread: thread, replies: [] };
         });
 
-        // Organize replies and link them to their parent thread's `id`
         replies.forEach(reply => {
-            const parentThreadId = reply.parentId.toString();  // Use `parentId` of reply, which corresponds to thread `id`
+            const parentThreadId = reply.parentId.toString();
             console.log('Organizing reply:', reply, 'for parent thread ID:', parentThreadId);
 
             if (threadMap[parentThreadId]) {
-                // If the thread with parentThreadId (the thread `id`) exists, push the reply into its replies array
                 threadMap[parentThreadId].replies.push(reply);
             } else {
                 console.warn(`Reply with parentThreadId ${parentThreadId} has no matching thread.`);
@@ -502,7 +500,6 @@
 
         console.log('Thread map after organizing replies:', threadMap);
     }
-
 
     function displaySortedThreads() {
         const contentDiv = document.getElementById('infiniteScrollContent');
