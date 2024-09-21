@@ -595,69 +595,142 @@
         return converter.makeHtml(text);
     }
 
-    function downloadImage(magnetURI, threadContainer) {
-        const output = document.createElement('p');
-        output.innerText = 'Downloading image...';
-        threadContainer.appendChild(output);
+function downloadImage(magnetURI, threadContainer) {
+    const output = document.createElement('p');
+    output.innerText = 'Downloading image...';
+    threadContainer.appendChild(output);
 
-        const trackerOptions = {
-            announce: [
-                'wss://tracker.openwebtorrent.com',
-                'wss://tracker.fastcast.nz',
-                'wss://tracker.opentracker.org',
-                'wss://tracker.files.fm'
-            ]
-        };
+    const trackerOptions = {
+        announce: [
+            'wss://tracker.openwebtorrent.com',
+            'wss://tracker.fastcast.nz',
+            'wss://tracker.opentracker.org',
+            'wss://tracker.files.fm'
+        ]
+    };
 
-        // Check if the torrent is already present in the client
-        const existingTorrent = client.get(magnetURI);
+    // Check if the torrent is already present in the client
+    const existingTorrent = client.get(magnetURI);
 
-        if (existingTorrent) {
-            console.log(`Reusing existing torrent: ${magnetURI}`);
-            // Render the image for each occurrence of the magnet URL
-            renderImageForAllOccurrences(existingTorrent, magnetURI);
-        } else {
-            console.log(`Adding new torrent: ${magnetURI}`);
-            client.add(magnetURI, trackerOptions, (torrent) => {
-                console.log(`Torrent added: ${torrent.infoHash}`);
-                renderImageForAllOccurrences(torrent, magnetURI);  // Render the image after it's added
-            }).on('error', (err) => {
-                console.error(`Error adding torrent: ${err.message}`);
-            });
-        }
-    }
-
-    function renderImageForAllOccurrences(torrent, magnetURI) {
-        // Find all containers that reference the same magnet URI
-        const threadContainers = document.querySelectorAll(`[data-magnet="${magnetURI}"]`);
-        
-        torrent.files.forEach(file => {
-            if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
-                file.getBlobURL((err, url) => {
-                    if (err) {
-                        console.error('Error downloading image:', err);
-                        return;
-                    }
-
-                    // Loop through all containers that need this image and render the image
-                    threadContainers.forEach(container => {
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.alt = file.name;
-                        img.style.maxWidth = '200px';
-                        img.style.cursor = 'pointer';
-                        img.onclick = () => openImageFullScreen(url);  // Enable fullscreen on click
-                        container.appendChild(img);
-
-                        const output = container.querySelector('p');
-                        if (output) {
-                            output.innerText = 'Image downloaded.';
-                        }
-                    });
-                });
-            }
+    if (existingTorrent) {
+        console.log(`Reusing existing torrent: ${magnetURI}`);
+        // Render the image for each occurrence of the magnet URL
+        renderImageForAllOccurrences(existingTorrent, magnetURI);
+    } else {
+        console.log(`Adding new torrent: ${magnetURI}`);
+        client.add(magnetURI, trackerOptions, (torrent) => {
+            console.log(`Torrent added: ${torrent.infoHash}`);
+            renderImageForAllOccurrences(torrent, magnetURI);  // Render the image after it's added
+        }).on('error', (err) => {
+            console.error(`Error adding torrent: ${err.message}`);
         });
     }
+}
+
+function renderImageForAllOccurrences(torrent, magnetURI) {
+    // Find all containers that reference the same magnet URI
+    const threadContainers = document.querySelectorAll(`[data-magnet="${magnetURI}"]`);
+    
+    torrent.files.forEach(file => {
+        if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
+            file.getBlobURL((err, url) => {
+                if (err) {
+                    console.error('Error downloading image:', err);
+                    return;
+                }
+
+                // Loop through all containers that need this image and render the image
+                threadContainers.forEach(container => {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = file.name;
+                    img.style.maxWidth = '200px';
+                    img.style.cursor = 'pointer';
+                    img.onclick = () => openImageFullScreen(url);  // Enable fullscreen on click
+                    container.appendChild(img);
+
+                    const output = container.querySelector('p');
+                    if (output) {
+                        output.innerText = 'Image downloaded.';
+                    }
+                });
+            });
+        }
+    });
+}
+
+
+function downloadImage(magnetURI, threadContainer) {
+    // Create a container for the image download status
+    const output = document.createElement('p');
+    output.innerText = 'Downloading image...';
+    threadContainer.appendChild(output);
+
+    // Set up tracker options for WebTorrent
+    const trackerOptions = {
+        announce: [
+            'wss://tracker.openwebtorrent.com',
+            'wss://tracker.fastcast.nz',
+            'wss://tracker.opentracker.org',
+            'wss://tracker.files.fm'
+        ]
+    };
+
+    // Add a data attribute to the threadContainer to keep track of the magnet URI
+    threadContainer.setAttribute('data-magnet', magnetURI);
+
+    // Check if the torrent is already present in the client
+    const existingTorrent = client.get(magnetURI);
+
+    if (existingTorrent) {
+        console.log(`Reusing existing torrent: ${magnetURI}`);
+        // Call a function to render the image for all occurrences of the magnet URI
+        renderImageForAllOccurrences(existingTorrent, magnetURI);
+    } else {
+        // Add the torrent if it's not already present
+        console.log(`Adding new torrent: ${magnetURI}`);
+        client.add(magnetURI, trackerOptions, (torrent) => {
+            console.log(`Torrent added: ${torrent.infoHash}`);
+            // Call a function to render the image for all occurrences of the magnet URI
+            renderImageForAllOccurrences(torrent, magnetURI);
+        }).on('error', (err) => {
+            console.error(`Error adding torrent: ${err.message}`);
+        });
+    }
+}
+
+function renderImageForAllOccurrences(torrent, magnetURI) {
+    // Find all containers that reference the same magnet URI
+    const threadContainers = document.querySelectorAll(`[data-magnet="${magnetURI}"]`);
+    
+    // Loop through the torrent files and find image files
+    torrent.files.forEach(file => {
+        if (file.name.endsWith('.jpg') || file.name.endsWith('.png') || file.name.endsWith('.jpeg')) {
+            file.getBlobURL((err, url) => {
+                if (err) {
+                    console.error('Error downloading image:', err);
+                    return;
+                }
+
+                // Loop through all containers that need this image and render the image
+                threadContainers.forEach(container => {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = file.name;
+                    img.style.maxWidth = '200px';
+                    img.style.cursor = 'pointer';
+                    img.onclick = () => openImageFullScreen(url);  // Enable fullscreen on click
+                    container.appendChild(img);
+
+                    const output = container.querySelector('p');
+                    if (output) {
+                        output.innerText = 'Image downloaded.';
+                    }
+                });
+            });
+        }
+    });
+}
 
 
 
