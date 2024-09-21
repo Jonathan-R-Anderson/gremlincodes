@@ -327,77 +327,68 @@
     }
 
     async function submitPost() {
-    const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';
-    const email = document.getElementById('newPostEmail').value || 'no-email@example.com';
-    const content = document.getElementById('newPostContent').value.trim() || 'No content provided';
-    const tags = document.getElementById('newPostTags').style.display === 'block'
-        ? (document.getElementById('newPostTags').value.split(',').map(tag => tag.trim()) || ['uncategorized'])
-        : ['uncategorized'];
-    const imageFile = document.getElementById('imageUpload').files[0];
+        const title = document.getElementById('newPostTitle').value.trim() || 'Untitled Post';
+        const email = document.getElementById('newPostEmail').value || 'no-email@example.com';
+        const content = document.getElementById('newPostContent').value.trim() || 'No content provided';
+        const tags = document.getElementById('newPostTags').style.display === 'block'
+            ? (document.getElementById('newPostTags').value.split(',').map(tag => tag.trim()) || ['uncategorized'])
+            : ['uncategorized'];
+        const imageFile = document.getElementById('imageUpload').files[0];
 
-    try {
-        let magnetUrl = '';
-        // Handle image file upload
-        if (imageFile) {
-            const uploadResponse = await uploadToServer(imageFile); // Assuming this function uploads and returns a URL
-            magnetUrl = uploadResponse;
-        } else {
-            magnetUrl = '0';  // No image, default to '0'
-        }
-
-        // Determine if the post is a new thread or a reply
-        const isReply = document.getElementById('replyContext').style.display !== 'none';
-        let parentThreadId = "0";  // Default for new threads
-
-        // If it's a reply, we need to use the correct thread ID
-        if (isReply) {
-            parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;  // Fetch thread's id
-            if (!parentThreadId || parentThreadId === "0") {
-                alert("Replies must have a valid parent thread.");
-                throw new Error("Replies must have a valid parentThreadId.");
+        try {
+            let magnetUrl = '';
+            // Handle image file upload
+            if (imageFile) {
+                const uploadResponse = await uploadToServer(imageFile); // Assuming this function uploads and returns a URL
+                magnetUrl = uploadResponse;
+            } else {
+                magnetUrl = '0';  // No image, default to '0'
             }
+
+            // Determine if the post is a new thread or a reply
+            const isReply = document.getElementById('replyContext').style.display !== 'none';
+            let parentThreadId = isReply ? document.getElementById('replyThreadTitle').id;
+
+            // Request MetaMask to get the user's account
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const account = accounts[0];
+
+            // Determine which contract method to call based on whether this is a reply or a new thread
+            const contractMethod = isReply ? gremlinReplyContract.methods.createReply : gremlinThreadContract.methods.createThread;
+
+            // Estimate the gas needed for the transaction
+            const gasEstimate = await contractMethod(
+                title,
+                isReply ? `Reply to: ${title}` : title,
+                email,
+                magnetUrl,
+                tags,
+                content,
+                parentThreadId  // Correct thread ID here for replies
+            ).estimateGas({ from: account });
+
+            // Send the transaction with the correct parameters
+            await contractMethod(
+                title,
+                isReply ? `Reply to: ${title}` : title,
+                email,
+                magnetUrl,
+                tags,
+                content,
+                parentThreadId  // Ensure this is used correctly
+            ).send({ from: account, gas: gasEstimate })
+                .on('receipt', function(receipt) {
+                    console.log('Transaction receipt:', receipt);
+                });
+
+            // Close the overlay and reload the threads
+            closeOverlay();
+            await loadAndDisplayThreads();
+
+        } catch (error) {
+            console.error('Error submitting post:', error);
         }
-
-        // Request MetaMask to get the user's account
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const account = accounts[0];
-
-        // Determine which contract method to call based on whether this is a reply or a new thread
-        const contractMethod = isReply ? gremlinReplyContract.methods.createReply : gremlinThreadContract.methods.createThread;
-
-        // Estimate the gas needed for the transaction
-        const gasEstimate = await contractMethod(
-            title,
-            isReply ? `Reply to: ${title}` : title,
-            email,
-            magnetUrl,
-            tags,
-            content,
-            parentThreadId  // Correct thread ID here for replies
-        ).estimateGas({ from: account });
-
-        // Send the transaction with the correct parameters
-        await contractMethod(
-            title,
-            isReply ? `Reply to: ${title}` : title,
-            email,
-            magnetUrl,
-            tags,
-            content,
-            parentThreadId  // Ensure this is used correctly
-        ).send({ from: account, gas: gasEstimate })
-            .on('receipt', function(receipt) {
-                console.log('Transaction receipt:', receipt);
-            });
-
-        // Close the overlay and reload the threads
-        closeOverlay();
-        await loadAndDisplayThreads();
-
-    } catch (error) {
-        console.error('Error submitting post:', error);
     }
-}
 
     function uploadToServer(file) {
         return new Promise((resolve, reject) => {
