@@ -474,18 +474,19 @@ magnetUrl = imageFile ? uploadResponse : '0';  // Pass 0 when no image is upload
 
         // Organize threads
         threads.forEach(thread => {
-            if (thread && thread.parentThreadId) {  // Check if thread and parentThreadId exist
-                const parentThreadId = thread.parentThreadId.toString();
+            if (thread) {  // Ensure the thread exists
+                const parentThreadId = thread[7].toString();  // Use the correct index for parentThreadId
                 if (parentThreadId === "0") {
-                    threadMap[thread.id] = { thread: thread, replies: [] };
+                    // Add the root thread to the map
+                    threadMap[thread[0].toString()] = { thread: thread, replies: [] };
                 }
             }
         });
 
         // Organize replies and link them to their parent thread
         replies.forEach(reply => {
-            if (reply && reply.parentThreadId) {  // Check if reply and parentThreadId exist
-                const parentThreadId = reply.parentThreadId.toString();
+            if (reply) {  // Ensure the reply exists
+                const parentThreadId = reply[7].toString();  // Use the correct index for parentThreadId
                 if (threadMap[parentThreadId]) {
                     threadMap[parentThreadId].replies.push(reply);
                 } else {
@@ -493,14 +494,17 @@ magnetUrl = imageFile ? uploadResponse : '0';  // Pass 0 when no image is upload
                 }
             }
         });
+
+        console.log("Thread map after organization:", threadMap);
     }
+
 
 
 
     function displaySortedThreads() {
         const contentDiv = document.getElementById('infiniteScrollContent');
         contentDiv.innerHTML = '';
-        const validThreads = Object.values(threadMap).filter(({ thread }) => thread !== null);
+        const validThreads = Object.values(threadMap).filter(({ thread }) => thread !== null && thread !== undefined);
 
         if (validThreads.length === 0) {
             console.log("No valid root threads to display.");
