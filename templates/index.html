@@ -348,18 +348,8 @@
 
             // Check if it's a reply or a new thread
             const isReply = document.getElementById('replyContext').style.display !== 'none';
-            let parentThreadId = isReply ? document.getElementById('replyThreadTitle').dataset.threadId : "0";
+            let parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId
 
-            // If it's a reply, fetch the thread ID
-            if (isReply) {
-                const replyThreadElement = document.getElementById('replyThreadTitle');
-                if (replyThreadElement && replyThreadElement.dataset.threadId) {
-                    parentThreadId = replyThreadElement.dataset.threadId;
-                } else {
-                    alert("Error: No valid parent thread ID found for reply.");
-                    throw new Error("Replies must have a valid parentThreadId.");
-                }
-            }
 
             // Request MetaMask to get the user's account
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
