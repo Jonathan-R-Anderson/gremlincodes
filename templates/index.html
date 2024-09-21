@@ -349,7 +349,7 @@
 
             // If it's a reply, get the thread's `id` to use as `parentThreadId` for the reply
             if (isReply) {
-                parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;
+                parentThreadId = document.getElementById('replyThreadTitle').dataset.threadId;  // Get the thread's `id`
                 if (!parentThreadId || parentThreadId === "0") {
                     alert("Replies must have a valid parent thread.");
                     throw new Error("Replies must have a valid parentThreadId.");
@@ -368,7 +368,7 @@
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId  // Pass the correct thread `id` as parentThreadId for replies
+                parentThreadId  // Use correct thread `id` as `parentThreadId`
             ).estimateGas({ from: account });
 
             await contractMethod(
@@ -378,7 +378,7 @@
                 magnetUrl,
                 tags,
                 content,
-                parentThreadId  // Ensure reply points to the correct thread ID as parent
+                parentThreadId  // Set the correct thread ID here as well
             ).send({ from: account, gas: gasEstimate })
                 .on('receipt', function(receipt) {
                     console.log('Transaction receipt:', receipt);
@@ -391,7 +391,6 @@
             console.error('Error submitting post:', error);
         }
     }
-
 
     function uploadToServer(file) {
         return new Promise((resolve, reject) => {
@@ -466,7 +465,6 @@
             document.getElementById("status").innerText = `Error loading threads: ${error.message}`;
         }
     }
-
 
     function organizeThreadsAndReplies(threads, replies) {
         threadMap = {};
