@@ -31,9 +31,9 @@ rest_api = Api(app)
 #web3 = Web3(Web3.HTTPProvider('https://endpoints.omniatech.io/v1/zksync-era/mainnet/1a6a3c9fbe4c40d5b4d6c46b466e674f'))
 
 # Contract addresses
-gremlinThreadAddress = '0x6D56E530D3af63BfAcDca26f6aC7CEeCaAA59376'
-gremlinReplyAddress = '0x4b8E86142f146824Db266Fe4C5Bad1D278F0ef39'
-gremlinAdminAddress = '0x70Af4FD96E41a3C8adbd5011deb2C27C00eC5380'
+gremlinThreadAddress = '0xC560Ce637fc250Ce779E2e27f8f98f4643101288'
+gremlinReplyAddress = '0x5F3a28ECD4CAA8452C0d909265A714f7316E9bcd'
+gremlinAdminAddress = '0x06449Af6F782661a6855fB56411712210185927f'
 
 # Contract ABIs
 gremlinThreadABI = [
@@ -520,211 +520,210 @@ gremlinThreadABI = [
     }
   ]
 
-
-gremlinReplyABI = [
-    {
-      "inputs": [],
-      "stateMutability": "nonpayable",
-      "type": "constructor"
-    },
-    {
-      "inputs": [],
-      "name": "admin",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_addr",
-          "type": "address"
-        }
-      ],
-      "name": "banAddress",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "bannedAddresses",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "_replyId",
-          "type": "uint256"
-        }
-      ],
-      "name": "blacklistReply",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "string",
-          "name": "_content",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "_email",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "_magnetUrl",
-          "type": "string"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_parentId",
-          "type": "uint256"
-        }
-      ],
-      "name": "createReply",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "_replyId",
-          "type": "uint256"
-        }
-      ],
-      "name": "deleteReply",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "name": "replies",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "internalType": "string",
-          "name": "content",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "email",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "magnetUrl",
-          "type": "string"
-        },
-        {
-          "internalType": "uint256",
-          "name": "parentId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "address",
-          "name": "sender",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "timestamp",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "whitelisted",
-          "type": "bool"
-        },
-        {
-          "internalType": "bool",
-          "name": "blacklisted",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "replyCount",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_addr",
-          "type": "address"
-        }
-      ],
-      "name": "unbanAddress",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "_replyId",
-          "type": "uint256"
-        }
-      ],
-      "name": "whitelistReply",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    }
-  ]
+gremlinReplyABI =  [
+			{
+				"inputs": [],
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"inputs": [],
+				"name": "admin",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_addr",
+						"type": "address"
+					}
+				],
+				"name": "banAddress",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"name": "bannedAddresses",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "_replyId",
+						"type": "uint256"
+					}
+				],
+				"name": "blacklistReply",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "_content",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_email",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_magnetUrl",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_parentId",
+						"type": "uint256"
+					}
+				],
+				"name": "createReply",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "_replyId",
+						"type": "uint256"
+					}
+				],
+				"name": "deleteReply",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"name": "replies",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "id",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "content",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "email",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "magnetUrl",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "parentId",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "sender",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "timestamp",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "whitelisted",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "blacklisted",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "replyCount",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_addr",
+						"type": "address"
+					}
+				],
+				"name": "unbanAddress",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "_replyId",
+						"type": "uint256"
+					}
+				],
+				"name": "whitelistReply",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		]
 
 gremlinAdminABI = [
     {

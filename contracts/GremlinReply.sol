@@ -80,4 +80,13 @@ contract GremlinReply {
     function unbanAddress(address _addr) public onlyAdmin {
         bannedAddresses[_addr] = false;
     }
+
+    // Get all replies
+    function getAllReplies() public view returns (Reply[] memory) {
+        Reply[] memory allReplies = new Reply[](replyCount);
+        for (uint256 i = 1; i <= replyCount; i++) {
+            allReplies[i - 1] = replies[i];
+        }
+        return allReplies;
+    }
 }
