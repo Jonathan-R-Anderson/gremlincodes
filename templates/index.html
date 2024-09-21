@@ -533,18 +533,23 @@
 
         // Display thread title
         const title = document.createElement('h3');
-        title.innerText = `Title: ${thread.name}`;
+        title.innerText = `${thread.name}`;
         threadContainer.appendChild(title);
 
         // Display thread subject
         const subject = document.createElement('p');
-        subject.innerText = `Subject: ${thread.subject}`;
+        subject.innerText = `${thread.subject}`;
         threadContainer.appendChild(subject);
 
         // Display the submitter's address
         const submitter = document.createElement('p');
-        submitter.innerText = `Submitted by: ${thread.sender}`;
+        submitter.innerText = `Address: ${thread.sender}`;
         threadContainer.appendChild(submitter); // Add this line to show the thread sender
+
+        // Download image if magnet URL is present
+        if (thread.magnetUrl && thread.magnetUrl !== '0') {
+            downloadImage(thread.magnetUrl, threadContainer); 
+        }
 
         // Display thread content with markdown rendering
         const content = document.createElement('div');
@@ -555,10 +560,28 @@
         const tagsContainer = document.createElement('div');
         tagsContainer.className = 'tags';
         thread.tags.forEach(tag => {
+            // Display thread tags with clickable interaction for filtering
             const tagElement = document.createElement('span');
             tagElement.className = 'tag';
             tagElement.innerText = tag;
+
+            // Add click event to populate whitelist/blacklist input field
+            tagElement.onclick = () => {
+                const searchBar = document.getElementById('searchBar');
+                searchBar.value = tag;  // Populate the search bar
+            };
+
+            // Add an "X" button to remove the tag
+            const removeButton = document.createElement('span');
+            removeButton.innerText = ' X';
+            removeButton.style.cursor = 'pointer';
+            removeButton.onclick = () => {
+                tagElement.remove();  // Remove tag from display
+            };
+            tagElement.appendChild(removeButton);
+
             tagsContainer.appendChild(tagElement);
+
         });
         threadContainer.appendChild(tagsContainer);
 
@@ -568,10 +591,7 @@
         replyButton.onclick = () => openReplyOverlay(thread);
         threadContainer.appendChild(replyButton);
 
-        // Download image if magnet URL is present
-        if (thread.magnetUrl && thread.magnetUrl !== '0') {
-            downloadImage(thread.magnetUrl, threadContainer); 
-        }
+
 
         // **Check if there are replies, if so display them**
         if (replies && replies.length > 0) {
@@ -668,6 +688,10 @@ function renderImageForAllOccurrences(torrent, magnetURI) {
                     img.alt = file.name;
                     img.style.maxWidth = '200px';
                     img.style.cursor = 'pointer';
+                    const magnetInfo = document.createElement('p');
+                    magnetInfo.innerText = `Magnet URL: ${magnetURI}, Filename: ${file.name}`;
+                    threadContainer.appendChild(magnetInfo);
+                    
                     img.onclick = () => openImageFullScreen(url);  // Enable fullscreen on click
                     container.appendChild(img);
 
