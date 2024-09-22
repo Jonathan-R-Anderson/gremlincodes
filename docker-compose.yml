@@ -2,7 +2,7 @@ version: '3'
 
 services:
   nginx:
-    image: nginx:alpine
+    build: ./nginx  # Your Nginx Dockerfile should be inside ./nginx directory
     ports:
       - "443:443"
     volumes:
