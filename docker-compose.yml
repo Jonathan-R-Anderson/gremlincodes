@@ -1,29 +1,25 @@
 version: '3'
 
 services:
-  flask:
-    build: .
-    container_name: flask_app
-    ports:
-      - "5000:5000"
-    volumes:
-      - .:/app
-    networks:
-      - app-network
-
   nginx:
-    build: ./nginx
-    container_name: nginx_server
+    image: nginx:alpine
     ports:
       - "80:80"
       - "443:443"
-    depends_on:
-      - flask
     volumes:
-      - /tmp/hls:/tmp/hls  # HLS path to stream RTMP segments
-    networks:
-      - app-network
+      - ./nginx.conf:/etc/nginx/nginx.conf  # Nginx configuration
+      - shared_files:/usr/share/nginx/html  # Shared volume for static files
+      - ./ssl:/etc/nginx/ssl                # SSL certificates (optional)
+    depends_on:
+      - flask_app
 
-networks:
-  app-network:
-    driver: bridge
+  flask_app:
+    build: ./flask_app  # Your Flask Dockerfile should be inside ./flask_app directory
+    volumes:
+      - shared_files:/app/static            # Mount shared volume for static files
+      - ./app:/app                          # Application source code
+    environment:
+      - FLASK_ENV=development  # Or production
+
+volumes:
+  shared_files:
