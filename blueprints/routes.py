@@ -122,7 +122,3 @@ def user_profile(eth_address):
     """Serve the user's profile page without smart contract interactions."""
     return render_template('profile.html', eth_address=eth_address, gremlinProfileAddress=gremlinProfileAddress, gremlinProfileABI=gremlinProfileABI)
 
-@app.route('/static/<path:filename>', methods=['GET'])
-def serve_static(filename):
-    """Serve static files (CSS, JS, images, etc.)."""
-    return send_from_directory(FILE_DIR, filename)
