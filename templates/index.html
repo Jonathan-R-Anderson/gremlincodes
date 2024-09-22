@@ -119,7 +119,24 @@
             padding: 10px;
             border-radius: 5px;
         }
+        #livePreviewContainer {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
 
+        #livePreview h4 {
+            margin-bottom: 10px;
+        }
+
+        #livePreview {
+            min-height: 50px;
+            white-space: pre-wrap; /* Preserve whitespace */
+        }
     </style>
 </head>
 <body>
@@ -241,7 +258,11 @@
                 </ul>
             </div>
 
-
+            <!-- Preview Section -->
+            <div id="livePreviewContainer" style="margin-top: 20px; padding: 10px; background-color: #f8f9fa; border: 1px solid #ddd;">
+                <h4>Live Preview:</h4>
+                <div id="livePreview" style="min-height: 50px;">Your formatted comment will appear here...</div>
+            </div>
 
             <!-- Cancel Button -->
             <button id="closeOverlayBtn" onclick="closeOverlay()">Cancel</button>
@@ -1083,6 +1104,22 @@
             codeBlock.parentElement.appendChild(resultElement);
         }
 
+
+        function updatePreview() {
+            const content = document.getElementById('newPostContent').value;
+            const converter = new showdown.Converter({
+                tables: true,
+                strikethrough: true,
+                tasklists: true,
+                simpleLineBreaks: true
+            });
+            
+            // Convert the markdown content to HTML
+            const htmlContent = converter.makeHtml(content);
+            
+            // Update the preview div with the converted content
+            document.getElementById('livePreview').innerHTML = htmlContent;
+        }
 
 
 </script>
