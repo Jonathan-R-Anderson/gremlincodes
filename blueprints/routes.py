@@ -117,3 +117,12 @@ def get_blacklist():
 def get_whitelist():
     return jsonify(whitelist)
 
+@app.route('/users/<eth_address>')
+def user_profile(eth_address):
+    """Serve the user's profile page without smart contract interactions."""
+    return render_template('user_profile.html', eth_address=eth_address)
+
+@app.route('/static/<path:filename>', methods=['GET'])
+def serve_static(filename):
+    """Serve static files (CSS, JS, images, etc.)."""
+    return send_from_directory(FILE_DIR, filename)

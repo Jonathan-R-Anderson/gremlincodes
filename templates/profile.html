@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile - {{ eth_address }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
+</head>
+<body>
+    <h1>User Profile</h1>
+    <h2>Ethereum Address: <span id="eth-address"></span></h2>
+    <div id="profile-info"></div>
+    <h3>Video History</h3>
+    <ul id="video-history"></ul>
+
+    <video id="streamPlayer" controls autoplay></video>
+
+    <script>
+        const ethAddress = "{{ eth_address }}";
+        const contractAddress = "YOUR_CONTRACT_ADDRESS";  // Replace with your contract address
+        const contractABI = YOUR_CONTRACT_ABI_JSON;  // Replace with your contract ABI JSON
+
+        const client = new WebTorrent();
+
+        window.onload = async function() {
+            // Set the Ethereum address on the page
+            document.getElementById("eth-address").innerText = ethAddress;
+
+            // Check if MetaMask is available
+            if (typeof window.ethereum !== 'undefined') {
+                const web3 = new Web3(window.ethereum);
+                await ethereum.request({ method: 'eth_requestAccounts' });
+                const contract = new web3.eth.Contract(contractABI, contractAddress);
+
+                // Fetch the profile data
+                const profileData = await contract.methods.getProfile(ethAddress).call();
+                const name = profileData[0];
+                const bio = profileData[1];
+                const css = profileData[2];
+                const html = profileData[3];
+
+                // Apply the CSS and HTML from the smart contract
+                document.getElementById("profile-info").innerHTML = `
+                    <h3>${name}</h3>
+                    <p>${bio}</p>
+                    <style>${css}</style>
+                    ${html}
+                `;
+
+                // Fetch video history
+                const videoHistory = await contract.methods.getVideoHistory(ethAddress).call();
+                const videoHistoryList = document.getElementById("video-history");
+
+                videoHistory.forEach(video => {
+                    const magnetUrl = video.magnetUrl;
+                    const timestamp = new Date(video.timestamp * 1000).toLocaleString();
+                    
+                    const listItem = document.createElement('li');
+                    listItem.innerHTML = `Streamed on: ${timestamp} - <a href="${magnetUrl}">${magnetUrl}</a>`;
+                    videoHistoryList.appendChild(listItem);
+
+                    // Optionally, start playing the latest video in the list
+                    if (magnetUrl === videoHistory[videoHistory.length - 1].magnetUrl) {
+                        client.add(magnetUrl, function (torrent) {
+                            torrent.files[0].renderTo('video#streamPlayer');
+                        });
+                    }
+                });
+
+            } else {
+                alert("MetaMask is not installed.");
+            }
+        };
+    </script>
+</body>
+</html>

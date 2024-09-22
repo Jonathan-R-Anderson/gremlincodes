@@ -25,14 +25,17 @@ contract GremlinProfile {
     // Create a new profile for the user
     function createProfile(string memory name, string memory bio) public {
         require(profiles[msg.sender].owner == address(0), "Profile already exists.");
+        
+        // Initialize the profile without explicitly setting an empty array for streams (Solidity does this automatically)
         profiles[msg.sender] = Profile({
             name: name,
             bio: bio,
             css: "",
             html: "",
             owner: msg.sender,
-            streams: new VideoStream 
+            streams: new VideoStream  // No need for this, it will be an empty array by default
         });
+        
         emit ProfileCreated(msg.sender, name);
     }
     
