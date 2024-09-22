@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template
-from shared import gremlinThreadABI, gremlinThreadAddress, gremlinAdminABI, gremlinAdminAddress, gremlinReplyABI, gremlinReplyAddress, allowed_file, FILE_DIR, seed_file, seeded_files, save_whitelist, save_blacklist, blacklist, whitelist, app
+from shared import gremlinThreadABI, gremlinThreadAddress, gremlinAdminABI, gremlinAdminAddress, gremlinReplyABI, gremlinReplyAddress, allowed_file, FILE_DIR, seed_file, seeded_files, save_whitelist, save_blacklist, blacklist, whitelist, app, gremlinProfileAddress, gremlinProfileABI
 import json, os, threading
 from flask import Flask, request, jsonify, send_from_directory
 import logging, time
@@ -120,7 +120,7 @@ def get_whitelist():
 @app.route('/users/<eth_address>')
 def user_profile(eth_address):
     """Serve the user's profile page without smart contract interactions."""
-    return render_template('user_profile.html', eth_address=eth_address)
+    return render_template('profile.html', eth_address=eth_address, gremlinProfileAddress=gremlinProfileAddress, gremlinProfileABI=gremlinProfileABI)
 
 @app.route('/static/<path:filename>', methods=['GET'])
 def serve_static(filename):
