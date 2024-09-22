@@ -1018,20 +1018,27 @@
             codeBlock.parentNode.appendChild(resultElement);
         }
 
-        // Function to detect and add play buttons to code blocks
+        // Function to detect code blocks and add play buttons
         function applyCodeExecutionLogic(container) {
+            // Detecting all code blocks within the container
             const codeBlocks = container.querySelectorAll('pre code');
-            
+
+            // Iterate through each code block
             codeBlocks.forEach(codeBlock => {
-                const lang = codeBlock.classList.contains('language-python') ? 'python' : 'javascript'; // Detect language
+                const lang = codeBlock.classList.contains('language-python') ? 'python' : 
+                            codeBlock.classList.contains('language-javascript') ? 'javascript' : null;
+                
+                if (lang) {
+                    const playButton = document.createElement('button');
+                    playButton.classList.add('play-button');
+                    playButton.innerText = 'Play';
+                    
+                    // Add execution logic based on language
+                    playButton.onclick = () => executeCode(codeBlock, lang);
 
-                // Add play button for executing code
-                const playButton = document.createElement('button');
-                playButton.classList.add('play-button');
-                playButton.innerText = 'Play';
-                playButton.onclick = () => executeCode(codeBlock, lang); // Add execution logic
-
-                codeBlock.parentElement.appendChild(playButton); // Append play button after code block
+                    // Append the play button after the code block
+                    codeBlock.parentElement.appendChild(playButton);
+                }
             });
         }
 
@@ -1049,6 +1056,7 @@
             displayCodeResult(result, codeBlock);
         }
 
+        // Function to execute Python code using Pyodide
         async function executePythonCode(code) {
             const pyodide = await loadPyodide();
             try {
@@ -1058,21 +1066,25 @@
             }
         }
 
+        // Function to execute JavaScript code
         function executeJavaScriptCode(code) {
             try {
-                return eval(code); // Warning: Eval is only used for trusted content
+                return eval(code); // Use eval with caution
             } catch (error) {
                 return `Error in JavaScript code: ${error}`;
             }
         }
 
-        // Function to display code execution result
+        // Function to display the result of code execution
         function displayCodeResult(result, codeBlock) {
             const resultElement = document.createElement('div');
             resultElement.classList.add('code-result');
             resultElement.innerText = `Result: ${result}`;
             codeBlock.parentElement.appendChild(resultElement);
         }
+
+
+
 </script>
 
 
