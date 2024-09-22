@@ -17,7 +17,7 @@ RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 RUN openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
 
 # Copy the custom Nginx configuration file to the container
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY . /etc/nginx/
 
 # Expose ports for HTTP (80) and HTTPS (443)
 EXPOSE 443
