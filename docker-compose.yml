@@ -7,9 +7,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf  # Nginx configuration
       - shared_files:/usr/share/nginx/html  # Shared volume for static files
-      - ./ssl:/etc/nginx/ssl                # SSL certificates (optional)
     depends_on:
       - flask_app
 
@@ -17,7 +15,6 @@ services:
     build: ./flask_app  # Your Flask Dockerfile should be inside ./flask_app directory
     volumes:
       - shared_files:/app/static            # Mount shared volume for static files
-      - ./app:/app                          # Application source code
     environment:
       - FLASK_ENV=development  # Or production
 
