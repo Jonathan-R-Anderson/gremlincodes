@@ -2,10 +2,21 @@
 FROM python:3.9-slim
 
 # Install system dependencies
-RUN apk add --no-cache build-base gcc python3-dev libffi-dev openssl-dev curl bash
+RUN apt-get update && apt-get install -y \
+    curl \
+    bash \
+    build-essential \
+    gcc \
+    python3-dev \
+    libffi-dev \
+    libssl-dev \
+    nodejs \
+    npm \
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install WebTorrent (Node.js is required)
-RUN apk add --no-cache nodejs npm && npm install -g webtorrent-cli
+# Install WebTorrent (using npm)
+RUN npm install -g webtorrent-cli
 
 # Copy the current directory contents into the container at /app
 COPY . /app
