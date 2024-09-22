@@ -8,6 +8,10 @@ from werkzeug.datastructures import ImmutableDict
 from web3 import Web3
 from web3.exceptions import ContractLogicError
 import json
+import logging
+import threading
+import subprocess
+
 
 class ManiwaniApp(Flask):
     jinja_options = ImmutableDict()
@@ -785,7 +789,6 @@ gremlinReplyABI =   [
     }
   ]
 
-
 gremlinAdminABI = [
     {
       "inputs": [
@@ -953,6 +956,59 @@ gremlinAdminABI = [
 #gremlinThreadContract = web3.eth.contract(address=gremlinThreadAddress, abi=gremlinThreadABI)
 #gremlinAdminContract = web3.eth.contract(address=gremlinAdminAddress, abi=gremlinAdminABI)
 
+
+FILE_DIR = 'static'
+TORRENT_DIR = 'torrents'
+TRACKER_PORT = 5000
+SEED_FILE = 'seeded_files.json'
+BLACKLIST_FILE = 'blacklist.json'
+WHITELIST_FILE = 'whitelist.json'
+TRACKER_URLS = [
+    "wss://tracker.openwebtorrent.com",
+    #"wss://tracker.btorrent.xyz",
+    #"wss://tracker.fastcast.nz",
+    #"wss://tracker.webtorrent.io"
+]
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+seeded_files = {}
+
+def load_blacklist():
+    if not os.path.exists(BLACKLIST_FILE):
+        return []  # Return empty list if file does not exist
+    with open(BLACKLIST_FILE, 'r') as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []  # Return empty list if file is corrupt or empty
+
+# Load whitelist from file, if it exists, otherwise return an empty list
+def load_whitelist():
+    if not os.path.exists(WHITELIST_FILE):
+        return []  # Return empty list if file does not exist
+    with open(WHITELIST_FILE, 'r') as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []  # Retur
+
+
+
+blacklist = load_blacklist()
+whitelist = load_whitelist()
+
+
+def save_blacklist(data):
+    with open(BLACKLIST_FILE, 'w') as f:
+        json.dump(data, f)
+
+
+def save_whitelist(data):
+    with open(WHITELIST_FILE, 'w') as f:
+        json.dump(data, f)
+
+
 # Helper Functions
 def gen_poster_id():
     return '%04X' % random.randint(0, 0xffff)
@@ -962,3 +1018,76 @@ def ip_to_int(ip_str):
         ipaddress.ip_address(ip_str).packed,
         byteorder="little"
     ) << 8
+
+def allowed_file(filename):
+    """Check if the file has an allowed extension."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def seed_file(file_path):
+    """Function to seed the file using the WebTorrent command and return the magnet URL without waiting for the process to exit."""
+    try:
+        # Check if the file is already being seeded
+        if file_path in seeded_files:
+            logging.info(f"{file_path} is already being seeded.")
+            return seeded_files[file_path]  # Return existing magnet URL if it's already seeded
+
+        # Prepare tracker list for WebTorrent seed command
+        tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
+
+        # WebTorrent seed command with trackers and keep-seeding
+        cmd = f"webtorrent seed '{file_path}' {tracker_list} --keep-seeding"
+        logging.info(f"Running seeding command: {cmd}")
+
+        # Run the command in a subprocess
+        process = subprocess.Popen(
+            cmd, 
+            shell=True, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            text=True
+        )
+
+        magnet_url = None
+
+        # Function to monitor the output of the WebTorrent process
+        def monitor_output():
+            nonlocal magnet_url
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+
+                if output:
+                    #logging.info(f"WebTorrent output: {output.strip()}")
+                    if "Magnet:" in output:
+                        magnet_url = output.split("Magnet: ")[1].strip()
+                        seeded_files[file_path] = magnet_url
+                        logging.info(f"Magnet URL found: {magnet_url}")
+                        break  # Magnet URL found, exit the loop
+
+        # Start monitoring output in a separate thread
+        output_thread = threading.Thread(target=monitor_output)
+        output_thread.start()
+
+        # Wait for the magnet URL to be extracted
+        output_thread.join(timeout=30)  # Wait for up to 10 seconds for the magnet URL to appear
+
+        if magnet_url:
+            logging.info(f"Magnet URL returned: {magnet_url}")
+            return magnet_url
+        else:
+            logging.error(f"Failed to retrieve the magnet URL in time.")
+            return None
+
+    except Exception as e:
+        logging.error(f"Error while seeding file: {str(e)}")
+        return None
+
+def auto_seed_static_files():
+    """Automatically seed all allowed files in the static directory."""
+    for filename in os.listdir(FILE_DIR):
+        file_path = os.path.join(FILE_DIR, filename)
+        if os.path.isfile(file_path) and allowed_file(filename):
+            #logging.info(f"Automatically seeding {file_path}")
+            seed_thread = threading.Thread(target=seed_file, args=(file_path,))
+            seed_thread.start()
