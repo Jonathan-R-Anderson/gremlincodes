@@ -1174,7 +1174,7 @@ gremlinProfileABI = [
 
 FILE_DIR = 'static'
 TORRENT_DIR = 'torrents'
-TRACKER_PORT = 5000
+TRACKER_PORT = 80
 SEED_FILE = 'seeded_files.json'
 BLACKLIST_FILE = 'blacklist.json'
 WHITELIST_FILE = 'whitelist.json'

@@ -1,0 +1,28 @@
+version: '3'
+
+services:
+  flask:
+    build: .
+    container_name: flask_app
+    ports:
+      - "80:80"
+    volumes:
+      - .:/app
+    networks:
+      - app-network
+
+  nginx:
+    build: ./nginx
+    container_name: nginx_server
+    ports:
+      - "80:80"
+    depends_on:
+      - flask
+    volumes:
+      - /tmp/hls:/tmp/hls  # HLS path to stream RTMP segments
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
