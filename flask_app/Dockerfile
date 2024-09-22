@@ -1,11 +1,17 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9-slim
 
-# Set the working directory in the container
-WORKDIR /app
+# Install system dependencies
+RUN apk add --no-cache build-base gcc python3-dev libffi-dev openssl-dev curl bash
+
+# Install WebTorrent (Node.js is required)
+RUN apk add --no-cache nodejs npm && npm install -g webtorrent-cli
 
 # Copy the current directory contents into the container at /app
 COPY . /app
+
+# Set the working directory in the container
+WORKDIR /app
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
