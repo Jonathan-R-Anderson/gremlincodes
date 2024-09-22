@@ -30,3 +30,8 @@
 ### Requirements
  - Metamask
  - ZKsync Era Mainnet
+
+
+### Running
+docker compose build
+docker compose up
