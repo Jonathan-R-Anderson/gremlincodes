@@ -23,3 +23,4 @@ COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 80 443
 
 # Start Nginx (default command is already provided by the base image)
+CMD ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/nginx.conf", "-e", "debug"]
