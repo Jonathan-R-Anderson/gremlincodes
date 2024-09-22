@@ -12,6 +12,7 @@ import logging
 import threading
 import subprocess
 
+logging.basicConfig(level=logging.DEBUG)
 
 class ManiwaniApp(Flask):
     jinja_options = ImmutableDict()

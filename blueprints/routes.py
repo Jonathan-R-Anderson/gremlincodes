@@ -6,6 +6,7 @@ import logging, time
 from werkzeug.utils import secure_filename
 
 blueprint = Blueprint('blueprint', __name__)
+logging.basicConfig(level=logging.DEBUG)
 
 @blueprint.route('/')
 def index():
