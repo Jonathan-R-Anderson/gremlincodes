@@ -4,6 +4,7 @@ services:
   nginx:
     build: ./nginx  # Your Nginx Dockerfile should be inside ./nginx directory
     ports:
+      - "6881-6889:6881-6889"  # Torrenting ports
       - "443:443"
     volumes:
       - ./static:/usr/share/nginx/html/static  # Mount the static folder to Nginx for serving static files
