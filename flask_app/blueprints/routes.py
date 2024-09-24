@@ -148,6 +148,7 @@ def live_stream(stream_id):
         while hls_path not in seeded_files and wait_time < max_wait_time:
             time.sleep(0.5)  # Sleep for 500ms
             wait_time += 0.5
+            print("Waiting for magnet URL...", wait_time)
 
         if hls_path in seeded_files:
             magnet_url = seeded_files[hls_path]
