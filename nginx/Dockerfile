@@ -1,16 +1,12 @@
-# Use Debian-based image
+# Use Debian-based slim image
 FROM debian:bullseye-slim
 
-# Install required packages, including build dependencies for Nginx and RTMP module
+# Install required packages, including Nginx, build dependencies for Nginx, and RTMP module
 RUN apt update && apt install -y \
     openssl \
     libssl-dev \
     curl \
     build-essential \
-    ffmpeg \
-    libpcre3 \
-    libpcre3-dev \
-    libssl-dev \
     gcc \
     git \
     bash \
@@ -24,7 +20,6 @@ RUN apt update && apt install -y \
     npm \
     wget \
     ca-certificates \
-    nginx \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
@@ -33,16 +28,14 @@ RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g webtorrent-cli
 
-WORKDIR /tmp
-
-# Clone and build Nginx with RTMP module from source
-RUN git clone https://github.com/sergey-dryabzhinsky/nginx-rtmp-module.git && \
-    cd ./nginx-rtmp-module && \
-    ./configure --prefix=/usr/local/nginx --with-http_ssl_module --add-module=../nginx-rtmp-modulemake -j && \
-    make && \
+# Download Nginx source and build it with the RTMP module
+RUN git clone https://github.com/arut/nginx-rtmp-module.git /tmp/nginx-rtmp-module && \
+    wget http://nginx.org/download/nginx-1.21.6.tar.gz && \
+    tar -zxvf nginx-1.21.6.tar.gz && \
+    cd nginx-1.21.6 && \
+    ./configure --prefix=/usr/local/nginx --with-http_ssl_module --add-module=/tmp/nginx-rtmp-module && \
+    make -j$(nproc) && \
     make install
-
-
 
 # Create a directory for SSL certificates
 RUN mkdir -p /etc/nginx/ssl
@@ -56,6 +49,13 @@ RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 # Generate a Diffie-Hellman group for added security
 RUN openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
 
+# Download Mediamtx with SSL certificate validation disabled
+RUN mkdir -p /opt/mediamtx && \
+    cd /opt/mediamtx && \
+    wget --no-check-certificate https://github.com/bluenviron/mediamtx/releases/download/v1.9.1/mediamtx_v1.9.1_linux_amd64.tar.gz && \
+    tar -xvf mediamtx_v1.9.1_linux_amd64.tar.gz && \
+    chmod +x mediamtx
+
 # Create directories for HLS
 RUN mkdir -p /var/www/hls
 
@@ -66,4 +66,4 @@ COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 443 1935
 
 # Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/usr/local/nginx/sbin/nginx", "-g", "daemon off;"]
