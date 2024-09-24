@@ -66,4 +66,5 @@ COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 443 1935
 
 # Start Nginx
-CMD ["/usr/local/nginx/sbin/nginx", "-g", "daemon off;"]
+#CMD ["/usr/local/nginx/sbin/nginx", "-g", "daemon off;"]
+CMD ["which", "nginx"]
