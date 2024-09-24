@@ -139,7 +139,7 @@ def upload_stream_segment():
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        file_path = os.path.join('/path/to/store/segments', filename)
+        file_path = os.path.join('/app/static/', filename)
         file.save(file_path)
 
         # Seed the file using WebTorrent and return the magnet URL
