@@ -20,6 +20,7 @@ RUN apt update && apt install -y \
     npm \
     wget \
     ca-certificates \
+    nginx \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
@@ -36,8 +37,6 @@ RUN git clone https://github.com/arut/nginx-rtmp-module.git /tmp/nginx-rtmp-modu
     ./configure --with-http_ssl_module --add-module=/tmp/nginx-rtmp-module && \
     make && make install
 
-RUN which nginx
-RUN exit
 
 # Create a directory for SSL certificates
 RUN mkdir -p /etc/nginx/ssl
