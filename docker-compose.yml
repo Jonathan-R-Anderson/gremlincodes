@@ -3,8 +3,8 @@ version: '3'
 services:
   nginx:
     build: ./nginx  # Your Nginx Dockerfile should be inside ./nginx directory
+    network_mode: host  # Use host network for WebTorrent
     ports:
-      - "6881-6889:6881-6889"  # Torrenting ports
       - "443:443"
     volumes:
       - ./static:/usr/share/nginx/html/static  # Mount the static folder to Nginx for serving static files
