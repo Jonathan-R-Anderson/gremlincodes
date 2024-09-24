@@ -14,12 +14,38 @@
     const magnetUrl = "{{ magnet_url }}";
     const client = new WebTorrent();
 
+    console.log("Starting WebTorrent client...");
+    
     // Play the stream using WebTorrent
     if (magnetUrl) {
+        console.log("Magnet URL received:", magnetUrl);
+        
+        // Add torrent using the magnet URL
         client.add(magnetUrl, function (torrent) {
+            console.log("Torrent added:", torrent.infoHash);
+            
+            // Log details of the torrent's files
+            torrent.files.forEach(function (file) {
+                console.log("File in torrent:", file.name);
+            });
+
+            // Render video to the stream player and log
             torrent.files[0].renderTo('video#streamPlayer');
+            console.log("Video rendering started...");
+
+            // Listen for when pieces of the file are downloaded
+            torrent.on('download', function (bytes) {
+                console.log("Downloaded", bytes, "bytes for", torrent.infoHash);
+                console.log("Progress:", (torrent.progress * 100).toFixed(2) + "%");
+            });
+
+            // Listen for when the torrent has finished downloading
+            torrent.on('done', function () {
+                console.log("Torrent download complete for:", torrent.infoHash);
+            });
         });
     } else {
+        console.error("Magnet URL not available.");
         alert("Magnet URL not available.");
     }
 </script>
