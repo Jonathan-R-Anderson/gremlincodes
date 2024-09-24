@@ -1,7 +1,7 @@
 # Use the official Debian-based Nginx image as the base image
 FROM debian:bullseye-slim
 
-# Install required packages
+# Install required packages, including build dependencies for Nginx and RTMP module
 RUN apt update && apt install -y \
     openssl \
     libssl-dev \
@@ -12,46 +12,57 @@ RUN apt update && apt install -y \
     bash \
     libpcre3-dev \
     zlib1g-dev \
-    ffmpeg \
-    vim \
-    wget \
+    libxslt1-dev \
+    libgd-dev \
+    libgeoip-dev \
+    procps \
+    nodejs \
+    npm \
+    ca-certificates \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Mediamtx RTMP Server (replacing the previous RTMP setup)
+# Install Node.js v16.x and npm
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g webtorrent-cli
+
+# Clone and build Nginx with RTMP module from source
+RUN git clone https://github.com/arut/nginx-rtmp-module.git /tmp/nginx-rtmp-module && \
+    wget http://nginx.org/download/nginx-1.21.6.tar.gz && \
+    tar -zxvf nginx-1.21.6.tar.gz && \
+    cd nginx-1.21.6 && \
+    ./configure --with-http_ssl_module --add-module=/tmp/nginx-rtmp-module && \
+    make && make install
+
+# Create a directory for SSL certificates
+RUN mkdir /etc/nginx/ssl
+
+# Generate a self-signed SSL certificate (valid for 365 days)
+RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/nginx/ssl/self-signed.key \
+    -out /etc/nginx/ssl/self-signed.crt \
+    -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=localhost"
+
+# Generate a Diffie-Hellman group for added security
+RUN openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
+
+# Download Mediamtx with SSL certificate validation disabled
 RUN mkdir -p /opt/mediamtx && \
     cd /opt/mediamtx && \
     VERSION=v1.5.0 && \
-    wget https://github.com/bluenviron/mediamtx/releases/download/$VERSION/mediamtx_$VERSION_linux_amd64.tar.gz && \
+    wget --no-check-certificate https://github.com/bluenviron/mediamtx/releases/download/$VERSION/mediamtx_$VERSION_linux_amd64.tar.gz && \
     tar -xvf mediamtx_$VERSION_linux_amd64.tar.gz && \
     chmod +x mediamtx
 
-# Create the Mediamtx service file
-RUN cat <<'EOF' >/etc/systemd/system/mediamtx.service
-[Unit]
-Description=Mediamtx RTMP Service
-ConditionPathExists=/opt/mediamtx
-After=network.target
+# Create directories for HLS
+RUN mkdir -p /var/www/hls
 
-[Service]
-Type=simple
-WorkingDirectory=/opt/mediamtx
-ExecStart=/opt/mediamtx/mediamtx /opt/mediamtx/mediamtx.yml
+# Copy the custom Nginx configuration file to the container
+COPY nginx.conf /etc/nginx/nginx.conf
 
-Restart=on-failure
-RestartSec=10
+# Expose ports for HTTP (80), HTTPS (443), and RTMP (1935)
+EXPOSE 443 1935
 
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Enable and start the Mediamtx service
-RUN systemctl daemon-reload && \
-    systemctl enable mediamtx.service && \
-    systemctl start mediamtx.service
-
-# Expose ports for RTMP and HTTP
-EXPOSE 1935 8889
-
-# Start the RTMP server
-CMD ["/opt/mediamtx/mediamtx", "/opt/mediamtx/mediamtx.yml"]
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
