@@ -122,14 +122,12 @@ def get_whitelist():
 def user_profile(eth_address):
     """Serve the user's profile page and provide the RTMP stream URL."""
     # Assuming the user is the profile owner; generate an RTMP URL
-    hls_path = f"/var/www/hls/{eth_address}"  # Path to HLS segments    
-    magnet_url = seed_file(hls_path)  # Start seeding the stream
     return render_template(
         'profile.html', 
         eth_address=eth_address, 
         gremlinProfileAddress=gremlinProfileAddress, 
         gremlinProfileABI=gremlinProfileABI, 
-        magnet_url=magnet_url
+        magnet_url=live_stream(eth_address)
     )
 
 @app.route('/live/<stream_id>')
