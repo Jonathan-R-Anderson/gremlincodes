@@ -153,9 +153,10 @@ def upload_stream_segment():
         return jsonify({'error': 'Invalid file type'}), 400
 
 
-@app.route('/stream/rtmp/<eth_address>')
-def rtmp_stream(eth_address):
-    """Serve the RTMP stream URL."""
-    rtmp_url = f"rtmp://gremlin.codes/live/{eth_address}"
-    hls_url = f"http://gremlin.codes/hls/{eth_address}.m3u8"
-    return jsonify({'rtmp_url': rtmp_url, 'hls_url': hls_url})
+@app.route('/live/<stream_id>')
+def live_stream(stream_id):
+    """Serve the live stream page and start WebTorrent seeding."""
+    hls_path = f"/var/www/hls/{stream_id}"  # Path to HLS segments
+    magnet_url = seed_stream(hls_path)  # Start seeding the stream
+
+    return render_template('live.html', magnet_url=magnet_url)

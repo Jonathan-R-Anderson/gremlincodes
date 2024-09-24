@@ -58,6 +58,7 @@
 
             videoHistory.forEach(video => {
                 const magnetUrl = video.magnetUrl;
+                console.log("Magnet url", magnetUrl);
                 const timestamp = new Date(video.timestamp * 1000).toLocaleString();
                 
                 const listItem = document.createElement('li');
@@ -67,8 +68,8 @@
                 // Optionally, start playing the latest video in the list
                 if (magnetUrl === videoHistory[videoHistory.length - 1].magnetUrl) {
                     client.add(magnetUrl, function (torrent) {
-                        torrent.files[0].renderTo('video#streamPlayer');
-                    });
+                    torrent.files[0].renderTo('video#streamPlayer');
+                });
                 }
             });
 
