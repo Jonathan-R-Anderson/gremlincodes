@@ -7,16 +7,19 @@ services:
       - "443:443"
     volumes:
       - ./static:/usr/share/nginx/html/static  # Shared volume for static files
+    network_mode: host  # Use host network mode for Nginx as well
     depends_on:
       - flask_app
-      
+    command: >
+      sh -c "while ! curl http://localhost:5000; do sleep 1; done && nginx -g 'daemon off;'"
+    
   flask_app:
     build: ./flask_app
     volumes:
       - ./static:/app/static  # Mount static folder to Flask
     environment:
       - FLASK_ENV=development
-    network_mode: host  # Give Flask access to the host network for WebTorrent
+    network_mode: host  # Host network for Flask
     ports:
       - "5000:5000"
     command: >
