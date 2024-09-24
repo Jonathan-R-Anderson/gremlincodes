@@ -14,7 +14,8 @@ RUN apk add --no-cache \
     gd-dev \
     geoip-dev \
     git \
-    bash
+    bash \
+    curl
 
 # Clone and build Nginx with RTMP module from source
 RUN git clone https://github.com/arut/nginx-rtmp-module.git /tmp/nginx-rtmp-module && \
