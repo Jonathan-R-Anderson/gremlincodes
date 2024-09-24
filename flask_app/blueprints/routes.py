@@ -122,41 +122,20 @@ def get_whitelist():
 def user_profile(eth_address):
     """Serve the user's profile page and provide the RTMP stream URL."""
     # Assuming the user is the profile owner; generate an RTMP URL
-    rtmp_url = f"rtmp://your-server-address/live/{eth_address}"
+    hls_path = f"/var/www/hls/{eth_address}"  # Path to HLS segments    
+    magnet_url = seed_file(hls_path)  # Start seeding the stream
     return render_template(
         'profile.html', 
         eth_address=eth_address, 
         gremlinProfileAddress=gremlinProfileAddress, 
         gremlinProfileABI=gremlinProfileABI, 
-        rtmp_url=rtmp_url
+        magnet_url=magnet_url
     )
-
-
-@app.route('/stream/upload', methods=['POST'])
-def upload_stream_segment():
-    """Handle the file upload from OBS and seed the stream segment using WebTorrent."""
-    file = request.files['file']
-
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join('/app/static/', filename)
-        file.save(file_path)
-
-        # Seed the file using WebTorrent and return the magnet URL
-        magnet_url = seed_stream(file_path)
-
-        if magnet_url:
-            return jsonify({'magnet_url': magnet_url}), 200
-        else:
-            return jsonify({'error': 'Failed to seed the file'}), 500
-    else:
-        return jsonify({'error': 'Invalid file type'}), 400
-
 
 @app.route('/live/<stream_id>')
 def live_stream(stream_id):
     """Serve the live stream page and start WebTorrent seeding."""
     hls_path = f"/var/www/hls/{stream_id}"  # Path to HLS segments
-    magnet_url = seed_stream(hls_path)  # Start seeding the stream
+    magnet_url = seed_file(hls_path)  # Start seeding the stream
 
     return render_template('live.html', magnet_url=magnet_url)

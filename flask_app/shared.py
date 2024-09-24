@@ -1300,43 +1300,6 @@ def seed_file(file_path):
         return None
 
 
-
-def seed_stream(hls_path):
-    """Function to seed HLS stream using WebTorrent and return the magnet URL."""
-    try:
-        # Check if the stream is already being seeded
-        if hls_path in seeded_files:
-            return seeded_files[hls_path]  # Return the existing magnet URL
-
-        # WebTorrent command for seeding
-        cmd = f"webtorrent seed '{hls_path}' --keep-seeding"
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-        magnet_url = None
-
-        # Monitor output to get the magnet URL
-        def get_magnet_url():
-            nonlocal magnet_url
-            while True:
-                output = process.stdout.readline()
-                if "Magnet" in output:
-                    magnet_url = output.split("Magnet: ")[1].strip()
-                    break
-
-        get_magnet_url()
-        
-        if magnet_url:
-            seeded_files[hls_path] = magnet_url  # Cache the magnet URL
-            return magnet_url
-        else:
-            return None
-
-    except Exception as e:
-        logging.error(f"Error seeding stream: {str(e)}")
-        return None
-
-
-
 def auto_seed_static_files():
     """Automatically seed all allowed files in the static directory."""
     for filename in os.listdir(FILE_DIR):
