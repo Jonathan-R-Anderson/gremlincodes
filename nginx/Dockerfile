@@ -1,31 +1,30 @@
-# Use the official Nginx image as the base image
-FROM maquinas07/alpine-nginx-rtmp
+# Use the official Debian-based Nginx image as the base image
+FROM nginx:stable
 
-# Install the required packages, including build dependencies for Nginx and RTMP module
-RUN apk add --no-cache \
+# Install required packages, including build dependencies for Nginx and RTMP module
+RUN apt-get update && apt-get install -y \
     openssl \
-    openssl-dev \
-    pcre-dev \
-    zlib-dev \
+    libssl-dev \
+    curl \
+    build-essential \
     gcc \
-    libc-dev \
-    make \
-    libxslt-dev \
-    gd-dev \
-    geoip-dev \
     git \
     bash \
-    curl \
-    python3-dev \
-    libffi-dev \
-    libressl-dev \
-    net-tools \
-    procps
+    libpcre3-dev \
+    zlib1g-dev \
+    libxslt1-dev \
+    libgd-dev \
+    libgeoip-dev \
+    procps \
+    nodejs \
+    npm \
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
-# Upgrade Node.js to version 16.x
-RUN apk add --no-cache curl && \
-    curl -sL https://deb.nodesource.com/setup_16.x | bash - && \
-    apk add --no-cache nodejs npm
+# Install Node.js v16.x and npm
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g webtorrent-cli
 
 # Clone and build Nginx with RTMP module from source
 RUN git clone https://github.com/arut/nginx-rtmp-module.git /tmp/nginx-rtmp-module && \
@@ -47,11 +46,8 @@ RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 # Generate a Diffie-Hellman group for added security
 RUN openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
 
-# Install WebTorrent (using npm)
-RUN npm install -g webtorrent-cli
-
 # Create directories for HLS
-RUN mkdir /var/www && mkdir /var/www/hls
+RUN mkdir -p /var/www/hls
 
 # Copy the custom Nginx configuration file to the container
 COPY nginx.conf /etc/nginx/nginx.conf
@@ -59,5 +55,5 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Expose ports for HTTP (80), HTTPS (443), and RTMP (1935)
 EXPOSE 443 1935
 
-# Start Nginx (default command is already provided by the base image)
-CMD ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/nginx.conf", "-e", "debug"]
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
