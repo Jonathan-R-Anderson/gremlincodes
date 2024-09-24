@@ -7,10 +7,10 @@ services:
       - "443:443"
     volumes:
       - ./static:/usr/share/nginx/html/static  # Shared volume for static files
-    networks:
-      - nginx_net
     depends_on:
       - flask_app
+    command: >
+      sh -c "while ! curl http://127.0.0.1:5000; do sleep 1; done && nginx -g 'daemon off;'"
 
   flask_app:
     build: ./flask_app
@@ -23,7 +23,3 @@ services:
       - "5000:5000"
     command: >
       bash -c "gunicorn --bind 0.0.0.0:5000 --timeout 120 --workers 9 --worker-class gevent app:app"
-
-networks:
-  nginx_net:
-    driver: bridge
