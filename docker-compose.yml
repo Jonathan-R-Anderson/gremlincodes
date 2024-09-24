@@ -20,7 +20,7 @@ services:
       - FLASK_ENV=development
     network_mode: host  # Give Flask access to the host network for WebTorrent
     ports:
-      - "443:443"
+      - "5000:5000"
     command: >
       bash -c "gunicorn --bind 0.0.0.0:5000 --workers 3 --worker-class gevent app:app"
 
