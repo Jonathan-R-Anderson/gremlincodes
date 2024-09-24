@@ -136,6 +136,27 @@ def user_profile(eth_address):
 def live_stream(stream_id):
     """Serve the live stream page and start WebTorrent seeding."""
     hls_path = f"/var/www/hls/{stream_id}"  # Path to HLS segments
-    magnet_url = seed_file(hls_path)  # Start seeding the stream
+    try:
 
-    return render_template('live.html', magnet_url=magnet_url)
+        # Start seeding in a separate thread
+        seed_thread = threading.Thread(target=seed_file, args=(hls_path,))
+        seed_thread.start()
+
+        # Poll the seeded_files dictionary until the magnet URL is available
+        max_wait_time = 60  # Max wait time in seconds
+        wait_time = 0
+        while hls_path not in seeded_files and wait_time < max_wait_time:
+            time.sleep(0.5)  # Sleep for 500ms
+            wait_time += 0.5
+
+        if hls_path in seeded_files:
+            magnet_url = seeded_files[hls_path]
+            logging.info(f"Magnet URL generated: {magnet_url}")
+            return jsonify({"magnet_url": magnet_url}), 200
+        else:
+            logging.error('Failed to generate magnet URL in time')
+            return jsonify({"error": "Failed to generate magnet URL in time"}), 500
+
+    except Exception as e:
+        logging.error(f"Error during file saving or torrent creation: {e}")
+        return jsonify({"error": "Error creating torrent", "details": str(e)}), 500
