@@ -36,11 +36,27 @@ RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g webtorrent-cli
 
+
+
+
 # Download Nginx source and build it with the RTMP module
-RUN git clone https://github.com/arut/nginx-rtmp-module.git /tmp/nginx-rtmp-module && \
+RUN git clone https://github.com/arut/nginx-rtmp-module.git /tmp/nginx-rtmp-module
+
+# Generate configure script if missing
+RUN cd /tmp/nginx-rtmp-module && \
+    if [ ! -f configure ]; then autoreconf -ivf; fi
+
+# Configure and build Nginx with RTMP
+RUN cd /tmp/nginx-rtmp-module && \
     ./configure --prefix=/usr/local/nginx --with-http_ssl_module --add-module=/tmp/nginx-rtmp-module && \
     make -j$(nproc) && \
     make install
+
+
+RUN ./configure --prefix=/usr/local/nginx --with-http_ssl_module --add-module=/tmp/nginx-rtmp-module && \
+    make -j$(nproc) && \
+    make install
+
 
 # Create a directory for SSL certificates
 RUN mkdir -p /etc/nginx/ssl
