@@ -18,6 +18,7 @@ RUN apt update && apt install -y \
     procps \
     nodejs \
     npm \
+    wget \
     ca-certificates \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
