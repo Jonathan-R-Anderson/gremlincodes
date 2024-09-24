@@ -21,6 +21,13 @@ RUN apt update && apt install -y \
     wget \
     gcc \
     ca-certificates \
+    autoconf \
+    automake \
+    libtool \
+    build-essential \
+    gcc \
+    make \
+    pkg-config \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
