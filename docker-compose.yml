@@ -6,9 +6,10 @@ services:
     ports:
       - "443:443"
     volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf  # Nginx configuration
       - ./static:/usr/share/nginx/html/static  # Shared volume for static files
     networks:
-      - nginx_net  # Attach Nginx to the bridge network
+      - nginx_net
     depends_on:
       - flask_app
 
@@ -18,9 +19,11 @@ services:
       - ./static:/app/static  # Mount static folder to Flask
     environment:
       - FLASK_ENV=development
-    networks:
-      - nginx_net  # Attach Flask to the Nginx network
-      - host  # Attach Flask to the host network for WebTorrent
+    network_mode: host  # Give Flask access to the host network for WebTorrent
+    expose:
+      - "5000"
+    command: >
+      bash -c "gunicorn --bind 0.0.0.0:5000 --workers 3 --worker-class gevent app:app"
 
 networks:
   nginx_net:
