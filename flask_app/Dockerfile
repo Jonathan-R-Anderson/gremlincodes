@@ -34,6 +34,3 @@ EXPOSE 5000
 
 # Define environment variable
 ENV FLASK_APP=app.py
-
-# Run Flask using Gunicorn (production-ready WSGI server)
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "120", "--workers", "9", "--worker-class", "gevent", "app:app"]
