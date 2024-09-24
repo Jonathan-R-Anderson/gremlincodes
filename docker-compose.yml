@@ -22,5 +22,5 @@ services:
     network_mode: host  # Host network for Flask
     ports:
       - "5000:5000"
-    command: > # bash -c "gunicorn --bind 0.0.0.0:5000 --timeout 120 --workers 9 --worker-class gevent app:app"
-      bash -c "gunicorn --bind 0.0.0.0:5000 --timeout 120 --workers 9 --worker-class gevent --certfile=/app/ssl/self-signed.crt --keyfile=/app/ssl/self-signed.key app:app"
+    command: >
+      bash -c "gunicorn --bind 0.0.0.0:5000 --timeout 120 --workers 9 --worker-class gevent app:app"
