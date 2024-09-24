@@ -20,11 +20,8 @@ services:
       - FLASK_ENV=development
     networks:
       - nginx_net  # Attach Flask to the Nginx network
-      # Use "host" without an alias
       - host  # Attach Flask to the host network for WebTorrent
 
 networks:
-  nginx_net:  # Custom bridge network for Nginx and Flask
+  nginx_net:
     driver: bridge
-  host:  # Host network for Flask (needed by WebTorrent)
-    external: true  # Use the existing Docker host network
