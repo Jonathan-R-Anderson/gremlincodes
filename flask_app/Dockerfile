@@ -1,7 +1,7 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9-slim
 
-# Install system dependencies
+# Install system dependencies, including netstat and ps
 RUN apt-get update && apt-get install -y \
     curl \
     bash \
@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     nodejs \
     npm \
+    net-tools \           # For netstat
+    procps \              # For ps
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
