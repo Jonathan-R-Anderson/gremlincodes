@@ -37,6 +37,7 @@ RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 # Generate a Diffie-Hellman group for added security
 RUN openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
 
+RUN mkdir /var/wwww
 RUN mkdir /var/www/hls
 
 # Copy the custom Nginx configuration file to the container
