@@ -1,8 +1,9 @@
-# Use the official Debian-based Nginx image as the base image
+# Use the official Debian-based image as the base image
 FROM debian:bullseye-slim
 
-# Install required packages, including build dependencies for Nginx and RTMP module
+# Install required packages, including Nginx, build dependencies for Nginx, and RTMP module
 RUN apt update && apt install -y \
+    nginx \
     openssl \
     libssl-dev \
     curl \
@@ -51,12 +52,13 @@ RUN openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
 # Download Mediamtx with SSL certificate validation disabled
 RUN mkdir -p /opt/mediamtx && \
     cd /opt/mediamtx && \
-    wget --no-check-certificate https://github.com/bluenviron/mediamtx/releases/download/v1.9.1/mediamtx_v1.9.1_darwin_arm64.tar.gz && \
-    tar -xvf mediamtx_v1.9.1_darwin_arm64.tar.gz && \
+    wget --no-check-certificate https://github.com/bluenviron/mediamtx/releases/download/v1.9.1/mediamtx_v1.9.1_linux_amd64.tar.gz && \
+    tar -xvf mediamtx_v1.9.1_linux_amd64.tar.gz && \
     chmod +x mediamtx
 
 # Create directories for HLS
 RUN mkdir -p /var/www/hls
+
 # Copy the custom Nginx configuration file to the container
 COPY nginx.conf /etc/nginx/nginx.conf
 
