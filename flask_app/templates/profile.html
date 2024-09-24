@@ -16,10 +16,10 @@
     const client = new WebTorrent();
 
     console.log("Starting WebTorrent client...");
-    
+    console.log("Magnet URL received:", magnetUrl);
+
     // Play the stream using WebTorrent
     if (magnetUrl) {
-        console.log("Magnet URL received:", magnetUrl);
         
         // Add torrent using the magnet URL
         client.add(magnetUrl, function (torrent) {
