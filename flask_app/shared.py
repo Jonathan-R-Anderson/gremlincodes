@@ -1304,55 +1304,25 @@ def seed_file(file_path):
 def seed_stream(file_path):
     """Function to seed the stream using WebTorrent and return the magnet URL."""
     try:
-        # Check if the stream is already being seeded
         if file_path in seeded_files:
-            logging.info(f"{file_path} is already being seeded.")
-            return seeded_files[file_path]  # Return existing magnet URL if it's already seeded
+            return seeded_files[file_path]
 
-        # Prepare tracker list for WebTorrent seed command
-        tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
-
-        # WebTorrent seed command with trackers and keep-seeding
-        cmd = f"webtorrent seed '{file_path}' {tracker_list} --keep-seeding"
-        logging.info(f"Running seeding command: {cmd}")
-
-        # Run the command in a subprocess
-        process = subprocess.Popen(
-            cmd, 
-            shell=True, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
-            text=True
-        )
+        cmd = f"webtorrent seed '{file_path}' --announce=wss://tracker.openwebtorrent.com --keep-seeding"
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         magnet_url = None
-
-        # Function to monitor the output of the WebTorrent process
-        def monitor_output():
-            nonlocal magnet_url
-            while True:
-                output = process.stdout.readline()
-                if output == '' and process.poll() is not None:
-                    break
-
-                if output and "Magnet:" in output:
-                    magnet_url = output.split("Magnet: ")[1].strip()
-                    seeded_files[file_path] = magnet_url
-                    logging.info(f"Magnet URL found: {magnet_url}")
-                    break
-
-        # Start monitoring output in a separate thread
-        output_thread = threading.Thread(target=monitor_output)
-        output_thread.start()
-
-        # Wait for the magnet URL to be extracted
-        output_thread.join(timeout=30)
+        while True:
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break
+            if "Magnet:" in output:
+                magnet_url = output.split("Magnet: ")[1].strip()
+                seeded_files[file_path] = magnet_url
+                break
 
         if magnet_url:
-            logging.info(f"Magnet URL returned: {magnet_url}")
             return magnet_url
         else:
-            logging.error(f"Failed to retrieve the magnet URL in time.")
             return None
 
     except Exception as e:

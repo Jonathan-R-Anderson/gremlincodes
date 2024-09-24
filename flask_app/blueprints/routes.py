@@ -120,6 +120,37 @@ def get_whitelist():
 
 @app.route('/users/<eth_address>')
 def user_profile(eth_address):
-    """Serve the user's profile page without smart contract interactions."""
-    return render_template('profile.html', eth_address=eth_address, gremlinProfileAddress=gremlinProfileAddress, gremlinProfileABI=gremlinProfileABI)
+    """Serve the user's profile page and provide the RTMP stream URL."""
+    # Assuming the user is the profile owner; generate an RTMP URL
+    rtmp_url = f"rtmp://your-server-address/live/{eth_address}"
+    return render_template(
+        'profile.html', 
+        eth_address=eth_address, 
+        gremlinProfileAddress=gremlinProfileAddress, 
+        gremlinProfileABI=gremlinProfileABI, 
+        rtmp_url=rtmp_url
+    )
+
+
+@app.route('/stream/upload', methods=['POST'])
+def upload_stream_segment():
+    """Handle the file upload from OBS and seed the stream segment using WebTorrent."""
+    file = request.files['file']
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join('/path/to/store/segments', filename)
+        file.save(file_path)
+
+        # Seed the file using WebTorrent and return the magnet URL
+        magnet_url = seed_stream(file_path)
+
+        if magnet_url:
+            return jsonify({'magnet_url': magnet_url}), 200
+        else:
+            return jsonify({'error': 'Failed to seed the file'}), 500
+    else:
+        return jsonify({'error': 'Invalid file type'}), 400
+
+
 

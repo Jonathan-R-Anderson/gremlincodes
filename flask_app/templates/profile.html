@@ -9,6 +9,10 @@
 <ul id="video-history"></ul>
 
 <video id="streamPlayer" controls autoplay></video>
+
+<!-- Add RTMP URL for streaming -->
+<h3>Stream Live Video</h3>
+<p>Your RTMP endpoint for streaming: <span id="rtmp-url"></span></p>
 {% endblock %}
 
 {% block scripts %}
@@ -22,6 +26,10 @@
     window.onload = async function() {
         // Set the Ethereum address on the page
         document.getElementById("eth-address").innerText = ethAddress;
+
+        // Generate and display RTMP URL
+        const rtmpUrl = `rtmp://your-server-address/live/${ethAddress}`;
+        document.getElementById("rtmp-url").innerText = rtmpUrl;
 
         // Check if MetaMask is available
         if (typeof window.ethereum !== 'undefined') {
