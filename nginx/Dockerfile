@@ -51,7 +51,7 @@ RUN openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
 # Download Mediamtx with SSL certificate validation disabled
 RUN mkdir -p /opt/mediamtx && \
     cd /opt/mediamtx && \
-    VERSION=v1.5.0 && \
+    VERSION=v1.9.1 && \
     wget --no-check-certificate https://github.com/bluenviron/mediamtx/releases/download/$VERSION/mediamtx_$VERSION_linux_amd64.tar.gz && \
     tar -xvf mediamtx_$VERSION_linux_amd64.tar.gz && \
     chmod +x mediamtx
