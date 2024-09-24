@@ -1302,62 +1302,40 @@ def seed_file(file_path):
 
 
 def seed_stream(hls_path):
-    """Function to seed the stream using WebTorrent and return the magnet URL."""
+    """Function to seed HLS stream using WebTorrent and return the magnet URL."""
     try:
         # Check if the stream is already being seeded
         if hls_path in seeded_files:
-            logging.info(f"{hls_path} is already being seeded.")
-            return seeded_files[hls_path]  # Return existing magnet URL if it's already seeded
+            return seeded_files[hls_path]  # Return the existing magnet URL
 
-        # Prepare tracker list for WebTorrent seed command
-        tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
-
-        # WebTorrent seed command with trackers and keep-seeding
-        cmd = f"webtorrent seed '{hls_path}' {tracker_list} --keep-seeding"
-        logging.info(f"Running seeding command: {cmd}")
-
-        # Run the command in a subprocess
-        process = subprocess.Popen(
-            cmd, 
-            shell=True, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
-            text=True
-        )
+        # WebTorrent command for seeding
+        cmd = f"webtorrent seed '{hls_path}' --keep-seeding"
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         magnet_url = None
 
-        # Function to monitor the output of the WebTorrent process
-        def monitor_output():
+        # Monitor output to get the magnet URL
+        def get_magnet_url():
             nonlocal magnet_url
             while True:
                 output = process.stdout.readline()
-                if output == '' and process.poll() is not None:
-                    break
-
-                if output and "Magnet:" in output:
+                if "Magnet" in output:
                     magnet_url = output.split("Magnet: ")[1].strip()
-                    seeded_files[hls_path] = magnet_url
-                    logging.info(f"Magnet URL found: {magnet_url}")
                     break
 
-        # Start monitoring output in a separate thread
-        output_thread = threading.Thread(target=monitor_output)
-        output_thread.start()
-
-        # Wait for the magnet URL to be extracted
-        output_thread.join(timeout=30)
-
+        get_magnet_url()
+        
         if magnet_url:
-            logging.info(f"Magnet URL returned: {magnet_url}")
+            seeded_files[hls_path] = magnet_url  # Cache the magnet URL
             return magnet_url
         else:
-            logging.error(f"Failed to retrieve the magnet URL in time.")
             return None
 
     except Exception as e:
-        logging.error(f"Error while seeding stream: {str(e)}")
+        logging.error(f"Error seeding stream: {str(e)}")
         return None
+
+
 
 def auto_seed_static_files():
     """Automatically seed all allowed files in the static directory."""

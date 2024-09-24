@@ -1,82 +1,26 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>User Profile</h1>
-<h2>Ethereum Address: <span id="eth-address"></span></h2>
-<div id="profile-info"></div>
+<h1>Live Stream</h1>
 
-<h3>Video History</h3>
-<ul id="video-history"></ul>
+<!-- Embed Magnet URL and Video Player -->
+<h3>Magnet URL for Seeding: <a href="{{ magnet_url }}">{{ magnet_url }}</a></h3>
 
 <video id="streamPlayer" controls autoplay></video>
-
-<!-- Add RTMP URL for streaming -->
-<h3>Stream Live Video</h3>
-<p>Your RTMP endpoint for streaming: <span id="rtmp-url"></span></p>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    const ethAddress = "{{ eth_address }}";
-    const contractAddress = "{{ gremlinProfileAddress }}";  // Contract address passed from Flask
-    const contractABI = {{ gremlinProfileABI|tojson|safe }};  // Use tojson to ensure proper JavaScript conversion
-
+    const magnetUrl = "{{ magnet_url }}";
     const client = new WebTorrent();
 
-    window.onload = async function() {
-        // Set the Ethereum address on the page
-        document.getElementById("eth-address").innerText = ethAddress;
-
-        // Generate and display RTMP URL
-        const rtmpUrl = `rtmp://gremlin.codes/live/${ethAddress}`;
-        document.getElementById("rtmp-url").innerText = rtmpUrl;
-        console.log("RTMP URL:", rtmpUrl);
-        // Check if MetaMask is available
-        if (typeof window.ethereum !== 'undefined') {
-            const web3 = new Web3(window.ethereum);
-            await ethereum.request({ method: 'eth_requestAccounts' });
-            const contract = new web3.eth.Contract(contractABI, contractAddress);
-
-            // Fetch the profile data from the contract
-            const profileData = await contract.methods.getProfile(ethAddress).call();
-            const name = profileData[0];
-            const bio = profileData[1];
-            const css = profileData[2];
-            const html = profileData[3];
-
-            // Apply the CSS and HTML from the smart contract
-            document.getElementById("profile-info").innerHTML = `
-                <h3>${name}</h3>
-                <p>${bio}</p>
-                <style>${css}</style>
-                ${html}
-            `;
-
-            // Fetch video history
-            const videoHistory = await contract.methods.getVideoHistory(ethAddress).call();
-            const videoHistoryList = document.getElementById("video-history");
-
-            videoHistory.forEach(video => {
-                const magnetUrl = video.magnetUrl;
-                console.log("Magnet url", magnetUrl);
-                const timestamp = new Date(video.timestamp * 1000).toLocaleString();
-                
-                const listItem = document.createElement('li');
-                listItem.innerHTML = `Streamed on: ${timestamp} - <a href="${magnetUrl}">${magnetUrl}</a>`;
-                videoHistoryList.appendChild(listItem);
-
-                // Optionally, start playing the latest video in the list
-                if (magnetUrl === videoHistory[videoHistory.length - 1].magnetUrl) {
-                    client.add(magnetUrl, function (torrent) {
-                    torrent.files[0].renderTo('video#streamPlayer');
-                });
-                }
-            });
-
-        } else {
-            alert("MetaMask is not installed.");
-        }
-    };
+    // Play the stream using WebTorrent
+    if (magnetUrl) {
+        client.add(magnetUrl, function (torrent) {
+            torrent.files[0].renderTo('video#streamPlayer');
+        });
+    } else {
+        alert("Magnet URL not available.");
+    }
 </script>
-
 {% endblock %}
