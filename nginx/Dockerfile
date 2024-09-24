@@ -19,10 +19,13 @@ RUN apk add --no-cache \
     python3-dev \
     libffi-dev \
     libressl-dev \
-    nodejs \
-    npm \
     net-tools \
     procps
+
+# Upgrade Node.js to version 16.x
+RUN apk add --no-cache curl && \
+    curl -sL https://deb.nodesource.com/setup_16.x | bash - && \
+    apk add --no-cache nodejs npm
 
 # Clone and build Nginx with RTMP module from source
 RUN git clone https://github.com/arut/nginx-rtmp-module.git /tmp/nginx-rtmp-module && \
