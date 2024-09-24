@@ -18,7 +18,7 @@ RUN apk add --no-cache \
     curl \
     python3-dev \
     libffi-dev \
-    libressl-dev \   # Replaced libssl-dev with libressl-dev
+    libressl-dev \
     nodejs \
     npm \
     net-tools \
