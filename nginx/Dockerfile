@@ -19,6 +19,7 @@ RUN apt update && apt install -y \
     nodejs \
     npm \
     wget \
+    gcc \
     ca-certificates \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
