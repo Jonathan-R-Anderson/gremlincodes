@@ -7,6 +7,10 @@ RUN apt update && apt install -y \
     libssl-dev \
     curl \
     build-essential \
+    fmpeg \
+    libpcre3 \
+    libpcre3-dev \
+    libssl-dev \
     gcc \
     git \
     bash \
@@ -30,12 +34,14 @@ RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
     npm install -g webtorrent-cli
 
 # Clone and build Nginx with RTMP module from source
-RUN git clone https://github.com/arut/nginx-rtmp-module.git /tmp/nginx-rtmp-module && \
-    wget http://nginx.org/download/nginx-1.21.6.tar.gz && \
+RUN git clone https://github.com/sergey-dryabzhinsky/nginx-rtmp-module.git /tmp/nginx-rtmp-module && \
+    wget http://nginx.org/download/nginx-1.17.6.tar.gztar -xf nginx-1.17.6.tar.gzcd nginx-1.17.6 && \
     tar -zxvf nginx-1.21.6.tar.gz && \
     cd nginx-1.21.6 && \
-    ./configure --with-http_ssl_module --add-module=/tmp/nginx-rtmp-module && \
-    make && make install
+    ./configure --prefix=/usr/local/nginx --with-http_ssl_module --add-module=../nginx-rtmp-modulemake -j && \
+    make && \
+    make install
+
 
 
 # Create a directory for SSL certificates
