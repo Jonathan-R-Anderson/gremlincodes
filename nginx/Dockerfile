@@ -37,13 +37,32 @@ RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 # Generate a Diffie-Hellman group for added security
 RUN openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
 
-RUN mkdir /var/www
-RUN mkdir /var/www/hls
+# Install additional system dependencies (including WebTorrent CLI)
+RUN apt-get update && apt-get install -y \
+    curl \
+    bash \
+    build-essential \
+    gcc \
+    python3-dev \
+    libffi-dev \
+    libssl-dev \
+    nodejs \
+    npm \
+    net-tools \
+    procps \
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install WebTorrent (using npm)
+RUN npm install -g webtorrent-cli
+
+# Create directories for HLS
+RUN mkdir /var/www && mkdir /var/www/hls
 
 # Copy the custom Nginx configuration file to the container
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Expose ports for HTTP (80) and HTTPS (443) and RTMP (1935)
+# Expose ports for HTTP (80), HTTPS (443), and RTMP (1935)
 EXPOSE 443 1935
 
 # Start Nginx (default command is already provided by the base image)
