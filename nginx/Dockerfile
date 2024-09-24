@@ -30,9 +30,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
 
 # Download Nginx source and build it with the RTMP module
 RUN git clone https://github.com/arut/nginx-rtmp-module.git /tmp/nginx-rtmp-module && \
-    wget http://nginx.org/download/nginx-1.21.6.tar.gz && \
-    tar -zxvf nginx-1.21.6.tar.gz && \
-    cd nginx-1.21.6 && \
     ./configure --prefix=/usr/local/nginx --with-http_ssl_module --add-module=/tmp/nginx-rtmp-module && \
     make -j$(nproc) && \
     make install
@@ -67,4 +64,4 @@ EXPOSE 443 1935
 
 # Start Nginx
 #CMD ["/usr/local/nginx/sbin/nginx", "-g", "daemon off;"]
-CMD ["/bin/bash"]
+CMD ["/usr/local/nginx", "-g", "daemon off;"]
