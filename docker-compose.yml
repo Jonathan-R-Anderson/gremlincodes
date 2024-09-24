@@ -23,4 +23,4 @@ services:
     ports:
       - "5000:5000"
     command: >
-      bash -c "gunicorn --bind 0.0.0.0:5000 --timeout 120 --workers 9 --worker-class gevent app:app"
+      bash -c "gunicorn --bind 127.0.0.1:5000 --timeout 120 --workers 9 --worker-class gevent app:app"
