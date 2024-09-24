@@ -2,9 +2,10 @@ version: '3'
 
 services:
   nginx:
-    image: nginx:alpine
+    build: ./nginx
     ports:
       - "443:443"
+      - "80:80"
     volumes:
       - ./static:/usr/share/nginx/html/static  # Shared volume for static files
     network_mode: host  # Use host network mode for Nginx as well
