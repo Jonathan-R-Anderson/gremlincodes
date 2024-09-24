@@ -15,7 +15,14 @@ RUN apk add --no-cache \
     geoip-dev \
     git \
     bash \
-    curl
+    curl \
+    python3-dev \
+    libffi-dev \
+    libssl-dev \
+    nodejs \
+    npm \
+    net-tools \
+    procps
 
 # Clone and build Nginx with RTMP module from source
 RUN git clone https://github.com/arut/nginx-rtmp-module.git /tmp/nginx-rtmp-module && \
@@ -36,22 +43,6 @@ RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 
 # Generate a Diffie-Hellman group for added security
 RUN openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
-
-# Install additional system dependencies (including WebTorrent CLI)
-RUN apt-get update && apt-get install -y \
-    curl \
-    bash \
-    build-essential \
-    gcc \
-    python3-dev \
-    libffi-dev \
-    libssl-dev \
-    nodejs \
-    npm \
-    net-tools \
-    procps \
-    --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
 
 # Install WebTorrent (using npm)
 RUN npm install -g webtorrent-cli
