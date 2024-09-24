@@ -19,7 +19,7 @@
 <script>
     const ethAddress = "{{ eth_address }}";
     const contractAddress = "{{ gremlinProfileAddress }}";  // Contract address passed from Flask
-    const contractABI = {{ gremlinProfileABI|safe }};  // ABI JSON passed from Flask and marked as safe for rendering
+    const contractABI = {{ gremlinProfileABI|tojson|safe }};  // Use tojson to ensure proper JavaScript conversion
 
     const client = new WebTorrent();
 
@@ -30,7 +30,7 @@
         // Generate and display RTMP URL
         const rtmpUrl = `rtmp://gremlin.codes/live/${ethAddress}`;
         document.getElementById("rtmp-url").innerText = rtmpUrl;
-
+        console.log("RTMP URL:", rtmpUrl);
         // Check if MetaMask is available
         if (typeof window.ethereum !== 'undefined') {
             const web3 = new Web3(window.ethereum);
@@ -78,4 +78,5 @@
         }
     };
 </script>
+
 {% endblock %}
