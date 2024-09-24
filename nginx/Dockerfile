@@ -37,7 +37,7 @@ RUN git clone https://github.com/arut/nginx-rtmp-module.git /tmp/nginx-rtmp-modu
     make && make install
 
 # Create a directory for SSL certificates
-RUN mkdir /etc/nginx/ssl
+RUN mkdir -p /etc/nginx/ssl
 
 # Generate a self-signed SSL certificate (valid for 365 days)
 RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
@@ -58,7 +58,6 @@ RUN mkdir -p /opt/mediamtx && \
 
 # Create directories for HLS
 RUN mkdir -p /var/www/hls
-
 # Copy the custom Nginx configuration file to the container
 COPY nginx.conf /etc/nginx/nginx.conf
 
