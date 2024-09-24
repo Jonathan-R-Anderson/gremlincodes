@@ -2,21 +2,28 @@ version: '3'
 
 services:
   nginx:
-    build: ./nginx  # Your Nginx Dockerfile should be inside ./nginx directory
-    network_mode: host  # Use host network for WebTorrent
+    image: nginx:alpine
     ports:
       - "443:443"
     volumes:
-      - ./static:/usr/share/nginx/html/static  # Mount the static folder to Nginx for serving static files
+      - ./static:/usr/share/nginx/html/static  # Shared volume for static files
+    networks:
+      - nginx_net  # Attach Nginx to the bridge network
     depends_on:
       - flask_app
 
   flask_app:
-    build: ./flask_app  # Your Flask Dockerfile should be inside ./flask_app directory
+    build: ./flask_app
     volumes:
-      - ./static:/app/static  # Mount the static folder to Flask for static file access
+      - ./static:/app/static  # Mount static folder to Flask
     environment:
-      - FLASK_ENV=development  # Or production
+      - FLASK_ENV=development
+    networks:
+      - nginx_net  # Attach Flask to the Nginx network
+      - host  # Attach Flask to the host network for WebTorrent
 
-volumes:
-  shared_files:  # This can be omitted unless used elsewhere
+networks:
+  nginx_net:  # Custom bridge network for Nginx and Flask
+    driver: bridge
+  host:  # Host network for Flask (needed by WebTorrent)
+    external: true  # Use the existing Docker host network
