@@ -7,7 +7,7 @@ RUN apt update && apt install -y \
     libssl-dev \
     curl \
     build-essential \
-    fmpeg \
+    ffmpeg \
     libpcre3 \
     libpcre3-dev \
     libssl-dev \
