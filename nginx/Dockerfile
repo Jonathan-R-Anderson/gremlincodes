@@ -1,5 +1,5 @@
 # Use the official Nginx image as the base image
-FROM nginx:alpine
+FROM maquinas07/alpine-nginx-rtmp
 
 # Install the required packages, including build dependencies for Nginx and RTMP module
 RUN apk add --no-cache \
