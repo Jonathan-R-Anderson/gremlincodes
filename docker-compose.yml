@@ -6,7 +6,6 @@ services:
     ports:
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf  # Nginx configuration
       - ./static:/usr/share/nginx/html/static  # Shared volume for static files
     networks:
       - nginx_net
