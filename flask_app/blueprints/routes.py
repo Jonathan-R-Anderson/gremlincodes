@@ -135,7 +135,7 @@ def user_profile(eth_address):
 @app.route('/live/<stream_id>')
 def live_stream(stream_id):
     """Serve the live stream page and start WebTorrent seeding."""
-    hls_path = f"/var/www/hls/{stream_id}"  # Path to HLS segments
+    hls_path = f"/app/static/{stream_id}"  # Path to HLS segments
     try:
 
         # Start seeding in a separate thread
