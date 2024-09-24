@@ -9,11 +9,7 @@ services:
       - ./static:/usr/share/nginx/html/static  # Shared volume for static files
     depends_on:
       - flask_app
-    environment:
-      - HOST_IP=158.69.59.168  # Replace this with the actual host IP
-    command: >
-      sh -c "while ! curl http://$HOST_IP:5000; do sleep 1; done && nginx -g 'daemon off;'"
-
+      
   flask_app:
     build: ./flask_app
     volumes:
