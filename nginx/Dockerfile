@@ -67,4 +67,4 @@ EXPOSE 443 1935
 
 # Start Nginx
 #CMD ["/usr/local/nginx/sbin/nginx", "-g", "daemon off;"]
-CMD ["which", "nginx"]
+CMD ["/bin/bash"]
