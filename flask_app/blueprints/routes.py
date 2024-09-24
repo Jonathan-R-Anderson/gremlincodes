@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template
-from shared import gremlinThreadABI, gremlinThreadAddress, gremlinAdminABI, gremlinAdminAddress, gremlinReplyABI, gremlinReplyAddress, allowed_file, FILE_DIR, seed_file, seeded_files, save_whitelist, save_blacklist, blacklist, whitelist, app, gremlinProfileAddress, gremlinProfileABI
+from shared import gremlinThreadABI, gremlinThreadAddress, gremlinAdminABI, gremlinAdminAddress, gremlinReplyABI, gremlinReplyAddress, allowed_file, FILE_DIR, seed_file, seeded_files, save_whitelist, save_blacklist, blacklist, whitelist, app, gremlinProfileAddress, gremlinProfileABI, seed_stream
 import json, os, threading
 from flask import Flask, request, jsonify, send_from_directory
 import logging, time
@@ -153,4 +153,9 @@ def upload_stream_segment():
         return jsonify({'error': 'Invalid file type'}), 400
 
 
-
+@app.route('/stream/rtmp/<eth_address>')
+def rtmp_stream(eth_address):
+    """Serve the RTMP stream URL."""
+    rtmp_url = f"rtmp://gremlin.codes/live/{eth_address}"
+    hls_url = f"http://gremlin.codes/hls/{eth_address}.m3u8"
+    return jsonify({'rtmp_url': rtmp_url, 'hls_url': hls_url})
