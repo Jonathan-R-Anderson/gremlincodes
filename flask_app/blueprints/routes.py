@@ -215,7 +215,7 @@ def live_stream(eth_address):
 def get_magnet_url(eth_address):
     """Get the latest magnet URL for the given user's stream."""
     if (eth_address in seeded_files.keys()):
-        latest_magnet_url = seeded_files[eth_address][-1]
+        latest_magnet_url = list(seeded_files[eth_address])[-1]
         return jsonify({"magnet_url": latest_magnet_url}), 200
     else:
         return jsonify({"error": "No segments found"}), 404
