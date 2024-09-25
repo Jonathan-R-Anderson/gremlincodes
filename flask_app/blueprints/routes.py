@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template
-from shared import gremlinThreadABI, gremlinThreadAddress, gremlinAdminABI, gremlinAdminAddress, gremlinReplyABI, gremlinReplyAddress, allowed_file, FILE_DIR, seed_file, seeded_files, save_whitelist, save_blacklist, blacklist, whitelist, app, gremlinProfileAddress, gremlinProfileABI, stream_set
+from shared import gremlinThreadABI, gremlinThreadAddress, gremlinAdminABI, gremlinAdminAddress, gremlinReplyABI, gremlinReplyAddress, allowed_file, FILE_DIR, seed_file, seeded_files, save_whitelist, save_blacklist, blacklist, whitelist, app, gremlinProfileAddress, gremlinProfileABI, stream_set, THREADS
 import json, os, threading
 from flask import Flask, request, jsonify, send_from_directory
 import logging, time
@@ -198,14 +198,17 @@ def live_stream(eth_address):
             except Exception as e:
                 logging.error(f"Error monitoring HLS segments: {e}")
                 break
-
-    # Start FFmpeg RTMP to HLS conversion in a separate thread
     ffmpeg_thread = threading.Thread(target=stream_rtmp_to_hls, daemon=True)
-    ffmpeg_thread.start()
-
-    # Start monitoring and seeding in a separate thread
     monitor_thread = threading.Thread(target=monitor_hls_segments, args=(hls_dir,), daemon=True)
-    monitor_thread.start()
+
+    if (rtmp_stream_url not in [x[0] for x in THREADS]):
+        # Start FFmpeg RTMP to HLS conversion in a separate thread
+        ffmpeg_thread.start()
+
+        # Start monitoring and seeding in a separate thread
+        monitor_thread.start()
+        THREADS.append(tuple((rtmp_stream_url, ffmpeg_thread, monitor_thread)))
+    
 
 @app.route('/magnet_url/<eth_address>')
 def get_magnet_url(eth_address):

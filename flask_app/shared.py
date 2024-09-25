@@ -1189,6 +1189,7 @@ TRACKER_URLS = [
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 seeded_files = {}
+THREADS = []
 
 def load_blacklist():
     if not os.path.exists(BLACKLIST_FILE):
