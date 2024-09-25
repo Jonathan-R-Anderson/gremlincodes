@@ -128,7 +128,7 @@ def user_profile(eth_address):
         eth_address=eth_address, 
         gremlinProfileAddress=gremlinProfileAddress, 
         gremlinProfileABI=gremlinProfileABI, 
-        magnet_url=live_stream(eth_address)
+        magnet_url=get_magnet_url(eth_address)
     )
 
 import subprocess
