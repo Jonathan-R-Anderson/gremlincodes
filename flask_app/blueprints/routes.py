@@ -175,11 +175,16 @@ def get_magnet_url(eth_address):
     latest_magnet_url = None
 
     try:
+        print(1)
         segment_files = sorted([f for f in os.listdir(hls_dir) if f.endswith(".ts")])
+        print(2)
         if segment_files:
             latest_file = os.path.join(hls_dir, segment_files[-1])
+            print(3)
             latest_magnet_url = seeded_files.get(latest_file)
+            print(4)
             if latest_magnet_url:
+                print(5)
                 return jsonify({"magnet_url": latest_magnet_url}), 200
             else:
                 return jsonify({"error": "Magnet URL not yet available for latest segment"}), 404
