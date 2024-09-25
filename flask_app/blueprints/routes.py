@@ -123,6 +123,8 @@ def get_whitelist():
 def user_profile(eth_address):
     """Serve the user's profile page and provide the RTMP stream URL."""
     # Assuming the user is the profile owner; generate an RTMP URL
+    if (eth_address not in seeded_files.keys()):
+        seeded_files[eth_address] = set()
     return render_template(
         'profile.html', 
         eth_address=eth_address, 
