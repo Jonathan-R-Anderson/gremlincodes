@@ -131,6 +131,8 @@ def user_profile(eth_address):
         magnet_url=live_stream(eth_address)
     )
 
+import subprocess
+
 @app.route('/live/<eth_address>')
 def live_stream(eth_address):
     """Serve the live stream page and continuously monitor and seed HLS segments."""
@@ -138,7 +140,7 @@ def live_stream(eth_address):
     os.makedirs(hls_dir, exist_ok=True)  # Ensure the directory exists
 
     # RTMP stream input URL and HLS output directory
-    rtmp_stream_url = f"rtmp://gremlin.codes/live/{eth_address}"
+    rtmp_stream_url = f"rtmp://gremlin.codes:1935/live/{eth_address}/test"
     hls_output_path = os.path.join(hls_dir, f"{eth_address}.m3u8")
 
     # RTMP streaming configuration using FFmpeg
@@ -147,8 +149,32 @@ def live_stream(eth_address):
         try:
             logging.info(f"Starting FFmpeg to stream RTMP to HLS for {eth_address}...")
             # Run FFmpeg to convert RTMP to HLS segments in the specified directory
-            ffmpeg_cmd = f"ffmpeg -i {rtmp_stream_url} -c:v copy -c:a copy -f hls -hls_time 10 -hls_list_size 6 -hls_flags delete_segments {hls_output_path}"
-            os.system(ffmpeg_cmd)
+            ffmpeg_cmd = [
+                "ffmpeg",
+                "-i", rtmp_stream_url,
+                "-c:v", "copy",
+                "-c:a", "copy",
+                "-f", "hls",
+                "-hls_time", "10",
+                "-hls_list_size", "6",
+                "-hls_flags", "delete_segments",
+                hls_output_path
+            ]
+
+            # Start FFmpeg process and capture stdout and stderr
+            process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+            # Log FFmpeg output and errors
+            for stdout_line in iter(process.stdout.readline, ""):
+                logging.info(stdout_line.strip())
+
+            for stderr_line in iter(process.stderr.readline, ""):
+                logging.error(stderr_line.strip())
+
+            process.stdout.close()
+            process.stderr.close()
+            process.wait()
+
         except Exception as e:
             logging.error(f"Error streaming RTMP to HLS: {e}")
 
