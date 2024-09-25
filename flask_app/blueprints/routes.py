@@ -214,17 +214,8 @@ def live_stream(eth_address):
 @app.route('/magnet_url/<eth_address>')
 def get_magnet_url(eth_address):
     """Get the latest magnet URL for the given user's stream."""
-    hls_dir = os.path.join(FILE_DIR, "hls", eth_address)
-    latest_file = None
-    latest_magnet_url = seeded_files[eth_address][-1]
-
-    try:
-        # Fetch the segment files in the directory
-
-        if seeded_files[eth_address]:
-            return jsonify({"magnet_url": latest_magnet_url}), 200
-        else:
-            return jsonify({"error": "No segments found"}), 404
-    except Exception as e:
-        logging.error(f"Error retrieving magnet URL: {e}")
-        return jsonify({"error": "Failed to retrieve magnet URL", "details": str(e)}), 500
+    if (eth_address in seeded_files.keys()):
+        latest_magnet_url = seeded_files[eth_address][-1]
+        return jsonify({"magnet_url": latest_magnet_url}), 200
+    else:
+        return jsonify({"error": "No segments found"}), 404
