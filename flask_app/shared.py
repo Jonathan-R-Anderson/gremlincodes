@@ -1323,9 +1323,10 @@ class StreamSeed(threading.Thread):
     def seed_file(self):
         """Function to seed the file using the WebTorrent command and return the magnet URL."""
         # Check if the file has already been seeded
-        if self.filename in seeded_files[self.eth_addr]:
-            logging.info(f"{self.filename} is already being seeded for {self.eth_addr}.")
-            return
+        if (self.eth_addr in seeded_files.keys()):
+          if self.filename in seeded_files[self.eth_addr]:
+              logging.info(f"{self.filename} is already being seeded for {self.eth_addr}.")
+              return
 
         # Prepare the WebTorrent seed command
         cmd = f"webtorrent seed {self.filename} --keep-seeding"
