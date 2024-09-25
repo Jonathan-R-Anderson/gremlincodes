@@ -216,22 +216,13 @@ def get_magnet_url(eth_address):
     """Get the latest magnet URL for the given user's stream."""
     hls_dir = os.path.join(FILE_DIR, "hls", eth_address)
     latest_file = None
-    latest_magnet_url = None
+    latest_magnet_url = seeded_files[eth_address][-1]
 
     try:
         # Fetch the segment files in the directory
-        segment_files = sorted([f for f in os.listdir(hls_dir) if f.endswith(".ts")])
 
-        if segment_files:
-            # Get the latest file seeded for this eth_address
-            latest_file = segment_files[-1]
-
-            # Get the magnet URL from the seeded_magnets dictionary
-            if eth_address in seeded_files and latest_file in seeded_files[eth_address]:
-                latest_magnet_url = next(iter(seeded_files[eth_address]))  # Retrieve one magnet URL from the set
-                return jsonify({"magnet_url": latest_magnet_url}), 200
-            else:
-                return jsonify({"error": "Magnet URL not yet available for latest segment"}), 404
+        if seeded_files[eth_address]:
+            return jsonify({"magnet_url": latest_magnet_url}), 200
         else:
             return jsonify({"error": "No segments found"}), 404
     except Exception as e:
