@@ -11,6 +11,7 @@ import json
 import logging
 import threading
 import subprocess
+import time
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -1303,11 +1304,10 @@ def seed_file(file_path):
 class StreamSeed(threading.Thread):
     """Threaded class for seeding HLS segments using WebTorrent."""
     
-    def __init__(self, eth_addr, filename, seeded_files):
+    def __init__(self, eth_addr, filename):
         super().__init__()
         self.eth_addr = eth_addr
         self.filename = filename
-        self.seeded_files = seeded_files
         self.magnet_url = None
         self.file_exists = False
         self.daemon = True  # Make the thread run as a daemon
@@ -1323,9 +1323,9 @@ class StreamSeed(threading.Thread):
     def seed_file(self):
         """Function to seed the file using the WebTorrent command and return the magnet URL."""
         # Check if the file has already been seeded
-        if self.filename in self.seeded_files[self.eth_addr]:
+        if self.filename in seeded_files.keys():
             logging.info(f"{self.filename} is already being seeded for {self.eth_addr}.")
-            return next(iter(self.seeded_files[self.eth_addr]))
+            return next(iter(seeded_files.keys()))
 
         # Prepare the WebTorrent seed command
         cmd = f"webtorrent seed {self.filename} --keep-seeding"

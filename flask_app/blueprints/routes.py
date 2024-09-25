@@ -183,7 +183,7 @@ def live_stream(eth_address):
                         file_path = os.path.join(directory, segment_file)
 
                         # Start the seeding process using the StreamSeed class
-                        stream_seed = StreamSeed(eth_address, file_path, seeded_files)
+                        stream_seed = StreamSeed(eth_address, file_path)
                         stream_seed.start()  # Start the thread
                         already_seeded.add(segment_file)
 
@@ -203,16 +203,10 @@ def live_stream(eth_address):
     else:
         logging.info(f"Already streaming {eth_address}")
 
-    return render_template('profile.html', eth_address=eth_address)
-
 
 @app.route('/magnet_url/<eth_address>')
 def get_magnet_url(eth_address):
     """Get the latest magnet URL for the given user's stream."""
-    if (eth_address in seeded_files.keys()):
-        latest_magnet_url = list(seeded_files[eth_address])[-1]
+    if (any([True if sf.startswith(eth_address) else False for sf in seeded_files.keys()])):
         return seeded_files
         #return jsonify({"magnet_url": latest_magnet_url}), 200
-    else:
-        return seeded_files
-        #return jsonify({"error": "No segments found"}), 404
