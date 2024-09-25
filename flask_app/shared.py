@@ -1317,7 +1317,7 @@ def stream_set(eth_addr, filename):
         tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
 
         # WebTorrent seed command with trackers and keep-seeding
-        cmd = f"webtorrent seed /app/static/hls/{filename} {tracker_list} --keep-seeding"
+        cmd = f"webtorrent seed {filename} {tracker_list} --keep-seeding"
         logging.info(f"Running seeding command: {cmd}")
 
         # Run the command in a subprocess
