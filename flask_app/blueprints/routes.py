@@ -125,6 +125,7 @@ def user_profile(eth_address):
     # Assuming the user is the profile owner; generate an RTMP URL
     if (eth_address not in seeded_files.keys()):
         seeded_files[eth_address] = set()
+        logging.info(f"Added {eth_address} to seeded_files")
     return render_template(
         'profile.html', 
         eth_address=eth_address, 
