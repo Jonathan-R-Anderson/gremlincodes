@@ -200,12 +200,16 @@ def live_stream(eth_address):
         ffmpeg_thread.start()  # Start FFmpeg RTMP to HLS conversion in a separate thread
         monitor_thread.start()  # Start monitoring and seeding in a separate thread
         THREADS.append(tuple((rtmp_stream_url, ffmpeg_thread, monitor_thread)))
+        logging.info(f"Started streaming for {eth_address}")
+        return jsonify({"message": f"Streaming started for {eth_address}"}), 200
     else:
         logging.info(f"Already streaming {eth_address}")
-
-
+        return jsonify({"message": f"Already streaming {eth_address}"}), 200
+    
 @app.route('/magnet_url/<eth_address>')
 def get_magnet_url(eth_address):
     """Get the latest magnet URL for the given user's stream."""
     if (any([True if sf.startswith(eth_address) else False for sf in seeded_files.keys()])):
         return jsonify({"magnet_url": seeded_files}), 200
+    else:
+        return jsonify({"error": "No magnet URL available"}), 404
