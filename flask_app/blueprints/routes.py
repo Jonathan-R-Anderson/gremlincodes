@@ -138,7 +138,7 @@ def live_stream(eth_address):
     os.makedirs(hls_dir, exist_ok=True)  # Ensure the directory exists
 
     # RTMP stream input URL and HLS output directory
-    rtmp_stream_url = f"rtmp://your-server-address/live/{eth_address}"
+    rtmp_stream_url = f"rtmp://gremlin.codes/live/{eth_address}"
     hls_output_path = os.path.join(hls_dir, f"{eth_address}.m3u8")
 
     # RTMP streaming configuration using FFmpeg
