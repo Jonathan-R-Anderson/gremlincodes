@@ -131,8 +131,6 @@ def user_profile(eth_address):
         magnet_url=get_magnet_url(eth_address)
     )
 
-import subprocess
-
 @app.route('/live/<eth_address>')
 def live_stream(eth_address):
     """Serve the live stream page and continuously monitor and seed HLS segments."""
@@ -153,7 +151,7 @@ def live_stream(eth_address):
         try:
             logging.info(f"Starting FFmpeg to stream RTMP to HLS for {eth_address}...")
             ffmpeg_cmd = [
-                "ffmpeg",
+                "/usr/bin/ffmpeg",
                 "-i", rtmp_stream_url,
                 "-c:v", "copy",
                 "-c:a", "copy",
