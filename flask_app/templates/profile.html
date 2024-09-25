@@ -8,8 +8,7 @@
 <h3>Magnet URL: <a id="magnet-url-link" href="#"></a></h3>
 
 <video id="streamPlayer" controls autoplay></video>
-
-<p id="countdown-message">Starting your stream in 60 seconds...</p>
+<p id="status-message">Loading stream...</p>
 {% endblock %}
 
 {% block scripts %}
@@ -18,52 +17,68 @@
 <script>
     const ethAddress = "{{ eth_address }}";
     const client = new WebTorrent();
-    const countdownMessage = document.getElementById("countdown-message");
     const magnetUrlLink = document.getElementById("magnet-url-link");
+    const statusMessage = document.getElementById("status-message");
+    let currentMagnetIndex = 0;
+    let magnetUrls = [];
 
-    let countdownTime = 60;  // 60 seconds countdown
+    function fetchMagnetUrls() {
+        // Fetch the magnet URLs dynamically from the Flask server
+        fetch(`/magnet_url/${ethAddress}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.magnet_urls && data.magnet_urls.length > 0) {
+                    magnetUrls = data.magnet_urls;
+                    currentMagnetIndex = 0;  // Reset the index
+                    streamMagnetUrl(magnetUrls[currentMagnetIndex]);  // Start streaming the first magnet URL
+                } else {
+                    statusMessage.innerText = "No magnet URL available.";
+                    console.error("No magnet URL available.");
+                }
+            })
+            .catch(error => {
+                statusMessage.innerText = "Error fetching the magnet URL.";
+                console.error("Error fetching magnet URL:", error);
+            });
+    }
 
-    // Countdown timer before starting the stream
-    let countdownInterval = setInterval(function () {
-        countdownMessage.innerText = `Starting your stream in ${countdownTime} seconds...`;
-        countdownTime--;
+    function streamMagnetUrl(magnetUrl) {
+        if (magnetUrl) {
+            magnetUrlLink.innerText = magnetUrl;
+            magnetUrlLink.href = magnetUrl;
 
-        if (countdownTime <= 0) {
-            clearInterval(countdownInterval);  // Stop the countdown
-            countdownMessage.innerText = "Stream starting now...";
-
-            // Fetch the magnet URL dynamically from the Flask server
-            fetch(`/magnet_url/${ethAddress}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.magnet_urls && data.magnet_urls.length > 0) {
-                        const magnetUrl = data.magnet_urls[0];  // Get the first magnet URL
-                        magnetUrlLink.innerText = magnetUrl;
-                        magnetUrlLink.href = magnetUrl;
-
-                        // Start streaming the video using WebTorrent
-                        client.add(magnetUrl, function (torrent) {
-                            torrent.files.forEach(function (file) {
-                                if (file.name.endsWith('.mp4') || file.name.endsWith('.m3u8') || file.name.endsWith('.ts')) {
-                                    file.renderTo('video#streamPlayer', {
-                                        autoplay: true,
-                                        controls: true
-                                    });
-                                } else {
-                                    console.error('Unsupported file type:', file.name);
-                                }
-                            });
+            // Start streaming the video using WebTorrent
+            client.add(magnetUrl, function (torrent) {
+                torrent.files.forEach(function (file) {
+                    if (file.name.endsWith('.mp4') || file.name.endsWith('.m3u8') || file.name.endsWith('.ts')) {
+                        file.renderTo('video#streamPlayer', {
+                            autoplay: true,
+                            controls: true
                         });
+                        statusMessage.innerText = "Streaming...";
                     } else {
-                        countdownMessage.innerText = "Magnet URL not available.";
-                        console.error("No magnet URL available.");
+                        console.error('Unsupported file type:', file.name);
                     }
-                })
-                .catch(error => {
-                    countdownMessage.innerText = "Error fetching the magnet URL.";
-                    console.error("Error fetching magnet URL:", error);
                 });
+
+                // When the torrent finishes downloading, check for the next URL
+                torrent.on('done', function () {
+                    console.log("Torrent finished downloading.");
+
+                    // Check if there's another magnet URL to play
+                    currentMagnetIndex++;
+                    if (currentMagnetIndex < magnetUrls.length) {
+                        streamMagnetUrl(magnetUrls[currentMagnetIndex]);
+                    } else {
+                        statusMessage.innerText = "Fetching new magnet URLs...";
+                        fetchMagnetUrls();  // Fetch new URLs when the list is exhausted
+                    }
+                });
+            });
         }
-    }, 1000);  // Countdown in 1-second intervals
+    }
+
+    // Initial fetch of magnet URLs when the page loads
+    fetchMagnetUrls();
 </script>
 {% endblock %}
