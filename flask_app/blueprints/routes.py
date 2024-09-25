@@ -130,26 +130,60 @@ def user_profile(eth_address):
         magnet_url=live_stream(eth_address)
     )
 
-@app.route('/live/<stream_id>')
-def live_stream(stream_id):
-    """Serve the live stream page and start WebTorrent seeding."""
-    hls_path = f"/app/static/{stream_id}"  # Path to HLS segments
-    try:
+@app.route('/live/<eth_address>')
+def live_stream(eth_address):
+    """Serve the live stream page and manage HLS segments for the past 60 seconds."""
+    hls_dir = os.path.join("/app/static", eth_address)  # Directory to store HLS segments for the user
+    os.makedirs(hls_dir, exist_ok=True)  # Ensure the directory exists
 
-        # Start seeding in a separate thread
-        seed_thread = threading.Thread(target=seed_file, args=(hls_path,))
+    # Path to HLS segments (we'll assume segments are stored here as they come in)
+    hls_segments_path = os.path.join(hls_dir, "*.ts")  # This matches all .ts files (HLS segments)
+
+    def manage_hls_segments(directory, max_duration=60):
+        """Keep only the latest segments corresponding to the past 60 seconds."""
+        try:
+            segment_files = sorted([f for f in os.listdir(directory) if f.endswith(".ts")])
+            total_duration = 0
+            segments_to_keep = []
+
+            # Loop through segments from the last one backward to ensure we keep only the latest 60 seconds
+            for segment_file in reversed(segment_files):
+                # Estimate the duration of each segment (usually 6-10 seconds per segment)
+                segment_duration = 10  # Assuming each segment is 10 seconds long; adjust based on actual duration
+
+                if total_duration < max_duration:
+                    segments_to_keep.append(segment_file)
+                    total_duration += segment_duration
+                else:
+                    break
+
+            # Remove older segments that are not in the list to keep
+            for segment_file in segment_files:
+                if segment_file not in segments_to_keep:
+                    os.remove(os.path.join(directory, segment_file))
+
+        except Exception as e:
+            logging.error(f"Error managing HLS segments: {e}")
+
+    # Run segment management and seeding in a separate thread
+    try:
+        manage_thread = threading.Thread(target=manage_hls_segments, args=(hls_dir,))
+        manage_thread.start()
+
+        # Start seeding the HLS segments in a separate thread
+        seed_thread = threading.Thread(target=seed_file, args=(hls_segments_path,))
         seed_thread.start()
 
         # Poll the seeded_files dictionary until the magnet URL is available
         max_wait_time = 60  # Max wait time in seconds
         wait_time = 0
-        while hls_path not in seeded_files and wait_time < max_wait_time:
+        while hls_segments_path not in seeded_files and wait_time < max_wait_time:
             time.sleep(0.5)  # Sleep for 500ms
             wait_time += 0.5
             print("Waiting for magnet URL...", wait_time)
 
-        if hls_path in seeded_files:
-            magnet_url = seeded_files[hls_path]
+        if hls_segments_path in seeded_files:
+            magnet_url = seeded_files[hls_segments_path]
             logging.info(f"Magnet URL generated: {magnet_url}")
             return jsonify({"magnet_url": magnet_url}), 200
         else:
@@ -157,5 +191,5 @@ def live_stream(stream_id):
             return jsonify({"error": "Failed to generate magnet URL in time"}), 500
 
     except Exception as e:
-        logging.error(f"Error during file saving or torrent creation: {e}")
+        logging.error(f"Error managing HLS segments or creating torrent: {e}")
         return jsonify({"error": "Error creating torrent", "details": str(e)}), 500
