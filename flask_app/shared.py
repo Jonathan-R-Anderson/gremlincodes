@@ -1313,7 +1313,7 @@ class StreamSeed(threading.Thread):
         self.daemon = True  # Make the thread run as a daemon
         
     def check_file_exists(self):
-        """Check if the file exists."""
+        """Check if the file exists before proceeding."""
         while not os.path.exists(self.filename):
             logging.info(f"Waiting for file {self.filename} to appear...")
             time.sleep(1)  # Wait for the file to be written
@@ -1322,10 +1322,13 @@ class StreamSeed(threading.Thread):
 
     def seed_file(self):
         """Function to seed the file using the WebTorrent command and return the magnet URL."""
+        if self.eth_addr not in seeded_files:
+            seeded_files[self.eth_addr] = set()
+
         # Check if the file has already been seeded
-        if self.filename in seeded_files.keys():
+        if self.filename in seeded_files[self.eth_addr]:
             logging.info(f"{self.filename} is already being seeded for {self.eth_addr}.")
-            return next(iter(seeded_files.keys()))
+            return
 
         # Prepare the WebTorrent seed command
         cmd = f"webtorrent seed {self.filename} --keep-seeding"
@@ -1344,7 +1347,7 @@ class StreamSeed(threading.Thread):
                     logging.info(f"WebTorrent output: {output.strip()}")
                     if "Magnet:" in output:
                         self.magnet_url = output.split("Magnet: ")[1].strip()
-                        self.seeded_files[self.eth_addr].add(self.magnet_url)
+                        seeded_files[self.eth_addr].add(self.magnet_url)
                         logging.info(f"Magnet URL for {self.eth_addr}: {self.magnet_url}")
                         break
         
