@@ -168,7 +168,8 @@ def live_stream(eth_address):
 @app.route('/magnet_url/<eth_address>')
 def get_magnet_url(eth_address):
     """Get the latest magnet URL for the given user's stream."""
-    hls_dir = os.path.join(FILE_DIR, eth_address)
+    hls_dir = os.path.join(FILE_DIR, "hls")
+    hls_dir = os.path.join(hls_dir, eth_address)
     latest_file = None
     latest_magnet_url = None
 
