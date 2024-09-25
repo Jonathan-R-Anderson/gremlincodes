@@ -2,51 +2,52 @@
 
 {% block content %}
 <h1>User Profile</h1>
-
-<!-- Display Ethereum Address -->
 <h2>Ethereum Address: <span id="eth-address">{{ eth_address }}</span></h2>
 
-<!-- Video Player -->
+<!-- Display the Magnet URL -->
+<h3>Magnet URL: <a href="{{ magnet_url }}">{{ magnet_url }}</a></h3>
+
 <video id="streamPlayer" controls autoplay></video>
 
-<!-- Magnet URL Information -->
-<h3>Latest Magnet URL: <span id="magnet-url">Loading...</span></h3>
+<p id="countdown-message">Starting your stream in 60 seconds...</p>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
+
 <script>
     const ethAddress = "{{ eth_address }}";
+    const magnetUrl = "{{ magnet_url }}";
     const client = new WebTorrent();
-    let latestMagnetUrl = null;
+    const countdownMessage = document.getElementById("countdown-message");
 
-    // Function to fetch the latest magnet URL for the stream
-    function fetchMagnetUrl() {
-        fetch(`/magnet_url/${ethAddress}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.magnet_url && data.magnet_url !== latestMagnetUrl) {
-                    latestMagnetUrl = data.magnet_url;
-                    document.getElementById("magnet-url").textContent = latestMagnetUrl;
+    let countdownTime = 60;  // 60 seconds countdown
+    let countdownInterval = setInterval(function () {
+        countdownMessage.innerText = `Starting your stream in ${countdownTime} seconds...`;
+        countdownTime--;
 
-                    client.add(latestMagnetUrl, function (torrent) {
-                        torrent.files[0].renderTo('video#streamPlayer');
-                        console.log("Playing new stream with Magnet URL:", latestMagnetUrl);
+        if (countdownTime <= 0) {
+            clearInterval(countdownInterval);  // Stop the countdown
+            countdownMessage.innerText = "Stream starting now...";
+
+            // Start streaming the video after the delay
+            if (magnetUrl) {
+                client.add(magnetUrl, function (torrent) {
+                    torrent.files.forEach(function (file) {
+                        if (file.name.endsWith('.mp4') || file.name.endsWith('.m3u8') || file.name.endsWith('.ts')) {
+                            file.renderTo('video#streamPlayer', {
+                                autoplay: true,
+                                controls: true
+                            });
+                        } else {
+                            console.error('Unsupported file type:', file.name);
+                        }
                     });
-                }
-            })
-            .catch(error => {
-                console.error("Error fetching magnet URL:", error);
-            });
-    }
-
-    // Poll for new magnet URLs every 5 seconds
-    setInterval(fetchMagnetUrl, 5000);
-
-    // Initialize the Ethereum address on page load
-    window.onload = function () {
-        document.getElementById('eth-address').textContent = ethAddress;
-        fetchMagnetUrl();  // Fetch the initial magnet URL
-    };
+                });
+            } else {
+                console.error("Magnet URL not available.");
+            }
+        }
+    }, 1000);  // Countdown in 1-second intervals
 </script>
 {% endblock %}
