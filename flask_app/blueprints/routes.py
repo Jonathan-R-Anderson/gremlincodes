@@ -138,6 +138,11 @@ def live_stream(eth_address):
     """Serve the live stream page and continuously monitor and seed HLS segments."""
     hls_dir = os.path.join(FILE_DIR, "hls", eth_address)
     os.makedirs(hls_dir, exist_ok=True)
+
+    # Ensure the directory is writable
+    if not os.access(hls_dir, os.W_OK):
+        os.chmod(hls_dir, 0o777)
+
     # RTMP stream input URL and HLS output directory
     rtmp_stream_url = f"rtmp://gremlin.codes:1935/live/{eth_address}"
     hls_output_path = os.path.join(hls_dir, f"{eth_address}.m3u8")
@@ -147,7 +152,6 @@ def live_stream(eth_address):
         """Use FFmpeg to capture RTMP stream and convert to HLS."""
         try:
             logging.info(f"Starting FFmpeg to stream RTMP to HLS for {eth_address}...")
-            # Run FFmpeg to convert RTMP to HLS segments in the specified directory
             ffmpeg_cmd = [
                 "ffmpeg",
                 "-i", rtmp_stream_url,
@@ -159,21 +163,12 @@ def live_stream(eth_address):
                 "-hls_flags", "delete_segments",
                 hls_output_path
             ]
-
-            # Start FFmpeg process and capture stdout and stderr
             process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-            # Log FFmpeg output and errors
             for stdout_line in iter(process.stdout.readline, ""):
                 logging.info(stdout_line.strip())
-
             for stderr_line in iter(process.stderr.readline, ""):
                 logging.error(stderr_line.strip())
-
-            process.stdout.close()
-            process.stderr.close()
             process.wait()
-
         except Exception as e:
             logging.error(f"Error streaming RTMP to HLS: {e}")
 
@@ -181,36 +176,37 @@ def live_stream(eth_address):
     def monitor_hls_segments(directory):
         """Monitor the HLS directory for new .ts segments and seed them."""
         already_seeded = set()
-
         while True:
             try:
                 segment_files = sorted([f for f in os.listdir(directory) if f.endswith(".ts")])
 
-                # Seed only new files
                 for segment_file in segment_files:
                     if segment_file not in already_seeded:
                         file_path = os.path.join(directory, segment_file)
-                        seed_thread = threading.Thread(target=stream_set, args=(eth_address, file_path))
-                        seed_thread.start()
+
+                        # Start the seeding process using the StreamSeed class
+                        stream_seed = StreamSeed(eth_address, file_path, seeded_files)
+                        stream_seed.start()  # Start the thread
                         already_seeded.add(segment_file)
 
                 time.sleep(5)  # Check every 5 seconds for new segments
             except Exception as e:
                 logging.error(f"Error monitoring HLS segments: {e}")
                 break
+
     ffmpeg_thread = threading.Thread(target=stream_rtmp_to_hls, daemon=True)
     monitor_thread = threading.Thread(target=monitor_hls_segments, args=(hls_dir,), daemon=True)
 
+    # Check if the stream is already running for this RTMP URL
     if (rtmp_stream_url not in [x[0] for x in THREADS]):
-        # Start FFmpeg RTMP to HLS conversion in a separate thread
-        ffmpeg_thread.start()
-
-        # Start monitoring and seeding in a separate thread
-        monitor_thread.start()
+        ffmpeg_thread.start()  # Start FFmpeg RTMP to HLS conversion in a separate thread
+        monitor_thread.start()  # Start monitoring and seeding in a separate thread
         THREADS.append(tuple((rtmp_stream_url, ffmpeg_thread, monitor_thread)))
     else:
         logging.info(f"Already streaming {eth_address}")
-        
+
+    return render_template('profile.html', eth_address=eth_address)
+
 
 @app.route('/magnet_url/<eth_address>')
 def get_magnet_url(eth_address):
