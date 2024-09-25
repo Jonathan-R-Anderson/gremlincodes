@@ -134,10 +134,25 @@ def user_profile(eth_address):
 @app.route('/live/<eth_address>')
 def live_stream(eth_address):
     """Serve the live stream page and continuously monitor and seed HLS segments."""
-    hls_dir = os.path.join(FILE_DIR, "hls")
-    hls_dir = os.path.join(hls_dir, eth_address)
+    hls_dir = os.path.join(FILE_DIR, "hls", eth_address)
     os.makedirs(hls_dir, exist_ok=True)  # Ensure the directory exists
 
+    # RTMP stream input URL and HLS output directory
+    rtmp_stream_url = f"rtmp://your-server-address/live/{eth_address}"
+    hls_output_path = os.path.join(hls_dir, f"{eth_address}.m3u8")
+
+    # RTMP streaming configuration using FFmpeg
+    def stream_rtmp_to_hls():
+        """Use FFmpeg to capture RTMP stream and convert to HLS."""
+        try:
+            logging.info(f"Starting FFmpeg to stream RTMP to HLS for {eth_address}...")
+            # Run FFmpeg to convert RTMP to HLS segments in the specified directory
+            ffmpeg_cmd = f"ffmpeg -i {rtmp_stream_url} -c:v copy -c:a copy -f hls -hls_time 10 -hls_list_size 6 -hls_flags delete_segments {hls_output_path}"
+            os.system(ffmpeg_cmd)
+        except Exception as e:
+            logging.error(f"Error streaming RTMP to HLS: {e}")
+
+    # Monitor and seed HLS segments
     def monitor_hls_segments(directory):
         """Monitor the HLS directory for new .ts segments and seed them."""
         already_seeded = set()
@@ -159,12 +174,15 @@ def live_stream(eth_address):
                 logging.error(f"Error monitoring HLS segments: {e}")
                 break
 
+    # Start FFmpeg RTMP to HLS conversion in a separate thread
+    ffmpeg_thread = threading.Thread(target=stream_rtmp_to_hls)
+    ffmpeg_thread.start()
+
     # Start monitoring and seeding in a separate thread
     monitor_thread = threading.Thread(target=monitor_hls_segments, args=(hls_dir,))
     monitor_thread.start()
 
     return render_template('profile.html', eth_address=eth_address)
-
 
 @app.route('/magnet_url/<eth_address>')
 def get_magnet_url(eth_address):
