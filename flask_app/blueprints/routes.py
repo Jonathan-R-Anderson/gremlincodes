@@ -176,20 +176,19 @@ def live_stream(eth_address):
     # Monitor and seed HLS segments
     def monitor_hls_segments(directory):
         """Monitor the HLS directory for new .ts segments and seed them."""
-        already_seeded = set()
         while True:
             try:
-                segment_files = sorted([f for f in os.listdir(directory) if f.endswith(".ts")])
+                segment_files = sorted([f for f in os.listdir(directory) if f.endswith(".m3u8")])
 
                 for segment_file in segment_files:
-                    if segment_file not in already_seeded:
+                    if segment_file not in seeded_files.get(eth_address, ""):
                         file_path = os.path.join(directory, segment_file)
                         logging.info(f"Seeding segment: {file_path}")
                         # Start the seeding process using the StreamSeed class
                         stream_seed = StreamSeed(eth_address, file_path)
                         stream_seed.start()  # Start the thread
                         logging.info(f"Started seeding thread for segment: {file_path}")
-                        already_seeded.add(segment_file)
+                        seeded_files[eth_address].add(segment_file)
 
                 time.sleep(5)  # Check every 5 seconds for new segments
             except Exception as e:
