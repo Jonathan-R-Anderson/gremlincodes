@@ -133,7 +133,7 @@ def user_profile(eth_address):
 @app.route('/live/<eth_address>')
 def live_stream(eth_address):
     """Serve the live stream page and manage HLS segments for the past 60 seconds."""
-    hls_dir = os.path.join("/app/static", eth_address)  # Directory to store HLS segments for the user
+    hls_dir = os.path.join("/app/static/hls/", eth_address)  # Directory to store HLS segments for the user
     os.makedirs(hls_dir, exist_ok=True)  # Ensure the directory exists
 
     # Path to HLS segments (we'll assume segments are stored here as they come in)

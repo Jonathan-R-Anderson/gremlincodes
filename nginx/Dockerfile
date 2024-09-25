@@ -43,7 +43,7 @@ RUN mkdir -p /opt/mediamtx && \
     chmod +x mediamtx
 
 # Create directories for HLS
-RUN mkdir -p /var/www/hls
+RUN mkdir -p 
 
 # Copy the custom Nginx configuration file to the container
 COPY nginx.conf /etc/nginx/nginx.conf
