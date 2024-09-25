@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     libssl-dev \
     nodejs \
+    ffmpeg \
     npm \
     net-tools \
     procps \
