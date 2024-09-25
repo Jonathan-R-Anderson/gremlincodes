@@ -211,6 +211,6 @@ def live_stream(eth_address):
 def get_magnet_url(eth_address):
     """Get the latest magnet URL for the given user's stream."""
     if (any([True if sf.startswith(eth_address) else False for sf in seeded_files.keys()])):
-        return jsonify({"magnet_url": seeded_files}), 200
+        return jsonify({"magnet_url": seeded_files[eth_address]}), 200
     else:
         return jsonify({"error": "No magnet URL available"}), 404
