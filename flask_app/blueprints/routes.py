@@ -137,10 +137,9 @@ import subprocess
 def live_stream(eth_address):
     """Serve the live stream page and continuously monitor and seed HLS segments."""
     hls_dir = os.path.join(FILE_DIR, "hls", eth_address)
-    os.makedirs(hls_dir, exist_ok=True)  # Ensure the directory exists
 
     # RTMP stream input URL and HLS output directory
-    rtmp_stream_url = f"rtmp://gremlin.codes:1935/live/{eth_address}"
+    rtmp_stream_url = f"rtmp://127.0.0.1:1935/live/{eth_address}"
     hls_output_path = os.path.join(hls_dir, f"{eth_address}.m3u8")
 
     # RTMP streaming configuration using FFmpeg
@@ -201,13 +200,12 @@ def live_stream(eth_address):
                 break
 
     # Start FFmpeg RTMP to HLS conversion in a separate thread
-    ffmpeg_thread = threading.Thread(target=stream_rtmp_to_hls)
+    ffmpeg_thread = threading.Thread(target=stream_rtmp_to_hls, daemon=True)
     ffmpeg_thread.start()
 
     # Start monitoring and seeding in a separate thread
-    monitor_thread = threading.Thread(target=monitor_hls_segments, args=(hls_dir,))
+    monitor_thread = threading.Thread(target=monitor_hls_segments, args=(hls_dir,), daemon=True)
     monitor_thread.start()
-    ffmpeg_thread.join()
 
 @app.route('/magnet_url/<eth_address>')
 def get_magnet_url(eth_address):
