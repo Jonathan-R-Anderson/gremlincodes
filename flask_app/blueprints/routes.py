@@ -207,9 +207,7 @@ def live_stream(eth_address):
     # Start monitoring and seeding in a separate thread
     monitor_thread = threading.Thread(target=monitor_hls_segments, args=(hls_dir,))
     monitor_thread.start()
-
-    return render_template('profile.html', eth_address=eth_address)
-
+    ffmpeg_thread.join()
 
 @app.route('/magnet_url/<eth_address>')
 def get_magnet_url(eth_address):
