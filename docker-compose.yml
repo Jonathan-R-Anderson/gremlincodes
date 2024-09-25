@@ -7,7 +7,7 @@ services:
       - "443:443"
       - "80:80"
     volumes:
-      - ./static:/usr/share/nginx/html/static  # Shared volume for static files
+      - hls_data:/usr/share/nginx/html/static  # Shared volume for static files
     network_mode: host  # Use host network mode for Nginx as well
     depends_on:
       - flask_app
@@ -17,7 +17,7 @@ services:
   flask_app:
     build: ./flask_app
     volumes:
-      - ./static:/app/static  # Mount static folder to Flask
+      - hls_data:/app/static  # Mount static folder to Flask
     environment:
       - FLASK_ENV=development
     network_mode: host  # Host network for Flask
@@ -25,3 +25,8 @@ services:
       - "5000:5000"
     command: >
       bash -c "gunicorn --bind 127.0.0.1:5000 --timeout 120 --workers 9 --worker-class gevent app:app"
+
+
+volumes:
+  hls_data:
+    driver: local
