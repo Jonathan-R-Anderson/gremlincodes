@@ -123,9 +123,6 @@ def get_whitelist():
 def user_profile(eth_address):
     """Serve the user's profile page and provide the RTMP stream URL."""
     # Assuming the user is the profile owner; generate an RTMP URL
-    if (eth_address not in seeded_files.keys()):
-        seeded_files[eth_address] = set()
-        logging.info(f"Added {eth_address} to seeded_files")
     return render_template(
         'profile.html', 
         eth_address=eth_address, 
@@ -188,6 +185,8 @@ def live_stream(eth_address):
                         stream_seed = StreamSeed(eth_address, file_path)
                         stream_seed.start()  # Start the thread
                         logging.info(f"Started seeding thread for segment: {file_path}")
+                        if (seeded_files.get(eth_address, "") == ""):
+                            seeded_files[eth_address] = set()
                         seeded_files[eth_address].add(segment_file)
 
                 time.sleep(5)  # Check every 5 seconds for new segments
