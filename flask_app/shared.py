@@ -1300,6 +1300,73 @@ def seed_file(file_path):
         return None
 
 
+def stream_set(eth_addr, filename):
+    """Function to seed the file using the WebTorrent command and return the magnet URL without waiting for the process to exit."""
+    try:
+        # Ensure there's a set for this eth_addr in the seeded_files dictionary
+        if eth_addr not in seeded_files:
+            seeded_files[eth_addr] = set()
+
+        # Check if the magnet URL for this filename is already being seeded
+        if filename in seeded_files[eth_addr]:
+            logging.info(f"{filename} is already being seeded for {eth_addr}.")
+            # Return an existing magnet URL if it's already seeded
+            return next(iter(seeded_files[eth_addr]))
+
+        # Prepare tracker list for WebTorrent seed command
+        tracker_list = " ".join([f"--announce={tracker}" for tracker in TRACKER_URLS])
+
+        # WebTorrent seed command with trackers and keep-seeding
+        cmd = f"webtorrent seed /app/static/hls/{filename} {tracker_list} --keep-seeding"
+        logging.info(f"Running seeding command: {cmd}")
+
+        # Run the command in a subprocess
+        process = subprocess.Popen(
+            cmd,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        magnet_url = None
+
+        # Function to monitor the output of the WebTorrent process
+        def monitor_output():
+            nonlocal magnet_url
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+
+                if output:
+                    logging.info(f"WebTorrent output: {output.strip()}")
+                    if "Magnet:" in output:
+                        magnet_url = output.split("Magnet: ")[1].strip()
+                        seeded_files[eth_addr].add(magnet_url)  # Add magnet URL to the eth_addr's set
+                        logging.info(f"Magnet URL found for {eth_addr}: {magnet_url}")
+                        break  # Magnet URL found, exit the loop
+
+        # Start monitoring output in a separate thread
+        output_thread = threading.Thread(target=monitor_output)
+        output_thread.start()
+
+        # Wait for the magnet URL to be extracted
+        output_thread.join(timeout=30)  # Wait for up to 30 seconds for the magnet URL to appear
+
+        if magnet_url:
+            logging.info(f"Magnet URL returned for {eth_addr}: {magnet_url}")
+            return magnet_url
+        else:
+            logging.error(f"Failed to retrieve the magnet URL in time for {eth_addr}.")
+            return None
+
+    except Exception as e:
+        logging.error(f"Error while seeding file for {eth_addr}: {str(e)}")
+        return None
+
+
+
 def auto_seed_static_files():
     """Automatically seed all allowed files in the static directory."""
     for filename in os.listdir(FILE_DIR):

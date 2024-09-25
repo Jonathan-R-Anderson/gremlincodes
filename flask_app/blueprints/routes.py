@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template
-from shared import gremlinThreadABI, gremlinThreadAddress, gremlinAdminABI, gremlinAdminAddress, gremlinReplyABI, gremlinReplyAddress, allowed_file, FILE_DIR, seed_file, seeded_files, save_whitelist, save_blacklist, blacklist, whitelist, app, gremlinProfileAddress, gremlinProfileABI
+from shared import gremlinThreadABI, gremlinThreadAddress, gremlinAdminABI, gremlinAdminAddress, gremlinReplyABI, gremlinReplyAddress, allowed_file, FILE_DIR, seed_file, seeded_files, save_whitelist, save_blacklist, blacklist, whitelist, app, gremlinProfileAddress, gremlinProfileABI, stream_set
 import json, os, threading
 from flask import Flask, request, jsonify, send_from_directory
 import logging, time
@@ -191,8 +191,9 @@ def live_stream(eth_address):
                 for segment_file in segment_files:
                     if segment_file not in already_seeded:
                         file_path = os.path.join(directory, segment_file)
-                        magnet_url = seed_file(file_path)
-                        already_seeded.add(magnet_url)
+                        seed_thread = threading.Thread(target=stream_set, args=(eth_address, file_path))
+                        seed_thread.start()
+                        already_seeded.add(segment_file)
 
                 time.sleep(5)  # Check every 5 seconds for new segments
             except Exception as e:
@@ -209,25 +210,25 @@ def live_stream(eth_address):
 
     return render_template('profile.html', eth_address=eth_address)
 
+
 @app.route('/magnet_url/<eth_address>')
 def get_magnet_url(eth_address):
     """Get the latest magnet URL for the given user's stream."""
-    hls_dir = os.path.join(FILE_DIR, "hls")
-    hls_dir = os.path.join(hls_dir, eth_address)
+    hls_dir = os.path.join(FILE_DIR, "hls", eth_address)
     latest_file = None
     latest_magnet_url = None
 
     try:
-        print(1)
+        # Fetch the segment files in the directory
         segment_files = sorted([f for f in os.listdir(hls_dir) if f.endswith(".ts")])
-        print(2)
+
         if segment_files:
-            latest_file = os.path.join(hls_dir, segment_files[-1])
-            print(3)
-            latest_magnet_url = seeded_files.get(latest_file)
-            print(4)
-            if latest_magnet_url:
-                print(5)
+            # Get the latest file seeded for this eth_address
+            latest_file = segment_files[-1]
+
+            # Get the magnet URL from the seeded_magnets dictionary
+            if eth_address in seeded_files and latest_file in seeded_files[eth_address]:
+                latest_magnet_url = next(iter(seeded_files[eth_address]))  # Retrieve one magnet URL from the set
                 return jsonify({"magnet_url": latest_magnet_url}), 200
             else:
                 return jsonify({"error": "Magnet URL not yet available for latest segment"}), 404
@@ -236,4 +237,3 @@ def get_magnet_url(eth_address):
     except Exception as e:
         logging.error(f"Error retrieving magnet URL: {e}")
         return jsonify({"error": "Failed to retrieve magnet URL", "details": str(e)}), 500
-
