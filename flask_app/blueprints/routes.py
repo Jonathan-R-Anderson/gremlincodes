@@ -136,8 +136,8 @@ def live_stream(eth_address):
     hls_dir = os.path.join("/app/static/hls/", eth_address)  # Directory to store HLS segments for the user
     os.makedirs(hls_dir, exist_ok=True)  # Ensure the directory exists
 
-    # Path to HLS segments (we'll assume segments are stored here as they come in)
-    hls_segments_path = os.path.join(hls_dir, "*.ts")  # This matches all .ts files (HLS segments)
+    # Path to the directory containing HLS segments
+    hls_segments_dir = hls_dir
 
     def manage_hls_segments(directory, max_duration=60):
         """Keep only the latest segments corresponding to the past 60 seconds."""
@@ -170,20 +170,48 @@ def live_stream(eth_address):
         manage_thread = threading.Thread(target=manage_hls_segments, args=(hls_dir,))
         manage_thread.start()
 
-        # Start seeding the HLS segments in a separate thread
-        seed_thread = threading.Thread(target=seed_file, args=(hls_segments_path,))
+        # Start seeding the HLS directory in a separate thread (without wildcard)
+        def seed_hls_directory(directory):
+            try:
+                tracker_list = " ".join([f"--announce={tracker}" for tracker in ['wss://tracker.openwebtorrent.com']])
+                cmd = f"webtorrent seed '{directory}' {tracker_list} --keep-seeding"
+                logging.info(f"Running seeding command: {cmd}")
+
+                process = subprocess.Popen(
+                    cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                )
+
+                magnet_url = None
+
+                # Function to monitor the output of the WebTorrent process
+                def monitor_output():
+                    nonlocal magnet_url
+                    for line in process.stdout:
+                        logging.debug(f"WebTorrent output: {line.strip()}")
+                        if "Magnet:" in line:
+                            magnet_url = line.split("Magnet: ")[1].strip()
+                            seeded_files[directory] = magnet_url
+                            break
+
+                # Monitor the output
+                monitor_output()
+
+            except Exception as e:
+                logging.error(f"Error seeding HLS directory: {e}")
+
+        seed_thread = threading.Thread(target=seed_hls_directory, args=(hls_segments_dir,))
         seed_thread.start()
 
         # Poll the seeded_files dictionary until the magnet URL is available
         max_wait_time = 60  # Max wait time in seconds
         wait_time = 0
-        while hls_segments_path not in seeded_files and wait_time < max_wait_time:
+        while hls_segments_dir not in seeded_files and wait_time < max_wait_time:
             time.sleep(0.5)  # Sleep for 500ms
             wait_time += 0.5
-            print("Waiting for magnet URL...", wait_time)
+            logging.info(f"Waiting for magnet URL... {wait_time} seconds")
 
-        if hls_segments_path in seeded_files:
-            magnet_url = seeded_files[hls_segments_path]
+        if hls_segments_dir in seeded_files:
+            magnet_url = seeded_files[hls_segments_dir]
             logging.info(f"Magnet URL generated: {magnet_url}")
             return jsonify({"magnet_url": magnet_url}), 200
         else:
