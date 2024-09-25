@@ -134,7 +134,8 @@ def user_profile(eth_address):
 @app.route('/live/<eth_address>')
 def live_stream(eth_address):
     """Serve the live stream page and continuously monitor and seed HLS segments."""
-    hls_dir = os.path.join(FILE_DIR, eth_address)  # Directory for HLS segments
+    hls_dir = os.path.join(FILE_DIR, "hls")
+    hls_dir = os.path.join(hls_dir, eth_address)
     os.makedirs(hls_dir, exist_ok=True)  # Ensure the directory exists
 
     def monitor_hls_segments(directory):
