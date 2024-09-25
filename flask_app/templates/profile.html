@@ -5,7 +5,7 @@
 <h2>Ethereum Address: <span id="eth-address">{{ eth_address }}</span></h2>
 
 <!-- Display the Magnet URL -->
-<h3>Magnet URL: <a href="{{ magnet_url }}">{{ magnet_url }}</a></h3>
+<h3>Magnet URL: <a id="magnet-url-link" href="#"></a></h3>
 
 <video id="streamPlayer" controls autoplay></video>
 
@@ -17,11 +17,13 @@
 
 <script>
     const ethAddress = "{{ eth_address }}";
-    const magnetUrl = "{{ magnet_url }}";
     const client = new WebTorrent();
     const countdownMessage = document.getElementById("countdown-message");
+    const magnetUrlLink = document.getElementById("magnet-url-link");
 
     let countdownTime = 60;  // 60 seconds countdown
+
+    // Countdown timer before starting the stream
     let countdownInterval = setInterval(function () {
         countdownMessage.innerText = `Starting your stream in ${countdownTime} seconds...`;
         countdownTime--;
@@ -30,23 +32,37 @@
             clearInterval(countdownInterval);  // Stop the countdown
             countdownMessage.innerText = "Stream starting now...";
 
-            // Start streaming the video after the delay
-            if (magnetUrl) {
-                client.add(magnetUrl, function (torrent) {
-                    torrent.files.forEach(function (file) {
-                        if (file.name.endsWith('.mp4') || file.name.endsWith('.m3u8') || file.name.endsWith('.ts')) {
-                            file.renderTo('video#streamPlayer', {
-                                autoplay: true,
-                                controls: true
+            // Fetch the magnet URL dynamically from the Flask server
+            fetch(`/magnet_url/${ethAddress}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.magnet_urls && data.magnet_urls.length > 0) {
+                        const magnetUrl = data.magnet_urls[0];  // Get the first magnet URL
+                        magnetUrlLink.innerText = magnetUrl;
+                        magnetUrlLink.href = magnetUrl;
+
+                        // Start streaming the video using WebTorrent
+                        client.add(magnetUrl, function (torrent) {
+                            torrent.files.forEach(function (file) {
+                                if (file.name.endsWith('.mp4') || file.name.endsWith('.m3u8') || file.name.endsWith('.ts')) {
+                                    file.renderTo('video#streamPlayer', {
+                                        autoplay: true,
+                                        controls: true
+                                    });
+                                } else {
+                                    console.error('Unsupported file type:', file.name);
+                                }
                             });
-                        } else {
-                            console.error('Unsupported file type:', file.name);
-                        }
-                    });
+                        });
+                    } else {
+                        countdownMessage.innerText = "Magnet URL not available.";
+                        console.error("No magnet URL available.");
+                    }
+                })
+                .catch(error => {
+                    countdownMessage.innerText = "Error fetching the magnet URL.";
+                    console.error("Error fetching magnet URL:", error);
                 });
-            } else {
-                console.error("Magnet URL not available.");
-            }
         }
     }, 1000);  // Countdown in 1-second intervals
 </script>
