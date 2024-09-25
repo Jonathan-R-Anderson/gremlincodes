@@ -121,18 +121,7 @@ def get_whitelist():
 
 @app.route('/users/<eth_address>')
 def user_profile(eth_address):
-    """Serve the user's profile page and provide the RTMP stream URL."""
-    # Assuming the user is the profile owner; generate an RTMP URL
-    return render_template(
-        'profile.html', 
-        eth_address=eth_address, 
-        gremlinProfileAddress=gremlinProfileAddress, 
-        gremlinProfileABI=gremlinProfileABI, 
-        magnet_url=get_magnet_url(eth_address)
-    )
 
-@app.route('/live/<eth_address>')
-def live_stream(eth_address):
     """Serve the live stream page and continuously monitor and seed HLS segments."""
     hls_dir = os.path.join(FILE_DIR, "hls", eth_address)
     os.makedirs(hls_dir, exist_ok=True)
@@ -187,7 +176,6 @@ def live_stream(eth_address):
                         logging.info(f"Started seeding thread for segment: {file_path}")
                         if (seeded_files.get(eth_address, "") == ""):
                             seeded_files[eth_address] = set()
-                        seeded_files[eth_address].add(segment_file)
 
                 time.sleep(5)  # Check every 5 seconds for new segments
             except Exception as e:
@@ -202,11 +190,15 @@ def live_stream(eth_address):
         ffmpeg_thread.start()  # Start FFmpeg RTMP to HLS conversion in a separate thread
         monitor_thread.start()  # Start monitoring and seeding in a separate thread
         THREADS.append(tuple((rtmp_stream_url, ffmpeg_thread, monitor_thread)))
-        logging.info(f"Started streaming for {eth_address}")
-        return jsonify({"message": f"Streaming started for {eth_address}"}), 200
-    else:
-        logging.info(f"Already streaming {eth_address}")
-        return jsonify({"message": f"Already streaming {eth_address}"}), 200
+    """Serve the user's profile page and provide the RTMP stream URL."""
+    # Assuming the user is the profile owner; generate an RTMP URL
+    return render_template(
+        'profile.html', 
+        eth_address=eth_address, 
+        gremlinProfileAddress=gremlinProfileAddress, 
+        gremlinProfileABI=gremlinProfileABI, 
+        magnet_url=get_magnet_url(eth_address)
+    )
     
 @app.route('/magnet_url/<eth_address>')
 def get_magnet_url(eth_address):
