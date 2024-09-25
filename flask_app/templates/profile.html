@@ -1,53 +1,52 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Live Stream</h1>
-<script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
+<h1>User Profile</h1>
 
-<!-- Embed Magnet URL and Video Player -->
-<h3>Magnet URL for Seeding: <a href="{{ magnet_url }}">{{ magnet_url }}</a></h3>
+<!-- Display Ethereum Address -->
+<h2>Ethereum Address: <span id="eth-address">{{ eth_address }}</span></h2>
 
+<!-- Video Player -->
 <video id="streamPlayer" controls autoplay></video>
+
+<!-- Magnet URL Information -->
+<h3>Latest Magnet URL: <span id="magnet-url">Loading...</span></h3>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
 <script>
-    const magnetUrl = "{{ magnet_url }}";
+    const ethAddress = "{{ eth_address }}";
     const client = new WebTorrent();
+    let latestMagnetUrl = null;
 
-    console.log("Starting WebTorrent client...");
-    console.log("Magnet URL received:", magnetUrl);
+    // Function to fetch the latest magnet URL for the stream
+    function fetchMagnetUrl() {
+        fetch(`/magnet_url/${ethAddress}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.magnet_url && data.magnet_url !== latestMagnetUrl) {
+                    latestMagnetUrl = data.magnet_url;
+                    document.getElementById("magnet-url").textContent = latestMagnetUrl;
 
-    // Play the stream using WebTorrent
-    if (magnetUrl) {
-        
-        // Add torrent using the magnet URL
-        client.add(magnetUrl, function (torrent) {
-            console.log("Torrent added:", torrent.infoHash);
-            
-            // Log details of the torrent's files
-            torrent.files.forEach(function (file) {
-                console.log("File in torrent:", file.name);
+                    client.add(latestMagnetUrl, function (torrent) {
+                        torrent.files[0].renderTo('video#streamPlayer');
+                        console.log("Playing new stream with Magnet URL:", latestMagnetUrl);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching magnet URL:", error);
             });
-
-            // Render video to the stream player and log
-            torrent.files[0].renderTo('video#streamPlayer');
-            console.log("Video rendering started...");
-
-            // Listen for when pieces of the file are downloaded
-            torrent.on('download', function (bytes) {
-                console.log("Downloaded", bytes, "bytes for", torrent.infoHash);
-                console.log("Progress:", (torrent.progress * 100).toFixed(2) + "%");
-            });
-
-            // Listen for when the torrent has finished downloading
-            torrent.on('done', function () {
-                console.log("Torrent download complete for:", torrent.infoHash);
-            });
-        });
-    } else {
-        console.error("Magnet URL not available.");
-        alert("Magnet URL not available.");
     }
+
+    // Poll for new magnet URLs every 5 seconds
+    setInterval(fetchMagnetUrl, 5000);
+
+    // Initialize the Ethereum address on page load
+    window.onload = function () {
+        document.getElementById('eth-address').textContent = ethAddress;
+        fetchMagnetUrl();  // Fetch the initial magnet URL
+    };
 </script>
 {% endblock %}

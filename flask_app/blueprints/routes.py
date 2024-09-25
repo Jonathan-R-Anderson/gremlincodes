@@ -133,92 +133,57 @@ def user_profile(eth_address):
 
 @app.route('/live/<eth_address>')
 def live_stream(eth_address):
-    """Serve the live stream page and manage HLS segments for the past 60 seconds."""
-    hls_dir = os.path.join("/app/static/hls/", eth_address)  # Directory to store HLS segments for the user
+    """Serve the live stream page and continuously monitor and seed HLS segments."""
+    hls_dir = os.path.join(FILE_DIR, eth_address)  # Directory for HLS segments
     os.makedirs(hls_dir, exist_ok=True)  # Ensure the directory exists
 
-    # Path to the directory containing HLS segments
-    hls_segments_dir = hls_dir
+    def monitor_hls_segments(directory):
+        """Monitor the HLS directory for new .ts segments and seed them."""
+        already_seeded = set()
 
-    def manage_hls_segments(directory, max_duration=60):
-        """Keep only the latest segments corresponding to the past 60 seconds."""
-        try:
-            segment_files = sorted([f for f in os.listdir(directory) if f.endswith(".ts")])
-            total_duration = 0
-            segments_to_keep = []
-
-            # Loop through segments from the last one backward to ensure we keep only the latest 60 seconds
-            for segment_file in reversed(segment_files):
-                # Estimate the duration of each segment (usually 6-10 seconds per segment)
-                segment_duration = 10  # Assuming each segment is 10 seconds long; adjust based on actual duration
-
-                if total_duration < max_duration:
-                    segments_to_keep.append(segment_file)
-                    total_duration += segment_duration
-                else:
-                    break
-
-            # Remove older segments that are not in the list to keep
-            for segment_file in segment_files:
-                if segment_file not in segments_to_keep:
-                    os.remove(os.path.join(directory, segment_file))
-
-        except Exception as e:
-            logging.error(f"Error managing HLS segments: {e}")
-
-    # Run segment management and seeding in a separate thread
-    try:
-        manage_thread = threading.Thread(target=manage_hls_segments, args=(hls_dir,))
-        manage_thread.start()
-
-        # Start seeding the HLS directory in a separate thread (without wildcard)
-        def seed_hls_directory(directory):
+        while True:
             try:
-                tracker_list = " ".join([f"--announce={tracker}" for tracker in ['wss://tracker.openwebtorrent.com']])
-                cmd = f"webtorrent seed '{directory}' {tracker_list} --keep-seeding"
-                logging.info(f"Running seeding command: {cmd}")
+                segment_files = sorted([f for f in os.listdir(directory) if f.endswith(".ts")])
 
-                process = subprocess.Popen(
-                    cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-                )
+                # Seed only new files
+                for segment_file in segment_files:
+                    if segment_file not in already_seeded:
+                        file_path = os.path.join(directory, segment_file)
+                        seed_thread = threading.Thread(target=seed_file, args=(file_path,))
+                        seed_thread.start()
+                        already_seeded.add(segment_file)
 
-                magnet_url = None
-
-                # Function to monitor the output of the WebTorrent process
-                def monitor_output():
-                    nonlocal magnet_url
-                    for line in process.stdout:
-                        logging.debug(f"WebTorrent output: {line.strip()}")
-                        if "Magnet:" in line:
-                            magnet_url = line.split("Magnet: ")[1].strip()
-                            seeded_files[directory] = magnet_url
-                            break
-
-                # Monitor the output
-                monitor_output()
-
+                time.sleep(5)  # Check every 5 seconds for new segments
             except Exception as e:
-                logging.error(f"Error seeding HLS directory: {e}")
+                logging.error(f"Error monitoring HLS segments: {e}")
+                break
 
-        seed_thread = threading.Thread(target=seed_hls_directory, args=(hls_segments_dir,))
-        seed_thread.start()
+    # Start monitoring and seeding in a separate thread
+    monitor_thread = threading.Thread(target=monitor_hls_segments, args=(hls_dir,))
+    monitor_thread.start()
 
-        # Poll the seeded_files dictionary until the magnet URL is available
-        max_wait_time = 60  # Max wait time in seconds
-        wait_time = 0
-        while hls_segments_dir not in seeded_files and wait_time < max_wait_time:
-            time.sleep(0.5)  # Sleep for 500ms
-            wait_time += 0.5
-            logging.info(f"Waiting for magnet URL... {wait_time} seconds")
+    return render_template('profile.html', eth_address=eth_address)
 
-        if hls_segments_dir in seeded_files:
-            magnet_url = seeded_files[hls_segments_dir]
-            logging.info(f"Magnet URL generated: {magnet_url}")
-            return jsonify({"magnet_url": magnet_url}), 200
+
+@app.route('/magnet_url/<eth_address>')
+def get_magnet_url(eth_address):
+    """Get the latest magnet URL for the given user's stream."""
+    hls_dir = os.path.join(FILE_DIR, eth_address)
+    latest_file = None
+    latest_magnet_url = None
+
+    try:
+        segment_files = sorted([f for f in os.listdir(hls_dir) if f.endswith(".ts")])
+        if segment_files:
+            latest_file = os.path.join(hls_dir, segment_files[-1])
+            latest_magnet_url = seeded_files.get(latest_file)
+            if latest_magnet_url:
+                return jsonify({"magnet_url": latest_magnet_url}), 200
+            else:
+                return jsonify({"error": "Magnet URL not yet available for latest segment"}), 404
         else:
-            logging.error('Failed to generate magnet URL in time')
-            return jsonify({"error": "Failed to generate magnet URL in time"}), 500
-
+            return jsonify({"error": "No segments found"}), 404
     except Exception as e:
-        logging.error(f"Error managing HLS segments or creating torrent: {e}")
-        return jsonify({"error": "Error creating torrent", "details": str(e)}), 500
+        logging.error(f"Error retrieving magnet URL: {e}")
+        return jsonify({"error": "Failed to retrieve magnet URL", "details": str(e)}), 500
+

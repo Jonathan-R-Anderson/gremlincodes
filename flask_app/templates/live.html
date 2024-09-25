@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Stream</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        h1 {
+            background-color: #333;
+            color: white;
+            padding: 10px 0;
+        }
+        video {
+            width: 80%;
+            height: auto;
+            margin: 20px auto;
+            display: block;
+        }
+        #streamInfo {
+            font-size: 1.2rem;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Live Stream</h1>
+
+    <!-- Display the Ethereum Address -->
+    <div id="streamInfo">
+        <h3>Streaming from: <span id="eth-address">{{ eth_address }}</span></h3>
+    </div>
+
+    <!-- Video Player -->
+    <video id="streamPlayer" controls autoplay>
+        <source src="" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+
+    <div id="magnetUrlDisplay">
+        <h3>Latest Magnet URL: <span id="magnet-url"></span></h3>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+
+    <script>
+        const ethAddress = "{{ eth_address }}";
+        const client = new WebTorrent();
+        let latestMagnetUrl = null;
+
+        // Function to fetch the latest magnet URL from the server
+        function fetchMagnetUrl() {
+            fetch(`/magnet_url/${ethAddress}`)
+                .then(response => response.json())
+                .then(data => {
+                    // If a new magnet URL is available, update the video stream
+                    if (data.magnet_url && data.magnet_url !== latestMagnetUrl) {
+                        latestMagnetUrl = data.magnet_url;
+                        document.getElementById("magnet-url").textContent = latestMagnetUrl;
+
+                        client.add(latestMagnetUrl, function (torrent) {
+                            // Render the video file to the video element
+                            torrent.files[0].renderTo('video#streamPlayer');
+                        });
+
+                        console.log("New Magnet URL:", latestMagnetUrl);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching magnet URL:", error);
+                });
+        }
+
+        // Poll for new magnet URLs every 5 seconds
+        setInterval(fetchMagnetUrl, 5000);
+
+        // On page load, set the Ethereum address
+        window.onload = function() {
+            document.getElementById('eth-address').textContent = ethAddress;
+        };
+    </script>
+
+</body>
+</html>
