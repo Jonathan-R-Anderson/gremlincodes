@@ -140,7 +140,7 @@ def live_stream(eth_address):
     os.makedirs(hls_dir, exist_ok=True)  # Ensure the directory exists
 
     # RTMP stream input URL and HLS output directory
-    rtmp_stream_url = f"rtmp://gremlin.codes:1935/live/{eth_address}/test"
+    rtmp_stream_url = f"rtmp://gremlin.codes:1935/live/{eth_address}"
     hls_output_path = os.path.join(hls_dir, f"{eth_address}.m3u8")
 
     # RTMP streaming configuration using FFmpeg
@@ -191,9 +191,8 @@ def live_stream(eth_address):
                 for segment_file in segment_files:
                     if segment_file not in already_seeded:
                         file_path = os.path.join(directory, segment_file)
-                        seed_thread = threading.Thread(target=seed_file, args=(file_path,))
-                        seed_thread.start()
-                        already_seeded.add(segment_file)
+                        magnet_url = seed_file(file_path)
+                        already_seeded.add(magnet_url)
 
                 time.sleep(5)  # Check every 5 seconds for new segments
             except Exception as e:
