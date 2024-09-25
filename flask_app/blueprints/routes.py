@@ -214,4 +214,5 @@ def get_magnet_url(eth_address):
         return seeded_files
         #return jsonify({"magnet_url": latest_magnet_url}), 200
     else:
-        return jsonify({"error": "No segments found"}), 404
+        return seeded_files
+        #return jsonify({"error": "No segments found"}), 404
