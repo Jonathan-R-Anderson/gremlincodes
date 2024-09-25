@@ -137,7 +137,7 @@ import subprocess
 def live_stream(eth_address):
     """Serve the live stream page and continuously monitor and seed HLS segments."""
     hls_dir = os.path.join(FILE_DIR, "hls", eth_address)
-
+    os.makedirs(hls_dir, exist_ok=True)
     # RTMP stream input URL and HLS output directory
     rtmp_stream_url = f"rtmp://127.0.0.1:1935/live/{eth_address}"
     hls_output_path = os.path.join(hls_dir, f"{eth_address}.m3u8")
